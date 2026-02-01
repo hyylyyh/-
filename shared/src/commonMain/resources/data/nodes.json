@@ -33,7 +33,7 @@
       "id": "st1_hidden",
       "type": "TRAP",
       "neighbors": ["st1_n4"],
-      "eventId": "ch1_trap_chest",
+      "eventId": "ch1_hidden_cache",
       "conditions": []
     },
     {
@@ -82,7 +82,7 @@
       "id": "st2_hidden",
       "type": "TRAP",
       "neighbors": ["st2_n4"],
-      "eventId": "ch2_trap_house",
+      "eventId": "ch2_hidden_cache",
       "conditions": []
     },
     {
@@ -110,7 +110,7 @@
       "id": "st3_hidden",
       "type": "EVENT",
       "neighbors": ["st3_n2"],
-      "eventId": "ch3_hidden_path",
+      "eventId": "ch3_hidden_cache",
       "conditions": []
     },
     {

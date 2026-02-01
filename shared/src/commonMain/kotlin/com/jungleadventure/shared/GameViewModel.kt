@@ -263,7 +263,12 @@ class GameViewModel(
         val stageLog = if (shouldRestartStage) {
             "进入关卡：${nextRuntime.stage.name}"
         } else {
-            "移动到节点：${node?.id ?: nextRuntime.currentNodeId}"
+            val nodeId = node?.id ?: nextRuntime.currentNodeId
+            if (nodeId.contains("hidden", ignoreCase = true)) {
+                "发现隐藏路径：$nodeId"
+            } else {
+                "移动到节点：$nodeId"
+            }
         }
 
         GameLogger.info(
