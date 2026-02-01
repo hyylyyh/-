@@ -202,13 +202,16 @@ private fun RoleSelectionPanel(state: GameUiState, onSelectRole: (String) -> Uni
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(360.dp),
+                        .heightIn(min = 360.dp, max = 520.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(state.roles) { role ->
+                    items(state.roles, key = { it.id }) { role ->
                         val isSelected = role.id == selectedRole?.id
                         RoleCard(role = role, isSelected = isSelected, onSelectRole = onSelectRole)
                     }
+                }
+                if (state.roles.size > 4) {
+                    Text(text = "角色列表可滚动查看更多", color = Color(0xFF7B756B))
                 }
             }
             Column(
