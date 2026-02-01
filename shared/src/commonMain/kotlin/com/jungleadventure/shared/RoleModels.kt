@@ -15,6 +15,7 @@ data class CharacterDefinition(
     val starting: Boolean = false,
     val unlock: String = "",
     val stats: CharacterStats,
+    val growth: GrowthProfile? = null,
     val passiveSkillId: String,
     val activeSkillIds: List<String> = emptyList()
 )
@@ -26,6 +27,15 @@ data class CharacterStats(
     val def: Int,
     val speed: Int,
     val perception: Int
+)
+
+@Serializable
+data class GrowthProfile(
+    val hpMax: Int,
+    val mpMax: Int,
+    val atk: Int,
+    val def: Int,
+    val speed: Int
 )
 
 @Serializable
@@ -58,6 +68,7 @@ data class RoleProfile(
     val name: String,
     val role: String,
     val stats: CharacterStats,
+    val growth: GrowthProfile,
     val passiveSkill: RoleSkill,
     val activeSkill: RoleSkill,
     val starting: Boolean,
@@ -79,6 +90,7 @@ fun defaultRoles(): List<RoleProfile> = listOf(
         name = "探险者",
         role = "探索/侦察",
         stats = CharacterStats(hp = 120, atk = 22, def = 14, speed = 18, perception = 28),
+        growth = defaultGrowthProfile(),
         passiveSkill = RoleSkill(
             name = "发现遗迹",
             type = "PASSIVE",
@@ -98,3 +110,13 @@ fun defaultRoles(): List<RoleProfile> = listOf(
         unlocked = true
     )
 )
+
+fun defaultGrowthProfile(): GrowthProfile {
+    return GrowthProfile(
+        hpMax = 12,
+        mpMax = 4,
+        atk = 3,
+        def = 2,
+        speed = 1
+    )
+}

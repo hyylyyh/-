@@ -6,14 +6,21 @@
       "role": "探索/侦察",
       "starting": true,
       "unlock": "初始可选",
-      "stats": {
-        "hp": 120,
-        "atk": 22,
-        "def": 14,
-        "speed": 18,
-        "perception": 28
-      },
-      "passiveSkillId": "sk_pass_discover_ruins",
+      "stats": {
+        "hp": 120,
+        "atk": 22,
+        "def": 14,
+        "speed": 18,
+        "perception": 28
+      },
+      "growth": {
+        "hpMax": 12,
+        "mpMax": 4,
+        "atk": 3,
+        "def": 2,
+        "speed": 1
+      },
+      "passiveSkillId": "sk_pass_discover_ruins",
       "activeSkillIds": [
         "sk_act_scout"
       ]
@@ -24,14 +31,21 @@
       "role": "爆发/控制",
       "starting": true,
       "unlock": "初始可选",
-      "stats": {
-        "hp": 110,
-        "atk": 26,
-        "def": 12,
-        "speed": 24,
-        "perception": 20
-      },
-      "passiveSkillId": "sk_pass_mark_weakness",
+      "stats": {
+        "hp": 110,
+        "atk": 26,
+        "def": 12,
+        "speed": 24,
+        "perception": 20
+      },
+      "growth": {
+        "hpMax": 10,
+        "mpMax": 3,
+        "atk": 4,
+        "def": 1,
+        "speed": 2
+      },
+      "passiveSkillId": "sk_pass_mark_weakness",
       "activeSkillIds": [
         "sk_act_trap_bind"
       ]
@@ -42,14 +56,21 @@
       "role": "治疗/净化",
       "starting": true,
       "unlock": "初始可选",
-      "stats": {
-        "hp": 130,
-        "atk": 18,
-        "def": 16,
-        "speed": 16,
-        "perception": 22
-      },
-      "passiveSkillId": "sk_pass_oracle_guard",
+      "stats": {
+        "hp": 130,
+        "atk": 18,
+        "def": 16,
+        "speed": 16,
+        "perception": 22
+      },
+      "growth": {
+        "hpMax": 13,
+        "mpMax": 6,
+        "atk": 2,
+        "def": 3,
+        "speed": 1
+      },
+      "passiveSkillId": "sk_pass_oracle_guard",
       "activeSkillIds": [
         "sk_act_purify"
       ]
@@ -60,14 +81,21 @@
       "role": "资源/解谜",
       "starting": false,
       "unlock": "",
-      "stats": {
-        "hp": 140,
-        "atk": 20,
-        "def": 20,
-        "speed": 12,
-        "perception": 18
-      },
-      "passiveSkillId": "sk_pass_salvage_plus",
+      "stats": {
+        "hp": 140,
+        "atk": 20,
+        "def": 20,
+        "speed": 12,
+        "perception": 18
+      },
+      "growth": {
+        "hpMax": 14,
+        "mpMax": 3,
+        "atk": 2,
+        "def": 3,
+        "speed": 0
+      },
+      "passiveSkillId": "sk_pass_salvage_plus",
       "activeSkillIds": [
         "sk_act_mech_break"
       ]
@@ -78,14 +106,21 @@
       "role": "机动/收益",
       "starting": false,
       "unlock": "",
-      "stats": {
-        "hp": 105,
-        "atk": 23,
-        "def": 10,
-        "speed": 30,
-        "perception": 24
-      },
-      "passiveSkillId": "sk_pass_stealth",
+      "stats": {
+        "hp": 105,
+        "atk": 23,
+        "def": 10,
+        "speed": 30,
+        "perception": 24
+      },
+      "growth": {
+        "hpMax": 10,
+        "mpMax": 4,
+        "atk": 3,
+        "def": 1,
+        "speed": 2
+      },
+      "passiveSkillId": "sk_pass_stealth",
       "activeSkillIds": [
         "sk_act_quick_open"
       ]
@@ -96,14 +131,21 @@
       "role": "坦度/稳定",
       "starting": false,
       "unlock": "",
-      "stats": {
-        "hp": 160,
-        "atk": 24,
-        "def": 22,
-        "speed": 14,
-        "perception": 14
-      },
-      "passiveSkillId": "sk_pass_hardening",
+      "stats": {
+        "hp": 160,
+        "atk": 24,
+        "def": 22,
+        "speed": 14,
+        "perception": 14
+      },
+      "growth": {
+        "hpMax": 16,
+        "mpMax": 3,
+        "atk": 3,
+        "def": 3,
+        "speed": 0
+      },
+      "passiveSkillId": "sk_pass_hardening",
       "activeSkillIds": [
         "sk_act_wallbreak"
       ]
