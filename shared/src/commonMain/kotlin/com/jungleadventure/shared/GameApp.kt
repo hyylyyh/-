@@ -278,10 +278,10 @@ private fun RoleCard(
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                RoleStat(label = "HP", value = role.stats.hp)
-                RoleStat(label = "ATK", value = role.stats.atk)
-                RoleStat(label = "DEF", value = role.stats.def)
-                RoleStat(label = "SPD", value = role.stats.speed)
+                RoleStat(label = "生命", value = role.stats.hp)
+                RoleStat(label = "攻击", value = role.stats.atk)
+                RoleStat(label = "防御", value = role.stats.def)
+                RoleStat(label = "速度", value = role.stats.speed)
             }
             if (!role.unlocked && role.unlock.isNotBlank()) {
                 Text(text = "解锁条件：${role.unlock}", color = Color(0xFFD6B36A))
@@ -336,11 +336,11 @@ private fun RoleDetailPanel(
         Divider()
         Text(text = "基础属性", fontWeight = FontWeight.SemiBold)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            RoleStat(label = "HP", value = selectedRole.stats.hp)
-            RoleStat(label = "ATK", value = selectedRole.stats.atk)
-            RoleStat(label = "DEF", value = selectedRole.stats.def)
-            RoleStat(label = "SPD", value = selectedRole.stats.speed)
-            RoleStat(label = "PER", value = selectedRole.stats.perception)
+            RoleStat(label = "生命", value = selectedRole.stats.hp)
+            RoleStat(label = "攻击", value = selectedRole.stats.atk)
+            RoleStat(label = "防御", value = selectedRole.stats.def)
+            RoleStat(label = "速度", value = selectedRole.stats.speed)
+            RoleStat(label = "感知", value = selectedRole.stats.perception)
         }
 
         Divider()
@@ -459,9 +459,9 @@ private fun SidePanel(
 private fun StatusPanel(player: PlayerStats) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text("${player.name}  Lv.${player.level}")
-        Text("HP ${player.hp}/${player.hpMax}")
-        Text("MP ${player.mp}/${player.mpMax}")
-        Text("ATK ${player.atk}  DEF ${player.def}")
+        Text("生命 ${player.hp}/${player.hpMax}")
+        Text("能量 ${player.mp}/${player.mpMax}")
+        Text("攻击 ${player.atk}  防御 ${player.def}")
         Text("速度 ${player.speed}")
         Spacer(modifier = Modifier.height(4.dp))
         Row {
