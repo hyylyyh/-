@@ -59,7 +59,7 @@
       "name": "工匠",
       "role": "资源/解谜",
       "starting": false,
-      "unlock": "完成第2章事件“商店开张”后解锁",
+      "unlock": "",
       "stats": {
         "hp": 140,
         "atk": 20,
@@ -77,7 +77,7 @@
       "name": "盗贼",
       "role": "机动/收益",
       "starting": false,
-      "unlock": "累计开启10次宝箱后解锁",
+      "unlock": "",
       "stats": {
         "hp": 105,
         "atk": 23,
@@ -95,7 +95,7 @@
       "name": "战士",
       "role": "坦度/稳定",
       "starting": false,
-      "unlock": "通关第1章后解锁",
+      "unlock": "",
       "stats": {
         "hp": 160,
         "atk": 24,
@@ -554,3 +554,4 @@
     }
   ]
 }
+
