@@ -255,6 +255,13 @@ class TurnBasedCombatEngine(private val rng: Random) {
         logs += mainLog
         GameLogger.info("战斗", mainLog)
 
+        val damageLog = when (attacker.type) {
+            CombatActorType.PLAYER -> "你对${target.name}造成${finalDamage}点伤害"
+            CombatActorType.ENEMY -> "${attacker.name}对你造成${finalDamage}点伤害"
+        }
+        logs += damageLog
+        GameLogger.info("战斗", damageLog)
+
         return ActionResult(
             player = if (attacker.type == CombatActorType.PLAYER) attacker else nextTarget,
             enemy = if (attacker.type == CombatActorType.ENEMY) attacker else nextTarget,

@@ -170,6 +170,13 @@ class CombatEngine(private val rng: Random) {
         logs += mainLog
         GameLogger.log("战斗", mainLog)
 
+        val damageLog = when (attacker.type) {
+            CombatActorType.PLAYER -> "你对${target.name}造成${finalDamage}点伤害"
+            CombatActorType.ENEMY -> "${attacker.name}对你造成${finalDamage}点伤害"
+        }
+        logs += damageLog
+        GameLogger.log("战斗", damageLog)
+
         if (isCrit && rng.nextDouble() < 0.3) {
             val bleed = StatusInstance(type = StatusType.BLEED, remainingTurns = 2, stacks = 1, potency = 0.04, sourceId = attacker.id)
             nextTarget = addStatus(nextTarget, bleed)
