@@ -462,6 +462,16 @@ private fun RoleDetailPanel(
         }
 
         Divider()
+        Text(text = "成长（每级）", fontWeight = FontWeight.SemiBold)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            RoleStat(label = "生命", value = selectedRole.growth.hpMax)
+            RoleStat(label = "能量", value = selectedRole.growth.mpMax)
+            RoleStat(label = "攻击", value = selectedRole.growth.atk)
+            RoleStat(label = "防御", value = selectedRole.growth.def)
+            RoleStat(label = "速度", value = selectedRole.growth.speed)
+        }
+
+        Divider()
         Text(text = "技能组合", fontWeight = FontWeight.SemiBold)
         Text(text = "被动：${selectedRole.passiveSkill.name}")
         Text(text = selectedRole.passiveSkill.description, color = Color(0xFFB8B2A6))
