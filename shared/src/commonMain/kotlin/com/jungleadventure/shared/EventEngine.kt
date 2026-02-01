@@ -47,13 +47,23 @@ class EventEngine(private val events: List<EventDefinition>) {
     private fun filterByNodeType(chapter: Int, nodeType: String): List<EventDefinition> {
         val normalized = nodeType.uppercase()
         val predicate: (EventDefinition) -> Boolean = when (normalized) {
-            "BATTLE" -> { event -> event.type.contains("battle", ignoreCase = true) }
-            "TRAP" -> { event -> event.type.contains("trap", ignoreCase = true) }
-            "SHOP" -> { event -> event.type.contains("shop", ignoreCase = true) }
-            "REST" -> { event -> event.type.contains("rest", ignoreCase = true) }
+            "BATTLE" -> { event ->
+                event.type.contains("battle", ignoreCase = true) || event.type.contains("战斗")
+            }
+            "TRAP" -> { event ->
+                event.type.contains("trap", ignoreCase = true) || event.type.contains("陷阱")
+            }
+            "SHOP" -> { event ->
+                event.type.contains("shop", ignoreCase = true) || event.type.contains("商店")
+            }
+            "REST" -> { event ->
+                event.type.contains("rest", ignoreCase = true) || event.type.contains("休息")
+            }
             "STORY" -> { event ->
                 event.type.contains("story", ignoreCase = true) ||
-                    event.type.contains("dialog", ignoreCase = true)
+                    event.type.contains("dialog", ignoreCase = true) ||
+                    event.type.contains("剧情") ||
+                    event.type.contains("对话")
             }
             else -> { _ -> true }
         }

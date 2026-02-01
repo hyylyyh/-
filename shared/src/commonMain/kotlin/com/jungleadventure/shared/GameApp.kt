@@ -147,12 +147,18 @@ private fun MainPanel(
                     Text(state.currentEvent.title, fontWeight = FontWeight.SemiBold)
                     Text("类型 ${state.currentEvent.type}  难度 ${state.currentEvent.difficulty}")
                     if (state.stage.id.isNotBlank()) {
-                        Text("节点 ${state.stage.nodeId}  类型 ${state.stage.nodeType}")
+                        Text("节点 ${state.stage.nodeId}  类型 ${nodeTypeLabel(state.stage.nodeType)}")
                         if (state.stage.guardian.isNotBlank()) {
                             Text("守卫：${state.stage.guardian}", color = Color(0xFFE8C07D))
                         }
                     }
                     Spacer(modifier = Modifier.height(6.dp))
+                    state.battle?.let { battle ->
+                        Text("战斗回合 ${battle.round} | ${battle.enemyName}")
+                        Text("敌方生命 ${battle.enemyHp}  |  装备 ${battle.equipmentMode}")
+                        Text("我方生命 ${battle.playerHp}  能量 ${battle.playerMp}  技能冷却 ${battle.skillCooldown}")
+                        Spacer(modifier = Modifier.height(6.dp))
+                    }
                     Text(state.currentEvent.introText)
                 }
             }
@@ -181,25 +187,16 @@ private fun MainPanel(
             Column(modifier = Modifier.padding(12.dp)) {
                 Text(text = "可选行动", fontWeight = FontWeight.Bold)
                 Divider(modifier = Modifier.padding(vertical = 8.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        text = "3. 在可选行动中点击选项按钮做出选择，或点击继续前进。",
-                        color = Color(0xFFB8B2A6)
-                    )
-                    Text(
-                        text = "4. 若事件为战斗，会自动结算战斗并显示战斗日志。",
-                        color = Color(0xFFB8B2A6)
-                    )
-                }
-                Spacer(modifier = Modifier.height(8.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     state.choices.forEach { choice ->
                         Button(onClick = { onChoice(choice.id) }, modifier = Modifier.fillMaxWidth()) {
                             Text(choice.label)
                         }
                     }
-                    Button(onClick = onAdvance, modifier = Modifier.fillMaxWidth()) {
-                        Text("继续前进")
+                    if (state.battle == null) {
+                        Button(onClick = onAdvance, modifier = Modifier.fillMaxWidth()) {
+                            Text("继续前进")
+                        }
                     }
                 }
             }
@@ -429,7 +426,7 @@ private fun EnemyPreviewPanel(preview: EnemyPreviewUiState) {
         ) {
             Column {
                 Text(text = preview.name, fontWeight = FontWeight.SemiBold)
-                Text(text = "${preview.type}  Lv.${preview.level}  数量 ${preview.count}", color = Color(0xFFB8B2A6))
+                Text(text = "${preview.type}  等级 ${preview.level}  数量 ${preview.count}", color = Color(0xFFB8B2A6))
             }
             RoleTag(
                 text = preview.threat,
@@ -551,7 +548,7 @@ private fun SidePanel(
 @Composable
 private fun StatusPanel(player: PlayerStats) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("${player.name}  Lv.${player.level}")
+        Text("${player.name}  等级 ${player.level}")
         Text("生命 ${player.hp}/${player.hpMax}")
         Text("能量 ${player.mp}/${player.mpMax}")
         Text("攻击 ${player.atk}  防御 ${player.def}")
@@ -562,6 +559,17 @@ private fun StatusPanel(player: PlayerStats) {
             Spacer(modifier = Modifier.width(12.dp))
             Text("材料 ${player.materials}")
         }
+    }
+}
+
+private fun nodeTypeLabel(raw: String): String {
+    return when (raw.uppercase()) {
+        "EVENT" -> "事件"
+        "BATTLE" -> "战斗"
+        "SHOP" -> "商店"
+        "TRAP" -> "陷阱"
+        "REST" -> "休息"
+        else -> raw
     }
 }
 

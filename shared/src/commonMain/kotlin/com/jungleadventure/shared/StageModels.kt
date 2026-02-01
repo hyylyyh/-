@@ -1,4 +1,4 @@
-package com.jungleadventure.shared
+﻿package com.jungleadventure.shared
 
 import kotlinx.serialization.Serializable
 
@@ -57,7 +57,7 @@ fun defaultStages(): List<StageDefinition> {
             nodes = listOf("default_node"),
             entry = "default_node",
             exit = "default_node",
-            command = "JUNGLE-TEST",
+            command = "丛林-试炼",
             guardianPool = emptyList()
         )
     )

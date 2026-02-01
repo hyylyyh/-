@@ -23,6 +23,9 @@ class GameViewModel(
     private val logTag = "界面模型"
     private val repository = GameContentRepository(resourceReader)
     private val rng = Random.Default
+    private val characterDefinitions = runCatching { repository.loadCharacters().characters }.getOrElse { emptyList() }
+    private val skillDefinitions = runCatching { repository.loadSkills().skills }.getOrElse { emptyList() }
+    private val roleActiveSkillMap = characterDefinitions.associate { it.id to it.activeSkillIds.firstOrNull() }
     private val events = runCatching { repository.loadEvents() }.getOrElse { emptyList() }
     private val engine = EventEngine(events)
     private val stageBundle = loadStageBundle()
@@ -33,6 +36,10 @@ class GameViewModel(
     private val roles = loadRoleProfiles()
     private val enemyRepository = loadEnemyRepository()
     private val battleSystem = BattleSystem(enemyRepository, rng)
+    private val turnEngine = TurnBasedCombatEngine(rng)
+    private var battleSession: BattleSession? = null
+    private var battleEventId: String? = null
+    private var battleContext: BattleContext? = null
     private val autoSaveScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val autoSaveIntervalMs = 10_000L
     private var autoSaveSlot: Int? = null
@@ -89,8 +96,7 @@ class GameViewModel(
         }
 
         if (isBattleEvent(currentEvent)) {
-            GameLogger.info(logTag, "检测到战斗事件，进入战斗流程")
-            resolveBattleAndAdvance(currentEvent)
+            handleBattleChoice(choiceId, currentEvent)
             return
         }
 
@@ -147,8 +153,7 @@ class GameViewModel(
         GameLogger.info(logTag, "点击继续前进")
         val currentEvent = _state.value.currentEvent
         if (currentEvent != null && isBattleEvent(currentEvent)) {
-            GameLogger.info(logTag, "继续前进触发战斗事件")
-            resolveBattleAndAdvance(currentEvent)
+            GameLogger.info(logTag, "战斗事件中不支持继续前进")
         } else {
             advanceToNextNode(incrementTurn = true)
         }
@@ -225,7 +230,7 @@ class GameViewModel(
             ?: return
         if (saveGame.rngSeed > 0) {
             rngSeed = saveGame.rngSeed
-            GameLogger.info("存档系统", "恢复随机种子：seed=$rngSeed")
+            GameLogger.info("存档系统", "恢复随机种子：随机种子=$rngSeed")
         }
         applySaveGame(slot, saveGame)
         autoSaveSlot = slot
@@ -378,7 +383,7 @@ class GameViewModel(
         }
         GameLogger.info(
             logTag,
-            "初始化关卡：回合=$turn 章节=$chapter 关卡编号=${runtime.stage.id} 节点编号=${node?.id ?: "无"} seed=$rngSeed"
+            "初始化关卡：回合=$turn 章节=$chapter 关卡编号=${runtime.stage.id} 节点编号=${node?.id ?: "无"} 随机种子=$rngSeed"
         )
         _state.update { current ->
             val enemyPreview = buildEnemyPreview(event, current.player)
@@ -460,8 +465,8 @@ class GameViewModel(
 
     private fun loadRoleProfiles(): List<RoleProfile> {
         GameLogger.info(logTag, "开始加载角色与技能配置")
-        val characters = runCatching { repository.loadCharacters().characters }.getOrElse { emptyList() }
-        val skills = runCatching { repository.loadSkills().skills }.getOrElse { emptyList() }
+        val characters = characterDefinitions
+        val skills = skillDefinitions
         if (characters.isEmpty()) {
             GameLogger.warn(logTag, "角色配置为空，使用默认角色")
             return defaultRoles()
@@ -553,7 +558,9 @@ class GameViewModel(
     }
 
     private fun isBattleEvent(event: EventDefinition): Boolean {
-        return !event.enemyGroupId.isNullOrBlank() || event.type.lowercase().startsWith("battle")
+        if (!event.enemyGroupId.isNullOrBlank()) return true
+        val type = event.type.lowercase()
+        return type.startsWith("battle") || event.type.contains("战斗")
     }
 
     private fun buildEnemyPreview(
@@ -763,7 +770,7 @@ class GameViewModel(
         val groupId = pickGuardianGroupId(runtime.stage)
         GameLogger.info(
             logTag,
-            "关卡守卫抽取：关卡编号=${runtime.stage.id} 口令=${runtime.command.ifBlank { "无" }} 守卫=${groupId ?: "无"} seed=$rngSeed"
+            "关卡守卫抽取：关卡编号=${runtime.stage.id} 口令=${runtime.command.ifBlank { "无" }} 守卫=${groupId ?: "无"} 随机种子=$rngSeed"
         )
         return runtime.copy(guardianGroupId = groupId)
     }
