@@ -103,6 +103,12 @@ private fun HeaderBar(state: GameUiState) {
                 text = "回合 ${state.turn}  |  章节 ${state.chapter}$stageLabel",
                 color = Color(0xFFB8B2A6)
             )
+            if (state.stage.command.isNotBlank()) {
+                Text(
+                    text = "关卡口令：${state.stage.command}",
+                    color = Color(0xFF8DB38B)
+                )
+            }
         }
         Text(
             text = state.lastAction.ifBlank { "准备行动" },
@@ -142,6 +148,9 @@ private fun MainPanel(
                     Text("类型 ${state.currentEvent.type}  难度 ${state.currentEvent.difficulty}")
                     if (state.stage.id.isNotBlank()) {
                         Text("节点 ${state.stage.nodeId}  类型 ${state.stage.nodeType}")
+                        if (state.stage.guardian.isNotBlank()) {
+                            Text("守卫：${state.stage.guardian}", color = Color(0xFFE8C07D))
+                        }
                     }
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(state.currentEvent.introText)
@@ -454,6 +463,7 @@ private fun EnemyPreviewPanel(preview: EnemyPreviewUiState) {
             Text(text = "备注：${preview.note}", color = Color(0xFFB8B2A6))
         }
         Text(text = "战斗评估：${preview.tip}", color = Color(0xFF8DB38B))
+        Text(text = preview.summary, color = Color(0xFF8DB38B))
     }
 }
 

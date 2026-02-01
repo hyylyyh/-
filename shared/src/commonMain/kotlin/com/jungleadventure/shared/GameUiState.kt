@@ -25,6 +25,8 @@ data class StageUiState(
     val chapter: Int = 1,
     val nodeId: String = "",
     val nodeType: String = "",
+    val command: String = "",
+    val guardian: String = "",
     val visited: Int = 0,
     val total: Int = 0,
     val isCompleted: Boolean = false
@@ -67,6 +69,8 @@ data class EnemyPreviewUiState(
     val note: String,
     val threat: String,
     val tip: String,
+    val winRate: Int,
+    val summary: String,
     val roundLimit: Int?,
     val firstStrike: String
 )

@@ -581,6 +581,14 @@ class GameViewModel(
             ratio >= 0.8 -> "偏难" to "建议先恢复或消耗型技能再战。"
             else -> "危险" to "差距较大，谨慎进入或等待更好机会。"
         }
+        val winRate = estimateWinRate(ratio, roundLimit)
+        val summary = buildString {
+            append("预计胜率约 ")
+            append(winRate)
+            append("%，评估为「")
+            append(threat)
+            append("」。")
+        }
 
         val firstStrikeLabel = when (event.firstStrike?.lowercase()) {
             "player" -> "玩家先手"
@@ -591,7 +599,7 @@ class GameViewModel(
 
         GameLogger.info(
             logTag,
-            "生成敌人预览：敌人=${enemyDef.name} 数量=$count 生命=$scaledHp 攻击=$scaledAtk 防御=$scaledDef 速度=$scaledSpd 评估=$threat"
+            "生成敌人预览：敌人=${enemyDef.name} 数量=$count 生命=$scaledHp 攻击=$scaledAtk 防御=$scaledDef 速度=$scaledSpd 评估=$threat 胜率=${winRate}%"
         )
 
         return EnemyPreviewUiState(
@@ -611,9 +619,33 @@ class GameViewModel(
             note = enemyDef.notes.ifBlank { group.note },
             threat = threat,
             tip = tip,
+            winRate = winRate,
+            summary = summary,
             roundLimit = roundLimit,
             firstStrike = firstStrikeLabel
         )
+    }
+
+    private fun estimateWinRate(ratio: Double, roundLimit: Int?): Int {
+        val base = when {
+            ratio >= 1.6 -> 92
+            ratio >= 1.4 -> 85
+            ratio >= 1.2 -> 75
+            ratio >= 1.05 -> 62
+            ratio >= 0.95 -> 50
+            ratio >= 0.85 -> 38
+            ratio >= 0.7 -> 28
+            ratio >= 0.55 -> 18
+            else -> 10
+        }
+        val roundPenalty = when {
+            roundLimit == null -> 0
+            roundLimit <= 3 -> 12
+            roundLimit <= 5 -> 7
+            else -> 3
+        }
+        val adjusted = (base - roundPenalty).coerceIn(5, 95)
+        return adjusted
     }
 
     private fun buildSaveGameSnapshot(): SaveGame {
