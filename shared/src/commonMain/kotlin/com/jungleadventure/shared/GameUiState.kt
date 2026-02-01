@@ -19,7 +19,8 @@ data class GameUiState(
     val choices: List<GameChoice> = listOf(),
     val activePanel: GamePanel = GamePanel.STATUS,
     val lastAction: String = "",
-    val saveSlots: List<SaveSlotSummary> = emptyList()
+    val saveSlots: List<SaveSlotSummary> = emptyList(),
+    val showSkillFormula: Boolean = false
 )
 
 data class BattleUiState(

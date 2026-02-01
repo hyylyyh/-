@@ -6,6 +6,7 @@ import com.jungleadventure.shared.loot.LootOutcome
 import com.jungleadventure.shared.loot.LootRepository
 import com.jungleadventure.shared.loot.LootSourceType
 import com.jungleadventure.shared.loot.StatType
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
@@ -204,6 +205,18 @@ class GameViewModel(
     fun onOpenInventory() {
         GameLogger.info(logTag, "切换面板：背包")
         _state.update { it.copy(activePanel = GamePanel.INVENTORY, lastAction = "查看背包") }
+    }
+
+    fun onToggleShowSkillFormula(enabled: Boolean) {
+        val status = if (enabled) "显示" else "隐藏"
+        GameLogger.info(logTag, "设置变更：技能伤害公式=$status")
+        _state.update { current ->
+            current.copy(
+                showSkillFormula = enabled,
+                lastAction = "技能伤害公式已$status",
+                log = current.log + "设置：技能伤害公式已$status"
+            )
+        }
     }
 
     fun onEquipItem(itemId: String) {
@@ -551,6 +564,7 @@ class GameViewModel(
                 battle = null,
                 choices = choices,
                 activePanel = saveGame.activePanel,
+                showSkillFormula = saveGame.showSkillFormula,
                 lastAction = "已读取槽位 $slot",
                 log = saveGame.log + "已读取槽位 $slot",
                 saveSlots = current.saveSlots
@@ -977,7 +991,14 @@ class GameViewModel(
         val skillMap = skills.associateBy { it.id }
         val profiles = characters.map { character ->
             val passiveSkill = skillMap[character.passiveSkillId].toRoleSkill()
-            val activeSkill = skillMap[character.activeSkillIds.firstOrNull()].toRoleSkill()
+            val activeSkills = if (character.activeSkillIds.isEmpty()) {
+                listOf<SkillDefinition?>(null).map { it.toRoleSkill() }
+            } else {
+                character.activeSkillIds.map { skillId ->
+                    skillMap[skillId].toRoleSkill()
+                }
+            }
+            val ultimateSkill = skillMap[character.ultimateSkillId].toRoleSkill()
             val growth = character.growth ?: defaultGrowthProfile()
             RoleProfile(
                 id = character.id,
@@ -986,7 +1007,8 @@ class GameViewModel(
                 stats = character.stats,
                 growth = growth,
                 passiveSkill = passiveSkill,
-                activeSkill = activeSkill,
+                activeSkills = activeSkills,
+                ultimateSkill = ultimateSkill,
                 starting = character.starting,
                 unlock = character.unlock,
                 unlocked = character.starting
@@ -1004,18 +1026,100 @@ class GameViewModel(
                 type = "PASSIVE",
                 description = "未配置技能。",
                 cost = "-",
-                cooldown = "-"
+                cooldown = "-",
+                target = "未知",
+                effectLines = listOf("暂无效果说明"),
+                formulaLines = emptyList()
             )
         }
-        val costLabel = if (cost <= 0) "-" else "消耗 $cost"
+        val costLabel = if (cost <= 0) "-" else cost.toString()
         val cooldownLabel = if (cooldown <= 0) "-" else "$cooldown 回合"
+        val effectLines = buildSkillEffectLines(this)
+        val formulaLines = buildSkillFormulaLines(this)
         return RoleSkill(
             name = name,
             type = type,
             description = desc,
             cost = costLabel,
-            cooldown = cooldownLabel
+            cooldown = cooldownLabel,
+            target = skillTargetLabel(target),
+            effectLines = effectLines,
+            formulaLines = formulaLines
         )
+    }
+
+    private fun buildSkillEffectLines(skill: SkillDefinition): List<String> {
+        if (skill.effects.isEmpty()) return listOf("暂无效果说明")
+        return skill.effects.map { effect ->
+            effect.note?.takeIf { it.isNotBlank() } ?: buildEffectFallback(effect)
+        }
+    }
+
+    private fun buildSkillFormulaLines(skill: SkillDefinition): List<String> {
+        val lines = mutableListOf<String>()
+        skill.effects.forEach { effect ->
+            if (effect.type.uppercase().startsWith("DAMAGE")) {
+                val note = effect.note?.takeIf { it.isNotBlank() }
+                if (note != null) {
+                    lines += note
+                } else {
+                    val scaling = effect.scaling?.let { scalingLabel(it) }.orEmpty().ifBlank { "攻击" }
+                    val valueText = formatPercent(effect.value)
+                    lines += "${valueText}${scaling}伤害"
+                }
+            }
+        }
+        return lines
+    }
+
+    private fun buildEffectFallback(effect: SkillEffect): String {
+        val valueText = formatPercent(effect.value)
+        return when (effect.type.uppercase()) {
+            "DAMAGE" -> "${valueText}${scalingLabel(effect.scaling)}伤害"
+            "HEAL_MAX_HP" -> "回复最大生命${valueText}"
+            "HIT_UP" -> "命中率+${valueText}"
+            "DAMAGE_TAKEN_DOWN" -> "受到伤害-${valueText}"
+            "DAMAGE_VS_ELITE_BOSS" -> "对精英/首领伤害+${valueText}"
+            "CRIT_UP" -> "暴击率+${valueText}"
+            "EVADE_UP" -> "闪避+${valueText}"
+            "DROP_RATE" -> "掉落概率+${valueText}"
+            "HIDDEN_PATH" -> "隐藏路径触发+${valueText}"
+            "MATERIAL_GAIN" -> "材料收益+${valueText}"
+            "ENCOUNTER_RATE_DOWN" -> "遇敌率-${valueText}"
+            else -> "效果 ${effect.type}${effect.value?.let { " ${valueText}" } ?: ""}"
+        }
+    }
+
+    private fun scalingLabel(raw: String?): String {
+        return when (raw?.uppercase()) {
+            "ATK" -> "攻击"
+            "DEF" -> "防御"
+            "HP" -> "生命"
+            "SPD" -> "速度"
+            else -> raw?.uppercase() ?: ""
+        }
+    }
+
+    private fun formatPercent(value: Double?): String {
+        if (value == null) return ""
+        val percent = value * 100.0
+        val display = if (kotlin.math.abs(percent - percent.toInt()) < 0.01) {
+            percent.toInt().toString()
+        } else {
+            String.format("%.1f", percent)
+        }
+        return "${display}%"
+    }
+
+    private fun skillTargetLabel(raw: String): String {
+        return when (raw.uppercase()) {
+            "SELF" -> "自身"
+            "ENEMY" -> "敌方"
+            "ALLY" -> "友方"
+            "ALL_ENEMY" -> "敌方全体"
+            "ALL_ALLY" -> "友方全体"
+            else -> raw
+        }
     }
 
     private fun handleBattleChoice(choiceId: String, event: EventDefinition) {
@@ -1453,6 +1557,7 @@ class GameViewModel(
             log = snapshot.log,
             lastAction = snapshot.lastAction,
             activePanel = snapshot.activePanel,
+            showSkillFormula = snapshot.showSkillFormula,
             currentEventId = snapshot.currentEvent?.eventId,
             stageId = runtime?.stage?.id,
             nodeId = runtime?.currentNodeId,

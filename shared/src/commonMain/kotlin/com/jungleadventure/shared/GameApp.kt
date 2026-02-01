@@ -25,6 +25,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -72,7 +73,9 @@ fun GameApp(
                     onSelectRole = viewModel::onSelectRole,
                     onConfirmRole = viewModel::onConfirmRole,
                     onCreateNewSave = viewModel::onCreateNewSave,
-                    onLoadSave = viewModel::onLoad
+                    onLoadSave = viewModel::onLoad,
+                    showSkillFormula = state.showSkillFormula,
+                    onToggleShowSkillFormula = viewModel::onToggleShowSkillFormula
                 )
                 SidePanel(
                     modifier = Modifier.weight(0.8f),
@@ -83,7 +86,9 @@ fun GameApp(
                     onEquipItem = viewModel::onEquipItem,
                     onUnequipSlot = viewModel::onUnequipSlot,
                     onSave = viewModel::onSave,
-                    onLoad = viewModel::onLoad
+                    onLoad = viewModel::onLoad,
+                    showSkillFormula = state.showSkillFormula,
+                    onToggleShowSkillFormula = viewModel::onToggleShowSkillFormula
                 )
             }
         }
@@ -136,7 +141,9 @@ private fun MainPanel(
     onSelectRole: (String) -> Unit,
     onConfirmRole: () -> Unit,
     onCreateNewSave: (Int) -> Unit,
-    onLoadSave: (Int) -> Unit
+    onLoadSave: (Int) -> Unit,
+    showSkillFormula: Boolean,
+    onToggleShowSkillFormula: (Boolean) -> Unit
 ) {
     val scrollState = rememberScrollState()
     Column(
@@ -156,7 +163,12 @@ private fun MainPanel(
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(text = "选择角色", fontWeight = FontWeight.Bold)
                         Divider(modifier = Modifier.padding(vertical = 8.dp))
-                        RoleSelectionPanel(state = state, onSelectRole = onSelectRole)
+                        RoleSelectionPanel(
+                            state = state,
+                            onSelectRole = onSelectRole,
+                            showSkillFormula = showSkillFormula,
+                            onToggleShowSkillFormula = onToggleShowSkillFormula
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
                         Button(
                             onClick = onConfirmRole,
@@ -285,7 +297,12 @@ private fun SaveSelectPanel(
 }
 
 @Composable
-private fun RoleSelectionPanel(state: GameUiState, onSelectRole: (String) -> Unit) {
+private fun RoleSelectionPanel(
+    state: GameUiState,
+    onSelectRole: (String) -> Unit,
+    showSkillFormula: Boolean,
+    onToggleShowSkillFormula: (Boolean) -> Unit
+) {
     if (state.roles.isEmpty()) {
         Text("角色数据加载中...")
         return
@@ -333,7 +350,15 @@ private fun RoleSelectionPanel(state: GameUiState, onSelectRole: (String) -> Uni
                 modifier = Modifier.weight(0.52f),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                RoleDetailPanel(selectedRole = selectedRole, onSelectRole = onSelectRole)
+                RoleDetailPanel(
+                    selectedRole = selectedRole,
+                    onSelectRole = onSelectRole,
+                    showSkillFormula = showSkillFormula
+                )
+                SettingsPanelCard(
+                    showSkillFormula = showSkillFormula,
+                    onToggleShowSkillFormula = onToggleShowSkillFormula
+                )
             }
         }
     }
@@ -411,7 +436,8 @@ private fun RoleCard(
 @Composable
 private fun RoleDetailPanel(
     selectedRole: RoleProfile?,
-    onSelectRole: (String) -> Unit
+    onSelectRole: (String) -> Unit,
+    showSkillFormula: Boolean
 ) {
     if (selectedRole == null) {
         Text("暂无可用角色")
@@ -473,13 +499,26 @@ private fun RoleDetailPanel(
 
         Divider()
         Text(text = "技能组合", fontWeight = FontWeight.SemiBold)
-        Text(text = "被动：${selectedRole.passiveSkill.name}")
-        Text(text = selectedRole.passiveSkill.description, color = Color(0xFFB8B2A6))
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(text = "主动：${selectedRole.activeSkill.name}")
-        Text(
-            text = "${selectedRole.activeSkill.description}（${selectedRole.activeSkill.cost}，${selectedRole.activeSkill.cooldown}）",
-            color = Color(0xFFB8B2A6)
+        SkillDetailCard(
+            title = "被动技能",
+            skill = selectedRole.passiveSkill,
+            showFormula = showSkillFormula
+        )
+        if (selectedRole.activeSkills.isEmpty()) {
+            Text(text = "主动技能：暂无", color = Color(0xFFB8B2A6))
+        } else {
+            selectedRole.activeSkills.forEachIndexed { index, skill ->
+                SkillDetailCard(
+                    title = "主动技能 ${index + 1}",
+                    skill = skill,
+                    showFormula = showSkillFormula
+                )
+            }
+        }
+        SkillDetailCard(
+            title = "终极技能",
+            skill = selectedRole.ultimateSkill,
+            showFormula = showSkillFormula
         )
 
         if (!selectedRole.unlocked) {
@@ -586,7 +625,9 @@ private fun SidePanel(
     onEquipItem: (String) -> Unit,
     onUnequipSlot: (EquipmentSlot) -> Unit,
     onSave: (Int) -> Unit,
-    onLoad: (Int) -> Unit
+    onLoad: (Int) -> Unit,
+    showSkillFormula: Boolean,
+    onToggleShowSkillFormula: (Boolean) -> Unit
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (state.screen != GameScreen.ADVENTURE) {
@@ -610,6 +651,10 @@ private fun SidePanel(
                 }
             }
         }
+        SettingsPanelCard(
+            showSkillFormula = showSkillFormula,
+            onToggleShowSkillFormula = onToggleShowSkillFormula
+        )
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(text = "存档管理", fontWeight = FontWeight.Bold)
@@ -753,6 +798,79 @@ private fun InventoryPanel(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SkillDetailCard(title: String, skill: RoleSkill, showFormula: Boolean) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF182720)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(text = "$title：${skill.name}", fontWeight = FontWeight.SemiBold)
+            Text(
+                text = "类型 ${skillTypeLabel(skill.type)}  目标 ${skill.target}",
+                color = Color(0xFFB8B2A6)
+            )
+            if (skill.cost != "-" || skill.cooldown != "-") {
+                val costText = if (skill.cost == "-") "无" else skill.cost
+                val cooldownText = if (skill.cooldown == "-") "无" else skill.cooldown
+                Text(text = "消耗 $costText  冷却 $cooldownText", color = Color(0xFFB8B2A6))
+            }
+            Text(text = skill.description, color = Color(0xFFB8B2A6))
+            Divider(modifier = Modifier.padding(vertical = 4.dp))
+            Text(text = "效果", fontWeight = FontWeight.SemiBold)
+            skill.effectLines.forEach { line ->
+                Text(text = "• $line", color = Color(0xFF8DB38B))
+            }
+            if (showFormula && skill.formulaLines.isNotEmpty()) {
+                Divider(modifier = Modifier.padding(vertical = 4.dp))
+                Text(text = "伤害公式", fontWeight = FontWeight.SemiBold)
+                skill.formulaLines.forEach { line ->
+                    Text(text = "• $line", color = Color(0xFFD6B36A))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsPanelCard(
+    showSkillFormula: Boolean,
+    onToggleShowSkillFormula: (Boolean) -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(text = "设置面板", fontWeight = FontWeight.Bold)
+            Divider(modifier = Modifier.padding(vertical = 6.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(text = "技能描述显示伤害公式", fontWeight = FontWeight.SemiBold)
+                    Text(
+                        text = if (showSkillFormula) "已开启，显示伤害计算提示" else "已关闭，仅显示效果描述",
+                        color = Color(0xFFB8B2A6)
+                    )
+                }
+                Switch(
+                    checked = showSkillFormula,
+                    onCheckedChange = onToggleShowSkillFormula
+                )
+            }
+        }
+    }
+}
+
+private fun skillTypeLabel(raw: String): String {
+    return when (raw.uppercase()) {
+        "PASSIVE" -> "被动"
+        "ACTIVE" -> "主动"
+        "ULTIMATE" -> "终极"
+        else -> raw
     }
 }
 

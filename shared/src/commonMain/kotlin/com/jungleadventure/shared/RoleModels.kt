@@ -17,7 +17,8 @@ data class CharacterDefinition(
     val stats: CharacterStats,
     val growth: GrowthProfile? = null,
     val passiveSkillId: String,
-    val activeSkillIds: List<String> = emptyList()
+    val activeSkillIds: List<String> = emptyList(),
+    val ultimateSkillId: String = ""
 )
 
 @Serializable
@@ -70,7 +71,8 @@ data class RoleProfile(
     val stats: CharacterStats,
     val growth: GrowthProfile,
     val passiveSkill: RoleSkill,
-    val activeSkill: RoleSkill,
+    val activeSkills: List<RoleSkill>,
+    val ultimateSkill: RoleSkill,
     val starting: Boolean,
     val unlock: String,
     val unlocked: Boolean
@@ -81,7 +83,10 @@ data class RoleSkill(
     val type: String,
     val description: String,
     val cost: String,
-    val cooldown: String
+    val cooldown: String,
+    val target: String,
+    val effectLines: List<String>,
+    val formulaLines: List<String>
 )
 
 fun defaultRoles(): List<RoleProfile> = listOf(
@@ -96,14 +101,42 @@ fun defaultRoles(): List<RoleProfile> = listOf(
             type = "PASSIVE",
             description = "掉落+10%，隐藏路径触发+15%。",
             cost = "-",
-            cooldown = "-"
+            cooldown = "-",
+            target = "自身",
+            effectLines = listOf("掉落概率+10%", "隐藏路径触发+15%"),
+            formulaLines = emptyList()
         ),
-        activeSkill = RoleSkill(
-            name = "勘探",
-            type = "ACTIVE",
-            description = "显示下一节点风险，命中+10%持续2回合。",
-            cost = "消耗 6",
-            cooldown = "3 回合"
+        activeSkills = listOf(
+            RoleSkill(
+                name = "勘探",
+                type = "ACTIVE",
+                description = "显示下一节点风险，命中+10%持续2回合。",
+                cost = "6",
+                cooldown = "3 回合",
+                target = "敌方",
+                effectLines = listOf("显示下一节点风险", "命中率+10%，持续2回合"),
+                formulaLines = listOf("60%ATK伤害")
+            ),
+            RoleSkill(
+                name = "观察",
+                type = "ACTIVE",
+                description = "观察战场并快速调整节奏。",
+                cost = "5",
+                cooldown = "2 回合",
+                target = "敌方",
+                effectLines = listOf("命中率+5%，持续1回合"),
+                formulaLines = listOf("50%ATK伤害")
+            )
+        ),
+        ultimateSkill = RoleSkill(
+            name = "探路先锋",
+            type = "ULTIMATE",
+            description = "短时间内最大化侦察与突袭效率。",
+            cost = "18",
+            cooldown = "6 回合",
+            target = "敌方",
+            effectLines = listOf("命中率+15%，持续2回合", "下一节点风险揭示"),
+            formulaLines = listOf("110%ATK伤害")
         ),
         starting = true,
         unlock = "初始可选",
