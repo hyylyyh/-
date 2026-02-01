@@ -30,11 +30,6 @@ class GameViewModel(
     private val levelMax = 50
     private val expBase = 30
     private val expGrowth = 20
-    private val hpGainPerLevel = 12
-    private val mpGainPerLevel = 4
-    private val atkGainPerLevel = 3
-    private val defGainPerLevel = 2
-    private val speedGainPerLevel = 1
     private val repository = GameContentRepository(resourceReader)
     private val rng = Random.Default
     private val characterDefinitions = runCatching { repository.loadCharacters().characters }.getOrElse { emptyList() }
@@ -673,7 +668,14 @@ class GameViewModel(
         event: EventDefinition?,
         reason: String
     ): ResultApplication {
-        if (result == null) return ResultApplication(player, emptyList())
+        if (result == null) {
+            val dropId = event?.dropTableId
+            if (!dropId.isNullOrBlank()) {
+                val loot = applyLoot(player, dropId, event, reason)
+                return ResultApplication(loot.player, loot.logs)
+            }
+            return ResultApplication(player, emptyList())
+        }
         val nextHp = (player.hp + result.hpDelta).coerceIn(0, player.hpMax)
         val nextMp = (player.mp + result.mpDelta).coerceIn(0, player.mpMax)
         GameLogger.info(
@@ -709,6 +711,7 @@ class GameViewModel(
         val nextExp = (player.exp + expDelta).coerceAtLeast(0)
         var current = player.copy(exp = nextExp)
         val logs = mutableListOf<String>()
+        val growth = growthForRole(_state.value.selectedRoleId)
         logs += "经验变化 ${signed(expDelta)}（当前 ${current.exp}/${current.expToNext}）"
         GameLogger.info(
             logTag,
@@ -719,22 +722,22 @@ class GameViewModel(
             val nextLevel = current.level + 1
             val remainingExp = current.exp - current.expToNext
             val nextBase = current.baseStats.copy(
-                hpMax = current.baseStats.hpMax + hpGainPerLevel,
-                atk = current.baseStats.atk + atkGainPerLevel,
-                def = current.baseStats.def + defGainPerLevel,
-                speed = current.baseStats.speed + speedGainPerLevel
+                hpMax = current.baseStats.hpMax + growth.hpMax,
+                atk = current.baseStats.atk + growth.atk,
+                def = current.baseStats.def + growth.def,
+                speed = current.baseStats.speed + growth.speed
             )
             val boosted = current.copy(
                 level = nextLevel,
                 exp = remainingExp,
                 expToNext = expRequiredFor(nextLevel),
                 baseStats = nextBase,
-                hp = current.hp + hpGainPerLevel,
-                mp = current.mp + mpGainPerLevel,
-                mpMax = current.mpMax + mpGainPerLevel
+                hp = current.hp + growth.hpMax,
+                mp = current.mp + growth.mpMax,
+                mpMax = current.mpMax + growth.mpMax
             )
             current = recalculatePlayerStats(boosted, "升级")
-            val log = "升级到 Lv$nextLevel：生命上限+$hpGainPerLevel 能量上限+$mpGainPerLevel 攻击+$atkGainPerLevel 防御+$defGainPerLevel 速度+$speedGainPerLevel"
+            val log = "升级到 Lv$nextLevel：生命上限+${growth.hpMax} 能量上限+${growth.mpMax} 攻击+${growth.atk} 防御+${growth.def} 速度+${growth.speed}"
             logs += log
             GameLogger.info(
                 logTag,
@@ -742,6 +745,15 @@ class GameViewModel(
             )
         }
         return ResultApplication(current, logs)
+    }
+
+    private fun growthForRole(roleId: String): GrowthProfile {
+        val role = roles.firstOrNull { it.id == roleId }
+        if (role == null) {
+            GameLogger.warn(logTag, "未找到角色成长配置，使用默认成长：角色编号=$roleId")
+            return defaultGrowthProfile()
+        }
+        return role.growth
     }
 
     private fun applyLoot(
@@ -966,11 +978,13 @@ class GameViewModel(
         val profiles = characters.map { character ->
             val passiveSkill = skillMap[character.passiveSkillId].toRoleSkill()
             val activeSkill = skillMap[character.activeSkillIds.firstOrNull()].toRoleSkill()
+            val growth = character.growth ?: defaultGrowthProfile()
             RoleProfile(
                 id = character.id,
                 name = character.name,
                 role = character.role,
                 stats = character.stats,
+                growth = growth,
                 passiveSkill = passiveSkill,
                 activeSkill = activeSkill,
                 starting = character.starting,

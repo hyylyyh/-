@@ -124,9 +124,10 @@ data class BattleContext(
 )
 
 fun PlayerStats.toCombatActor(): CombatActor {
-    val hit = (70 + speed).coerceIn(60, 95)
-    val eva = (8 + speed / 2).coerceIn(5, 35)
-    val crit = (6 + speed / 3).coerceIn(5, 30)
+    val hit = (70 + speed + hitBonus).coerceIn(50, 98)
+    val eva = (8 + speed / 2 + evaBonus).coerceIn(5, 45)
+    val crit = (6 + speed / 3 + critBonus).coerceIn(5, 40)
+    val resist = (3 + resistBonus).coerceIn(0, 50)
     val stats = CombatStats(
         hpMax = hpMax,
         atk = atk,
@@ -136,9 +137,9 @@ fun PlayerStats.toCombatActor(): CombatActor {
         eva = eva,
         crit = crit,
         critDmg = 1.5,
-        resist = 3
+        resist = resist
     )
-    GameLogger.log("战斗", "玩家转化战斗属性：命中=$hit 闪避=$eva 暴击=$crit")
+    GameLogger.log("战斗", "玩家转化战斗属性：命中=$hit 闪避=$eva 暴击=$crit 抗暴=$resist")
     return CombatActor(
         id = "玩家",
         name = name,
