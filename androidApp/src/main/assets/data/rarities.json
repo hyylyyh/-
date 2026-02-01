@@ -1,0 +1,44 @@
+{
+  "rarities": [
+    {
+      "id": "common",
+      "name": "普通",
+      "tier": 1,
+      "mainStatMultiplierRange": { "min": 0.8, "max": 1.0 },
+      "affixCountRange": { "min": 0, "max": 1 },
+      "dropWeight": 50
+    },
+    {
+      "id": "uncommon",
+      "name": "优秀",
+      "tier": 2,
+      "mainStatMultiplierRange": { "min": 1.0, "max": 1.15 },
+      "affixCountRange": { "min": 1, "max": 2 },
+      "dropWeight": 30
+    },
+    {
+      "id": "rare",
+      "name": "稀有",
+      "tier": 3,
+      "mainStatMultiplierRange": { "min": 1.15, "max": 1.3 },
+      "affixCountRange": { "min": 2, "max": 3 },
+      "dropWeight": 15
+    },
+    {
+      "id": "epic",
+      "name": "史诗",
+      "tier": 4,
+      "mainStatMultiplierRange": { "min": 1.3, "max": 1.5 },
+      "affixCountRange": { "min": 3, "max": 4 },
+      "dropWeight": 4
+    },
+    {
+      "id": "legendary",
+      "name": "传说",
+      "tier": 5,
+      "mainStatMultiplierRange": { "min": 1.5, "max": 1.75 },
+      "affixCountRange": { "min": 4, "max": 5 },
+      "dropWeight": 1
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+.gradle/
+.idea/
+.kotlin/
+.vscode/
+*.iml
+*.ipr
+*.iws
+*.log
+*.tmp
+*.swp
+*.swo
+
+**/build/
+**/out/
+**/target/
+%OUT%/
+
+.DS_Store
+Thumbs.db
+
+# Android
+**/captures/
+**/.externalNativeBuild/
+**/.cxx/
+local.properties
+
+# Gradle
+gradle-app.setting
+
+# Kotlin/Compose/IntelliJ output
+**/compose-build/
+**/kotlin-js-store/
+**/kotlin-js-store/yarn.lock
+
+# JVM crash logs
+hs_err_pid*
+replay_pid*

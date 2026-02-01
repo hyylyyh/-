@@ -1,0 +1,515 @@
+﻿# 任务拆解（基于 struct.md）
+
+目标：做一个文本 RPG，玩家选角色闯关，获得装备并成长（等级/技能等）。
+
+## 里程碑
+- M1：基础框架与核心流程（选人 → 闯关 → 结算）
+- M2：战斗/事件与掉落
+- M3：成长系统（装备/等级/技能）
+- M4：可玩性与平衡（多关卡/多角色差异化）
+
+## 任务清单
+- 需求澄清
+  - 确认胜利/失败条件、关卡数量与结构、文本输入方式
+  - 确认是否需要存档/读档
+  - 已确认要点（来自当前澄清）
+    - 玩法模式：无尽模式
+    - 关卡数量：可配置
+    - 失败惩罚：保留部分资源
+    - 角色数量：初始 3 名，其他需解锁
+    - 技能池：角色绑定
+    - 输入方式：非控制台，数字选项为主（可点击）
+    - 快捷指令：状态/装备/背包
+    - 资源与经济：引入金币、材料、商店
+    - 战后恢复：部分回血
+    - 装备部位：不占位（无部位限制）
+    - 掉落机制：概率掉落 + 保底
+    - 存档/读档：需要，8 个存档槽
+    - 日志：需要战斗/事件日志
+  - 玩法范围确认
+    - 游戏流程：单次通关制还是多周目/无尽模式？
+    - 关卡数量：固定关卡数（如 3/5/10）还是可配置？
+    - 失败惩罚：死亡即结束/回到关卡起点/保留部分资源？
+  - 角色与选择
+    - 角色数量与差异度：初始开放几名角色？
+    - 技能池是否与角色绑定，还是通用技能树？
+  - 文本交互
+    - 输入方式：数字选项为主，是否支持关键字？
+    - 是否需要“帮助/状态/装备/背包”等快捷指令？
+  - 资源与经济
+    - 是否引入金币/材料/商店？
+    - 战斗后的恢复规则：自动回血/部分回血/不回血？
+  - 掉落与装备
+    - 装备是否占用部位（武器/头/甲/饰品）？
+    - 掉落形式：战斗后必掉/概率掉/保底机制？
+  - 存档与复盘
+    - 是否需要存档/读档与最少存档槽数量？
+    - 是否需要战斗/事件日志以便复盘与测试？
+  - 平台与实现
+    - 目标运行环境：KMP（Compose Multiplatform）
+    - 本地文件读写：允许（用于存档/配置）
+    - 可复现随机：需要（固定种子开关）
+  - 内容边界
+    - 首版范围：5 个角色、100 个怪物、25 个事件
+    - 配置扩展：允许（角色/敌人/事件可扩展）
+    - 文案风格：偏搞笑；需要剧情线
+    - 剧情线大纲（首版方向）
+      - 起因：主角团误入“丛林奇妙乐园”，被迫参加闯关节目
+      - 目标：集齐 3~5 个“通关凭证”换取出口线索
+      - 节点：搞笑 NPC/误导提示/道具反转/怪物“打工人”设定
+      - 结局：真相与反转（出口在入口旁，需完成“最后一步”）
+  - 难度与时长
+    - 单局期望时长（如 10/20/30 分钟）？
+    - 新手保护：前几场战斗是否降低难度？
+    - 失败重开是否需要“加速模式”（跳过已看文本）？
+- 角色系统
+  - 建立角色数据模型（基础属性、被动、主动、冷却/消耗）
+  - 接入 `cp/cp.md` 角色与技能设定
+  - 实现角色选择流程
+- 关卡与事件系统
+  - 关卡结构：房间/节点/事件链
+  - 关卡生成：固定关卡 + 随机关卡（权重表）
+  - 关卡数据模型：关卡ID/难度/层数/节点列表/入口出口
+  - 节点数据模型：节点ID/类型/相邻节点/触发条件
+  - 事件类型：战斗、陷阱、宝箱、商店、隐藏路径
+  - 事件接口：enter() / resolve() / reward()
+  - 事件触发：进入节点自动触发 + 玩家选择触发
+  - 事件结算与奖励：金币/材料/装备/经验
+  - 事件随机表：按难度/楼层分组配置
+  - 日志与回放：记录路径与事件结果（便于测试）
+  - 引擎与事件类清单（core/engine & core/domain）
+    - GameEngine：主循环协调、状态机驱动、事件调度
+    - GameState：全局状态（玩家/关卡/背包/日志/随机种子）
+    - GameSnapshot：给 UI 的不可变快照
+    - Stage/Level：关卡实例（节点、层数、难度）
+    - Node：节点实体（类型、相邻、已访问）
+    - Event（sealed/interface）：BattleEvent/TrapEvent/ChestEvent/ShopEvent/HiddenPathEvent
+    - EventResult：结果（奖励/伤害/状态变更/下个节点）
+    - Option：事件选项（文本/条件/影响）
+    - Condition：触发条件（属性/装备/技能/随机）
+    - Reward：奖励（金币/材料/装备/经验）
+    - RNG：随机数封装（可注入、可复现）
+  - 事件/关卡实体字段草案（core/domain）
+    - GameState：playerId、stageId、nodeId、turn、inventory、equipment、gold、exp、level、seed、flags
+    - GameSnapshot：stageInfo、nodeInfo、playerStats、options、logLines
+    - Stage/Level：id、name、difficulty、floorIndex、nodes、entryNodeId、exitNodeId
+    - Node：id、type、neighbors、visited、eventId、conditions
+    - Event：id、type、description、options、onceOnly、weight
+    - Option：id、text、conditions、effects、nextNodeId
+    - Reward：gold、exp、items、materials、flags
+  - 引擎流程细化
+    - startGame(): 初始化玩家/关卡/随机种子
+    - enterNode(nodeId): 触发事件
+    - resolveOption(optionId): 结算并写入 GameState
+    - advance(): 进入下个节点或结束
+  - GameEngine 接口草案
+    - init(seed, configRepo): GameEngine
+    - startGame(playerId, stageId): GameSnapshot
+    - enterNode(nodeId): GameSnapshot
+    - resolveOption(optionId): GameSnapshot
+    - advance(): GameSnapshot
+    - getState(): GameState
+    - getSnapshot(): GameSnapshot
+    - isEnded(): Boolean
+  - 数据配置
+    - json/yaml 配置：关卡模板/事件权重/掉落表
+    - 内置默认配置（便于无文件运行）
+  - 剧情线与关卡/事件对应（首版）
+    - 章 1：误入丛林乐园（新手教学）
+      - 关卡目标：完成 3 个事件并获得第 1 个“通关凭证”
+      - 事件样例：导览 NPC 误导/低难度战斗/宝箱陷阱
+    - 章 2：节目组的任务单（机制引入）
+      - 关卡目标：完成 4 个事件并获得第 2 个“通关凭证”
+      - 事件样例：商店解锁/陷阱反转/精英怪首次登场
+    - 章 3：打工人怪物的吐槽会（剧情推进）
+      - 关卡目标：完成 5 个事件并获得第 3 个“通关凭证”
+      - 事件样例：隐藏路径/谜语选择/怪物“上班偷懒”对话
+    - 章 4：出口就在入口旁（反转铺垫）
+      - 关卡目标：完成 6 个事件并获得第 4 个“通关凭证”
+      - 事件样例：假出口/真线索/首领前哨
+    - 章 5：最后一步（结局）
+      - 关卡目标：完成 7 个事件并触发“出口条件”
+      - 事件样例：首领战/道具组合/真相揭示
+  - 事件清单（25 个，按章节分配）
+    - 章 1（5 个）
+      - 导览员（对话/陷阱｜难度1｜掉落0）：一堆指路，唯一正确的是最短那条
+      - 草丛猫（战斗｜难度1｜掉落1.0）：低难度战斗，首次掉落教学
+      - 宝箱（宝箱/陷阱｜难度1｜掉落1.0）：开箱必掉但附带小陷阱
+      - 迷路游客（对话｜难度1｜掉落0.2）：给你“错误地图”
+      - 休息树（恢复｜难度1｜掉落0）：小额回血/增益
+    - 章 2（5 个）
+      - 商店开张（商店｜难度1｜掉落0）：首次购买与卖出
+      - 看板谜语（谜题｜难度2｜掉落0.6）：答对得装备，答错触发战斗
+      - 精英怪（战斗/精英｜难度2｜掉落1.5）：首次精英与稀有掉落
+      - 陷阱小屋（陷阱｜难度2｜掉落0.2）：二选一，错选扣血
+      - “临时工”怪物（对话/战斗｜难度2｜掉落1.0）：吐槽式对话后战斗
+    - 章 3（5 个）
+      - 隐藏小径（探索｜难度3｜掉落1.3）：概率进入，奖励更好
+      - 装备鉴定（交互｜难度2｜掉落0.8）：随机副词条教学
+      - NPC 八卦（对话｜难度2｜掉落0.3）：得线索或被误导
+      - 群怪战（战斗/群体｜难度3｜掉落1.2）：多目标机制引入
+      - 小首领（战斗/首领｜难度3｜掉落1.6）：章节 mini boss
+    - 章 4（5 个）
+      - 假出口（陷阱｜难度3｜掉落0.3）：花道具或掉血后才发现是假的
+      - 录像机（交互｜难度2｜掉落0）：回看战斗日志并给提示
+      - 赞助商挑战（战斗/限回合｜难度4｜掉落1.4）：限回合战斗
+      - 真假向导（对话/陷阱｜难度3｜掉落0.4）：选错损失资源
+      - 首领前哨（战斗/精英｜难度4｜掉落1.7）：高强度战斗+优质掉落
+    - 章 5（5 个）
+      - 首领战（战斗/首领｜难度5｜掉落2.0）：剧情首领
+      - 最后一步（解谜｜难度4｜掉落0.5）：三选一解谜，影响结局
+      - 出口提示（交互｜难度3｜掉落0.2）：用道具换取线索
+      - 合成台（交互｜难度3｜掉落0）：组合关键道具
+      - 真相揭示（剧情｜难度3｜掉落0）：结局事件
+  - 事件配置字段（落地到数据）
+    - 基础：eventId、chapter、title、type、difficulty、weight、cooldown
+    - 文案：introText、successText、failText、logText
+    - 触发：conditions（属性/道具/随机/已完成事件）
+    - 选项：options[]（optionId、text、cost、require、result）
+    - 结果：result（hp/mp 变化、状态、金币/材料/经验、掉落表、跳转节点）
+    - 战斗：enemyGroupId、roundLimit、firstStrike、battleModifiers
+    - 掉落：dropTableId、guarantee（保底次数）
+    - 分支：nextEventId/nextNodeId、failEventId
+- 战斗系统
+  - 核心流程：先手判定（速度/随机）→ 回合内行动 → 结算 → 下一回合
+  - 伤害公式：基础伤害 + 装备/技能加成 − 防御减伤（含保底）
+  - 命中/闪避：命中率 = 命中 / (命中 + 闪避)；最低 20% 最高 95%
+  - 暴击：暴击率与暴击伤害倍率（如 150%），暴击可被抗暴降低
+  - 速度与出手：速度高者优先；同速随机；可有“加速/减速”状态
+  - 技能：消耗（MP/体力）、冷却、目标类型（单体/群体/自身）
+  - 状态：中毒/眩晕/流血/护盾/增益，支持持续回合与叠加规则
+  - 敌人类型与属性：普通/精英/首领；定义技能与掉落倾向
+  - 结算：胜利/失败条件、经验/掉落触发、战后恢复规则
+  - 类/接口清单（core/domain）
+    - CombatEngine：回合制计算与结算
+    - CombatState：双方属性/回合数/冷却/状态
+    - Actor（Player/Enemy）：战斗参与者
+    - Skill：主动技能（消耗/冷却/效果）
+    - Passive：被动技能（常驻效果）
+    - Effect：伤害/治疗/增益/减益
+    - Status：Buff/Debuff（持续回合）
+    - DamageFormula：伤害计算策略
+    - HitFormula：命中/闪避策略
+    - CombatLog：战斗日志条目
+  - 战斗实体字段草案（core/domain）
+    - Actor：id、name、level、hp/maxHp、atk、def、spd、hit、eva、crit、critDmg、resist、skills、passives
+    - Skill：id、name、type、target、cost、cooldown、effects、scaling
+    - Status：id、name、duration、stackable、effects、tickPhase
+    - CombatState：round、actorA/actorB、cooldowns、statuses、log
+  - 战斗流程细化
+    - startCombat(player, enemy)
+    - chooseAction(actor, actionId)
+    - resolveTurn()
+    - applyEffects()
+    - endCombat()
+  - CombatEngine 接口草案
+    - init(player, enemy, rng): CombatState
+    - submitAction(actorId, actionId): CombatState
+    - resolveTurn(): CombatState
+    - isEnded(): Boolean
+    - getResult(): CombatResult
+  - 敌人数据
+    - 普通/精英/首领分组
+    - 属性曲线按难度/楼层调整
+- 掉落与装备系统
+  - 装备类型：武器/防具/饰品；每槽位唯一
+  - 属性加成：攻击/防御/速度/命中/暴击/生命等；支持百分比与固定值
+  - 稀有度：普通/优秀/稀有/史诗/传说，影响属性区间与掉落权重
+  - 掉落表：按敌人或事件配置（权重池 + 保底机制）
+  - 掉落流程：生成候选 → 抽取 → 鉴定（随机词条/强化）
+  - 装备词条：主属性 + 1~N 副词条；同类词条可叠加或刷新
+  - 穿戴规则：替换提示、属性变更预览、允许卸下为空
+  - 背包限制：容量/堆叠规则，超出时给出丢弃或替换选项
+  - 结算：拾取/出售/分解，资源反馈到成长系统
+  - JSON 配置规范（落地版）
+    - 文件建议：`data/equipments.json` `data/affixes.json` `data/loot_tables.json` `data/rarities.json`
+    - 装备（equipments.json）
+      - 字段：`id` `name` `slot` `rarity` `levelReq` `classReq?` `baseStats` `statScale` `affixCount` `affixPool` `enhanceMax` `setId?` `sellValue` `salvageYield`
+    - 词条（affixes.json）
+      - 字段：`id` `type` `valueRange` `weight` `rarityGate` `stackRule`
+    - 稀有度（rarities.json）
+      - 字段：`id` `name` `mainStatMultiplierRange` `affixCountRange` `dropWeight`
+    - 掉落表（loot_tables.json）
+      - 字段：`id` `sourceType`(enemy/event/chest/shop) `tier` `guarantee` `weightedPool`
+      - `guarantee`：`counterKey` `threshold` `grantRarityMin`
+      - `weightedPool`：条目包含 `type`(equipment/material/gold/consumable) `refId` `weight` `min` `max`
+  - 掉落流程（JSON 驱动）
+    - 读取来源掉落表（按难度/楼层/敌人类型）
+    - 检查保底计数并决定是否强制稀有度
+    - 权重抽取候选条目
+    - 若为装备：确定稀有度→计算主属性→抽取副词条
+    - 结算拾取/替换/出售/分解
+  - 装备生成规则
+    - 主属性 = baseStats × mainStatMultiplier（来自 rarity）+ 装备等级系数
+    - 词条数 = rarity.affixCountRange 内随机
+    - 词条池 = 装备 affixPool，与 rarityGate 共同过滤
+    - 同类词条叠加规则由 affix.stackRule 决定
+  - 类/接口清单（core/domain）
+    - Item：物品基类
+    - Equipment：装备（部位/属性/稀有度）
+    - Consumable：消耗品
+    - Inventory：背包
+    - DropTable：掉落表
+    - LootGenerator：掉落生成器
+    - EquipSlot：装备槽（武器/护甲/饰品）
+  - 掉落/装备字段草案（core/domain）
+    - Item：id、name、type、rarity、desc、value
+    - Equipment：slot、baseStats、affixes、levelReq、classReq
+    - Inventory：capacity、items、gold
+    - DropTable：entries(weight/itemId)、guarantee、rarityWeights
+  - 掉落流程细化
+    - generateLoot(stage, enemyType)
+    - addToInventory()
+    - equip/unequip/swap
+- 成长系统
+  - 经验/等级曲线
+    - 等级上限与每级经验表（如公式或配置表）
+    - 升级效果：属性成长（HP/攻击/防御/速度/命中/闪避）
+    - 关卡/敌人经验产出与难度挂钩
+  - 技能解锁或升级规则
+    - 解锁条件：等级/关卡/任务/道具
+    - 升级机制：技能等级、效果系数、冷却/消耗调整
+    - 技能点：获取方式（升级/奖励）与消耗规则
+  - 类/接口清单（core/domain）
+    - LevelCurve：经验曲线
+    - Progression：等级/经验/点数
+    - SkillTree：技能树/解锁条件
+    - AttributeGrowth：属性成长策略
+  - 成长流程细化
+    - addExp(amount)
+    - levelUp()
+    - unlockSkill()
+  - 成长字段草案（core/domain）
+    - Progression：level、exp、expToNext、skillPoints
+    - LevelCurve：maxLevel、expTable
+    - SkillTree：nodes(id、req、cost、skillId)、unlocked
+    - AttributeGrowth：perLevelGains、curveType
+  - 装备成长
+    - 装备等级/强化：材料与金币消耗、成功率、保底
+    - 装备品阶与词条：固定属性 + 随机词条池
+    - 装备限制：职业/等级要求与套装效果
+  - 属性与成长展示
+    - 升级结算界面：本次提升明细
+    - 当前/下级经验显示与进度条文本化
+    - 角色详情页：基础属性 + 受装备/技能影响的最终属性
+  - 成长相关平衡
+    - 数值边界：暴击/闪避/减伤上限
+    - 关卡节奏：推荐等级区间与经验通胀控制
+    - 测试用例：快速升级、技能树解锁、强化回退
+- 主循环与UI
+  - 目标平台：Android + Desktop（Compose Multiplatform），iOS 可行性评估
+  - 架构分层：core(纯逻辑) / app(Android) / shared(KMP)
+  - 架构模式：MVVM + 单向数据流
+  - 主循环状态机：Idle/Choose/Running/Event/Combat/Reward/End
+  - 文本指令解析（数字选项或关键字）
+  - 回合/事件推进（协程/StateFlow 驱动）
+  - UI 组件拆分（Compose）
+  - 状态展示（HP/等级/装备/技能冷却）
+  - 输入处理：按钮选项 + 自由文本（可选）
+  - UI 反馈：日志区 + 当前状态面板 + 选项列表
+  - 目录结构与模块
+    - shared/（KMP）
+      - shared/src/commonMain
+        - core/（纯逻辑）
+          - engine/（状态机与主循环）
+          - domain/（实体与规则）
+          - usecase/（用例编排）
+          - data/（随机表与配置）
+        - presentation/（ViewModel/State/Action）
+        - di/（依赖注入，手写或 Koin 可选）
+        - util/（日志/随机/时间）
+      - shared/src/androidMain（平台适配）
+      - shared/src/desktopMain（平台适配）
+      - shared/src/iosMain（可行性评估保留）
+    - androidApp/（Android 入口）
+    - desktopApp/（Desktop 入口）
+  - ViewModel/State/Action/Reducer
+    - GameViewModel
+      - State：screenState、playerState、eventState、options、logLines
+      - Action：StartGame/ChooseRole/ChooseOption/InputText/Next/UseSkill
+      - Reducer/Handler：将 Action 转为 State 变化并驱动引擎
+    - SettingsViewModel（可选）
+  - presentation 层数据结构（shared/src/commonMain/presentation）
+    - GameUiState
+      - screen: ScreenType
+      - player: PlayerUiState
+      - event: EventUiState
+      - combat: CombatUiState
+      - options: List<OptionUiState>
+      - logs: List<String>
+      - loading: Boolean
+      - error: String?
+    - PlayerUiState
+      - name, level, hp/maxHp, atk, def, spd, exp, gold
+      - equipmentSummary, statusSummary
+    - EventUiState
+      - title, description, nodeId, eventType
+    - CombatUiState
+      - enemyName, enemyHp/maxHp, round, turnOwner, statuses
+    - OptionUiState
+      - id, text, enabled, hint
+    - ScreenType enum
+      - Home/ChooseRole/InStage/Event/Combat/Reward/End
+  - presentation Actions/Events
+    - GameAction
+      - StartGame(roleId)
+      - ChooseOption(optionId)
+      - InputText(text)
+      - Next
+      - UseSkill(skillId)
+      - OpenInventory
+      - EquipItem(itemId)
+    - GameEvent（一次性 UI 事件）
+      - ShowToast(message)
+      - Navigate(screen)
+      - ShowReward(rewardSummary)
+  - 引擎与 UI 的边界
+    - Engine 输出：GameSnapshot + EventOptions
+    - UI 输入：Action -> ViewModel -> Engine
+  - UseCase 清单（shared/src/commonMain/core/usecase）
+    - StartGameUseCase
+    - ChooseRoleUseCase
+    - EnterNodeUseCase
+    - ResolveOptionUseCase
+    - StartCombatUseCase
+    - ResolveTurnUseCase
+    - ApplyRewardUseCase
+    - EquipItemUseCase
+    - SaveGameUseCase / LoadGameUseCase（可选）
+  - data 层配置结构（shared/src/commonMain/core/data）
+    - stages.json
+      - stages[]: id, name, difficulty, floors, nodes[], entry, exit
+    - nodes.json
+      - nodes[]: id, type, neighbors[], eventId, conditions
+    - events.json
+      - events[]: id, type, desc, options[], weight, onceOnly
+      - options[]: id, text, conditions, effects[], nextNodeId
+    - enemies.json
+      - enemies[]: id, name, type, level, stats, skills[], drops
+    - items.json
+      - items[]: id, name, type, rarity, stats, affixes
+    - drops.json
+      - dropTables[]: id, entries[], guarantee, rarityWeights
+    - skills.json
+      - skills[]: id, name, type, cost, cooldown, effects, scaling
+  - JSON 模板（示例）
+    - stages.json
+      - {"stages":[{"id":"stage_1","name":"雨林入口","difficulty":1,"floors":1,"nodes":["n1","n2"],"entry":"n1","exit":"n2"}]}
+    - nodes.json
+      - {"nodes":[{"id":"n1","type":"EVENT","neighbors":["n2"],"eventId":"ev_1","conditions":[]},{"id":"n2","type":"BATTLE","neighbors":[],"eventId":"ev_2","conditions":[]}]} 
+    - events.json
+      - {"events":[{"id":"ev_1","type":"CHEST","desc":"你发现一只古老宝箱","options":[{"id":"op_1","text":"打开","conditions":[],"effects":[{"type":"REWARD","value":"rw_1"}],"nextNodeId":"n2"}],"weight":1,"onceOnly":true}]}
+    - enemies.json
+      - {"enemies":[{"id":"e_1","name":"藤蔓兽","type":"NORMAL","level":1,"stats":{"hp":30,"atk":6,"def":2,"spd":3},"skills":["sk_bite"],"drops":"dt_1"}]}
+    - items.json
+      - {"items":[{"id":"it_1","name":"旧匕首","type":"WEAPON","rarity":"COMMON","stats":{"atk":2},"affixes":[]}]} 
+    - drops.json
+      - {"dropTables":[{"id":"dt_1","entries":[{"itemId":"it_1","weight":80}],"guarantee":0,"rarityWeights":{"COMMON":80,"RARE":20}}]}
+    - skills.json
+      - {"skills":[{"id":"sk_bite","name":"撕咬","type":"ACTIVE","cost":0,"cooldown":1,"effects":[{"type":"DAMAGE","value":5}],"scaling":{"atk":0.8}}]}
+  - JSON 字段说明（简版）
+    - stages.json
+      - id: 关卡唯一ID
+      - name: 关卡名称
+      - difficulty: 难度等级（整数）
+      - floors: 层数
+      - nodes: 节点ID列表
+      - entry/exit: 入口/出口节点ID
+    - nodes.json
+      - id: 节点ID
+      - type: 节点类型（EVENT/BATTLE/SHOP/TRAP/REST）
+      - neighbors: 相邻节点ID
+      - eventId: 事件ID（可空）
+      - conditions: 触发条件列表
+    - events.json
+      - id: 事件ID
+      - type: 事件类型（CHEST/TRAP/SHOP/STORY/BATTLE）
+      - desc: 事件描述文本
+      - options: 选项数组
+      - weight: 权重（随机表使用）
+      - onceOnly: 是否只触发一次
+    - events.options
+      - id: 选项ID
+      - text: 选项文本
+      - conditions: 选项可用条件
+      - effects: 选项结果效果数组
+      - nextNodeId: 触发后跳转节点
+    - enemies.json
+      - id: 敌人ID
+      - name: 名称
+      - type: NORMAL/ELITE/BOSS
+      - level: 等级
+      - stats: hp/atk/def/spd/hit/eva/crit
+      - skills: 技能ID列表
+      - drops: 掉落表ID
+    - items.json
+      - id: 物品ID
+      - name: 名称
+      - type: WEAPON/ARMOR/ACCESSORY/CONSUMABLE
+      - rarity: COMMON/UNCOMMON/RARE/EPIC/LEGEND
+      - stats: 属性加成键值
+      - affixes: 随机词条数组
+    - drops.json
+      - id: 掉落表ID
+      - entries: 掉落项数组（itemId/weight）
+      - guarantee: 保底数量
+      - rarityWeights: 稀有度权重
+    - skills.json
+      - id: 技能ID
+      - name: 名称
+      - type: ACTIVE/PASSIVE
+      - cost: 消耗值
+      - cooldown: 冷却回合
+      - effects: 效果数组（DAMAGE/HEAL/BUFF/DEBUFF）
+      - scaling: 伤害/治疗系数（如 atk/def）
+  - Compose UI 细化
+    - GameScreen：总体布局（状态面板/日志区/选项区）
+    - StatusPanel：HP/等级/装备/技能冷却
+    - LogPanel：滚动日志
+    - OptionsPanel：按钮列表 + 输入框（可选）
+    - EventPanel：事件描述 + 选项
+    - CombatPanel：战斗回合展示 + 技能按钮
+  - 状态流与线程
+    - StateFlow：UI 订阅主状态
+    - SharedFlow：日志流（去重/限制长度）
+    - 协程调度：ViewModelScope/CoroutineScope
+  - 多平台差异
+    - Desktop：窗口大小/快捷键
+    - Android：生命周期与保存/恢复
+    - iOS：输入组件与状态保持（待评估）
+  - 可视化与调试
+    - Debug 面板：显示当前状态机节点与随机种子
+    - 日志导出：便于测试回放
+- 测试与平衡
+  - 关键流程用例
+  - 调整掉落与伤害数值
+  - 单元测试建议
+    - 战斗数值边界：命中/闪避/暴击/减伤上下限
+    - 掉落概率分布：小样本与大样本的偏差阈值
+    - 装备穿戴与替换：部位冲突、属性叠加正确性
+    - 状态与技能：持续回合、叠加与互斥规则
+  - 端到端用例
+    - 选人→闯关→战斗→掉落→装备→结算
+    - 战斗失败与资源回退（若有惩罚机制）
+    - 多关卡连续挑战与资源消耗链条
+  - 平衡检查清单
+    - 伤害与生存期望：普通怪 3~5 回合击败
+    - 首领战节奏：有机制、有压力但可胜
+    - 掉落节奏：平均 2~4 场战斗一件可用装备
+    - 装备成长曲线：强化收益与升级收益不冲突
+    - 经济循环：金币/材料获取与消耗保持闭环
+
+## 交付物
+- 可运行的文本游戏主程序
+  - 启动入口与主循环
+  - 基础菜单：开始/角色选择/退出
+- 数据与配置
+  - 角色/敌人/装备/事件的数据定义
+  - 经验表/掉落表/技能配置
+  - 关卡与节点配置
+- 文档
+  - 玩法说明与操作指令
+  - 数值规则说明（伤害/命中/暴击/掉落）
+- 测试与演示
+  - 简单的测试或演示脚本
+  - 一条可复现的示例流程（固定随机种子）

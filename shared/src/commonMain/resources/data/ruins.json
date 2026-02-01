@@ -1,0 +1,51 @@
+﻿{
+  "schema": "ruins.v1",
+  "ruins": [
+    {
+      "id": "ruin_001",
+      "name": "苔纹神庙",
+      "biome": "jungle",
+      "levelRange": [1, 3],
+      "rarity": "common",
+      "tags": ["moss", "puzzle"],
+      "entrance": {
+        "locked": true,
+        "lockType": "vine",
+        "timeToOpenMs": 2500
+      },
+      "lootTable": [
+        {"itemId": "herb", "weight": 50},
+        {"itemId": "ancient_coin", "weight": 30},
+        {"itemId": "small_relic", "weight": 20}
+      ],
+      "events": [
+        {"type": "trap", "id": "spike_floor", "chance": 0.25},
+        {"type": "puzzle", "id": "moss_rune", "chance": 0.35}
+      ],
+      "coords": {"x": 12, "y": 8}
+    },
+    {
+      "id": "ruin_002",
+      "name": "风化石门",
+      "biome": "cliff",
+      "levelRange": [2, 5],
+      "rarity": "uncommon",
+      "tags": ["wind", "guardian"],
+      "entrance": {
+        "locked": false,
+        "lockType": "none",
+        "timeToOpenMs": 0
+      },
+      "lootTable": [
+        {"itemId": "ancient_coin", "weight": 40},
+        {"itemId": "wind_charm", "weight": 35},
+        {"itemId": "medium_relic", "weight": 25}
+      ],
+      "events": [
+        {"type": "elite", "id": "stone_guard", "chance": 0.30},
+        {"type": "treasure", "id": "sealed_chest", "chance": 0.20}
+      ],
+      "coords": {"x": 5, "y": 14}
+    }
+  ]
+}

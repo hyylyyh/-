@@ -1,0 +1,60 @@
+{
+  "equipments": [
+    {
+      "id": "rusty_spear",
+      "name": "锈蚀长矛",
+      "slot": "WEAPON",
+      "rarity": "common",
+      "levelReq": 1,
+      "baseStats": { "ATK": 6 },
+      "statScale": { "ATK": 0.8 },
+      "affixCount": { "min": 0, "max": 1 },
+      "affixPool": ["atk_flat", "crit", "speed"],
+      "enhanceMax": 5,
+      "sellValue": 6,
+      "salvageYield": 1
+    },
+    {
+      "id": "hunter_armor",
+      "name": "猎人皮甲",
+      "slot": "ARMOR",
+      "rarity": "uncommon",
+      "levelReq": 1,
+      "baseStats": { "DEF": 5, "HP": 10 },
+      "statScale": { "DEF": 0.6, "HP": 1.2 },
+      "affixCount": { "min": 1, "max": 2 },
+      "affixPool": ["def_flat", "hp_flat", "speed"],
+      "enhanceMax": 5,
+      "sellValue": 8,
+      "salvageYield": 2
+    },
+    {
+      "id": "jade_helm",
+      "name": "碧玉头盔",
+      "slot": "HELM",
+      "rarity": "rare",
+      "levelReq": 2,
+      "baseStats": { "DEF": 6, "HP": 12 },
+      "statScale": { "DEF": 0.7, "HP": 1.4 },
+      "affixCount": { "min": 2, "max": 3 },
+      "affixPool": ["def_flat", "hp_flat", "hit"],
+      "enhanceMax": 7,
+      "sellValue": 12,
+      "salvageYield": 3
+    },
+    {
+      "id": "shadow_charm",
+      "name": "幽影护符",
+      "slot": "ACCESSORY",
+      "rarity": "epic",
+      "levelReq": 3,
+      "baseStats": { "CRIT": 3, "SPEED": 1 },
+      "statScale": { "CRIT": 0.4, "SPEED": 0.2 },
+      "affixCount": { "min": 3, "max": 4 },
+      "affixPool": ["crit", "speed", "hit"],
+      "enhanceMax": 9,
+      "sellValue": 18,
+      "salvageYield": 4
+    }
+  ]
+}

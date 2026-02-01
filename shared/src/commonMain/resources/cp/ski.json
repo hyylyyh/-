@@ -1,0 +1,155 @@
+{
+  "skills": [
+    {
+      "id": "sk_pass_discover_ruins",
+      "name": "发现遗迹",
+      "type": "PASSIVE",
+      "target": "SELF",
+      "cost": 0,
+      "cooldown": 0,
+      "effects": [
+        { "type": "DROP_RATE", "value": 0.10, "note": "掉落概率+10%" },
+        { "type": "HIDDEN_PATH", "value": 0.15, "note": "隐藏路径触发+15%" }
+      ],
+      "desc": "更容易发现隐藏路线与额外奖励。"
+    },
+    {
+      "id": "sk_act_scout",
+      "name": "勘探",
+      "type": "ACTIVE",
+      "target": "SELF",
+      "cost": 6,
+      "cooldown": 3,
+      "effects": [
+        { "type": "REVEAL_NEXT_NODE", "value": 1, "note": "显示下一节点风险" },
+        { "type": "HIT_UP", "value": 0.10, "note": "命中率+10%，持续2回合" }
+      ],
+      "desc": "观察前路并提高后续行动命中。"
+    },
+    {
+      "id": "sk_pass_mark_weakness",
+      "name": "标记弱点",
+      "type": "PASSIVE",
+      "target": "SELF",
+      "cost": 0,
+      "cooldown": 0,
+      "effects": [
+        { "type": "DAMAGE_VS_ELITE_BOSS", "value": 0.10, "note": "对精英/首领伤害+10%" }
+      ],
+      "desc": "针对高威胁目标的额外伤害。"
+    },
+    {
+      "id": "sk_act_trap_bind",
+      "name": "束缚陷阱",
+      "type": "ACTIVE",
+      "target": "ENEMY",
+      "cost": 8,
+      "cooldown": 3,
+      "effects": [
+        { "type": "DAMAGE", "value": 0.80, "scaling": "ATK", "note": "80%ATK伤害" },
+        { "type": "ROOT", "value": 1, "note": "束缚1回合" }
+      ],
+      "desc": "对敌造成伤害并限制其行动。"
+    },
+    {
+      "id": "sk_pass_oracle_guard",
+      "name": "神谕护佑",
+      "type": "PASSIVE",
+      "target": "SELF",
+      "cost": 0,
+      "cooldown": 0,
+      "effects": [
+        { "type": "DEBUFF_DURATION_MINUS", "value": 1, "note": "负面状态持续-1回合" }
+      ],
+      "desc": "降低负面状态的持续时间。"
+    },
+    {
+      "id": "sk_act_purify",
+      "name": "净化",
+      "type": "ACTIVE",
+      "target": "SELF",
+      "cost": 10,
+      "cooldown": 4,
+      "effects": [
+        { "type": "REMOVE_DEBUFF", "value": 1, "note": "移除1个负面状态" },
+        { "type": "HEAL_MAX_HP", "value": 0.15, "note": "回复15%最大HP" }
+      ],
+      "desc": "净化负面并恢复生命。"
+    },
+    {
+      "id": "sk_pass_salvage_plus",
+      "name": "拆解回收",
+      "type": "PASSIVE",
+      "target": "SELF",
+      "cost": 0,
+      "cooldown": 0,
+      "effects": [
+        { "type": "MATERIAL_GAIN", "value": 0.20, "note": "材料收益+20%" }
+      ],
+      "desc": "拆解与回收获得更多材料。"
+    },
+    {
+      "id": "sk_act_mech_break",
+      "name": "机关破解",
+      "type": "ACTIVE",
+      "target": "EVENT",
+      "cost": 8,
+      "cooldown": 3,
+      "effects": [
+        { "type": "DISARM_TRAP", "value": 1, "note": "解除一次陷阱判定" },
+        { "type": "MATERIAL_BONUS", "value": 0.10, "note": "本次事件材料+10%" }
+      ],
+      "desc": "提升事件处理收益并规避风险。"
+    },
+    {
+      "id": "sk_pass_stealth",
+      "name": "潜行",
+      "type": "PASSIVE",
+      "target": "SELF",
+      "cost": 0,
+      "cooldown": 0,
+      "effects": [
+        { "type": "ENCOUNTER_RATE_DOWN", "value": 0.15, "note": "遇敌率-15%" }
+      ],
+      "desc": "减少遭遇战斗的概率。"
+    },
+    {
+      "id": "sk_act_quick_open",
+      "name": "速开",
+      "type": "ACTIVE",
+      "target": "EVENT",
+      "cost": 7,
+      "cooldown": 3,
+      "effects": [
+        { "type": "CHEST_NO_TRAP", "value": 0.70, "note": "开箱不触发陷阱概率+70%" },
+        { "type": "GOLD_BONUS", "value": 0.15, "note": "成功额外金币+15%" }
+      ],
+      "desc": "快速开箱，降低陷阱概率并增加收益。"
+    },
+    {
+      "id": "sk_pass_hardening",
+      "name": "硬化",
+      "type": "PASSIVE",
+      "target": "SELF",
+      "cost": 0,
+      "cooldown": 0,
+      "effects": [
+        { "type": "DAMAGE_TAKEN_DOWN", "value": 0.08, "note": "受到伤害-8%" }
+      ],
+      "desc": "稳定提升生存能力。"
+    },
+    {
+      "id": "sk_act_wallbreak",
+      "name": "破墙",
+      "type": "ACTIVE",
+      "target": "ENEMY",
+      "cost": 9,
+      "cooldown": 3,
+      "effects": [
+        { "type": "DAMAGE", "value": 1.20, "scaling": "ATK", "note": "120%ATK伤害" },
+        { "type": "SHIELD_BREAK", "value": 1, "note": "破除护盾/障碍" }
+      ],
+      "desc": "重击破防，适合对付高防目标。"
+    }
+  ]
+}
