@@ -795,9 +795,9 @@ class GameViewModel(
         val enemyScore = scaledHp + scaledAtk * 2.0 + scaledDef * 1.5 + scaledSpd * 0.8
         var ratio = if (enemyScore <= 0.0) 1.0 else playerScore / enemyScore
 
-        when (event.firstStrike?.lowercase()) {
-            "player" -> ratio *= 1.05
-            "enemy" -> ratio *= 0.9
+        when (event.firstStrike) {
+            "玩家" -> ratio *= 1.05
+            "敌人" -> ratio *= 0.9
         }
         val roundLimit = event.roundLimit
         if (roundLimit != null) {
@@ -823,10 +823,11 @@ class GameViewModel(
             append("」。")
         }
 
-        val firstStrikeLabel = when (event.firstStrike?.lowercase()) {
-            "player" -> "玩家先手"
-            "enemy" -> "敌人先手"
-            "random" -> "随机先手"
+        val firstStrikeLabel = when (event.firstStrike) {
+            "玩家" -> "玩家先手"
+            "敌人" -> "敌人先手"
+            "随机" -> "随机先手"
+            "速度" -> "速度先手"
             else -> "速度先手"
         }
 
@@ -837,7 +838,7 @@ class GameViewModel(
 
         return EnemyPreviewUiState(
             name = enemyDef.name,
-            type = enemyDef.type,
+            type = enemyTypeLabel(enemyDef.type),
             level = enemyDef.level,
             count = count,
             hp = scaledHp,
@@ -857,6 +858,15 @@ class GameViewModel(
             roundLimit = roundLimit,
             firstStrike = firstStrikeLabel
         )
+    }
+
+    private fun enemyTypeLabel(raw: String): String {
+        return when (raw.uppercase()) {
+            "NORMAL" -> "普通"
+            "ELITE" -> "精英"
+            "BOSS" -> "首领"
+            else -> raw
+        }
     }
 
     private fun estimateWinRate(ratio: Double, roundLimit: Int?): Int {

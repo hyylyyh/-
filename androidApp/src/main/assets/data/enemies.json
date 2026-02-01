@@ -1,9 +1,9 @@
-﻿{
+{
   "enemies": [
     {
       "id": "e_grass_cat",
       "name": "草丛猫",
-      "type": "NORMAL",
+      "type": "??",
       "level": 1,
       "stats": {
         "hp": 30,
@@ -21,7 +21,7 @@
     {
       "id": "e_elite_badge",
       "name": "徽章精英",
-      "type": "ELITE",
+      "type": "??",
       "level": 2,
       "stats": {
         "hp": 55,
@@ -39,7 +39,7 @@
     {
       "id": "e_temp_worker",
       "name": "临时工怪物",
-      "type": "NORMAL",
+      "type": "??",
       "level": 2,
       "stats": {
         "hp": 42,
@@ -57,7 +57,7 @@
     {
       "id": "e_overtime_pack",
       "name": "加班怪小队",
-      "type": "ELITE",
+      "type": "??",
       "level": 3,
       "stats": {
         "hp": 65,
@@ -75,7 +75,7 @@
     {
       "id": "e_mini_boss",
       "name": "小首领",
-      "type": "ELITE",
+      "type": "??",
       "level": 3,
       "stats": {
         "hp": 80,
@@ -93,7 +93,7 @@
     {
       "id": "e_sponsor_gladiator",
       "name": "赞助商挑战者",
-      "type": "ELITE",
+      "type": "??",
       "level": 4,
       "stats": {
         "hp": 95,
@@ -111,7 +111,7 @@
     {
       "id": "e_outpost_guard",
       "name": "前哨守卫",
-      "type": "ELITE",
+      "type": "??",
       "level": 4,
       "stats": {
         "hp": 110,
@@ -129,7 +129,7 @@
     {
       "id": "e_final_boss",
       "name": "终极首领",
-      "type": "BOSS",
+      "type": "??",
       "level": 5,
       "stats": {
         "hp": 150,

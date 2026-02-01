@@ -67,7 +67,7 @@ fun defaultNodes(): List<NodeDefinition> {
     return listOf(
         NodeDefinition(
             id = "default_node",
-            type = "EVENT",
+            type = "事件",
             neighbors = emptyList(),
             eventId = null,
             conditions = emptyList()

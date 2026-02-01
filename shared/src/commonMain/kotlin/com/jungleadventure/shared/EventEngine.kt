@@ -36,7 +36,7 @@ class EventEngine(private val events: List<EventDefinition>) {
 
     fun toChoices(event: EventDefinition): List<GameChoice> {
         return if (event.options.isEmpty()) {
-            listOf(GameChoice("advance", "继续"))
+            listOf(GameChoice("继续", "继续"))
         } else {
             event.options.map { option ->
                 GameChoice(option.optionId, option.text)
@@ -47,23 +47,20 @@ class EventEngine(private val events: List<EventDefinition>) {
     private fun filterByNodeType(chapter: Int, nodeType: String): List<EventDefinition> {
         val normalized = nodeType.uppercase()
         val predicate: (EventDefinition) -> Boolean = when (normalized) {
-            "BATTLE" -> { event ->
-                event.type.contains("battle", ignoreCase = true) || event.type.contains("战斗")
+            "战斗", "BATTLE" -> { event ->
+                event.type.contains("战斗")
             }
-            "TRAP" -> { event ->
-                event.type.contains("trap", ignoreCase = true) || event.type.contains("陷阱")
+            "陷阱", "TRAP" -> { event ->
+                event.type.contains("陷阱")
             }
-            "SHOP" -> { event ->
-                event.type.contains("shop", ignoreCase = true) || event.type.contains("商店")
+            "商店", "SHOP" -> { event ->
+                event.type.contains("商店")
             }
-            "REST" -> { event ->
-                event.type.contains("rest", ignoreCase = true) || event.type.contains("休息")
+            "休息", "REST" -> { event ->
+                event.type.contains("休息")
             }
-            "STORY" -> { event ->
-                event.type.contains("story", ignoreCase = true) ||
-                    event.type.contains("dialog", ignoreCase = true) ||
-                    event.type.contains("剧情") ||
-                    event.type.contains("对话")
+            "剧情", "STORY" -> { event ->
+                event.type.contains("剧情") || event.type.contains("对话")
             }
             else -> { _ -> true }
         }
@@ -81,7 +78,7 @@ class EventEngine(private val events: List<EventDefinition>) {
             "SHOP" -> "商店"
             "REST" -> "休息"
             "STORY" -> "剧情"
-            else -> "未知"
+            else -> nodeType.ifBlank { "未知" }
         }
     }
 

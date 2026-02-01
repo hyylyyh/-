@@ -22,10 +22,11 @@ class BattleSystem(
         val enemyActor = enemyDef.toCombatActor(group.count)
         val config = CombatConfig(
             roundLimit = event.roundLimit,
-            firstStrike = when (event.firstStrike?.lowercase()) {
-                "player" -> FirstStrikeRule.PLAYER
-                "enemy" -> FirstStrikeRule.ENEMY
-                "random" -> FirstStrikeRule.RANDOM
+            firstStrike = when (event.firstStrike) {
+                "玩家" -> FirstStrikeRule.PLAYER
+                "敌人" -> FirstStrikeRule.ENEMY
+                "随机" -> FirstStrikeRule.RANDOM
+                "速度" -> FirstStrikeRule.SPEED
                 else -> FirstStrikeRule.SPEED
             }
         )
@@ -66,10 +67,11 @@ class BattleSystem(
         val enemyActor = enemyDef.toCombatActor(group.count)
         val config = CombatConfig(
             roundLimit = event.roundLimit,
-            firstStrike = when (event.firstStrike?.lowercase()) {
-                "player" -> FirstStrikeRule.PLAYER
-                "enemy" -> FirstStrikeRule.ENEMY
-                "random" -> FirstStrikeRule.RANDOM
+            firstStrike = when (event.firstStrike) {
+                "玩家" -> FirstStrikeRule.PLAYER
+                "敌人" -> FirstStrikeRule.ENEMY
+                "随机" -> FirstStrikeRule.RANDOM
+                "速度" -> FirstStrikeRule.SPEED
                 else -> FirstStrikeRule.SPEED
             }
         )
@@ -138,7 +140,7 @@ fun PlayerStats.toCombatActor(): CombatActor {
     )
     GameLogger.log("战斗", "玩家转化战斗属性：命中=$hit 闪避=$eva 暴击=$crit")
     return CombatActor(
-        id = "player",
+        id = "玩家",
         name = name,
         type = CombatActorType.PLAYER,
         stats = stats,
