@@ -142,4 +142,48 @@ Android 资源有一份镜像（需要同步）：
 - 修改 `shared/` 后同步到 `androidApp/` 资源目录，避免端侧读取不同配置。
 - JSON 语法请保持严格合法（逗号、引号、数组等）。
 
+## 五、效果类型 / 词条类型对照表
+
+### 1) 技能效果类型（`effects.type`）
+
+以下为当前项目内已有或已识别的常用类型（建议优先使用这些）：
+- `DAMAGE`：伤害（建议配 `value` + `scaling`，并填写 `note`）
+- `HEAL_MAX_HP`：回复最大生命百分比
+- `HIT_UP`：命中率提升
+- `DAMAGE_TAKEN_DOWN`：受到伤害降低
+- `DAMAGE_VS_ELITE_BOSS`：对精英/首领伤害提升
+- `CRIT_UP`：暴击率提升
+- `EVADE_UP`：闪避提升
+- `DROP_RATE`：掉落概率提升
+- `HIDDEN_PATH`：隐藏路径触发提升
+- `MATERIAL_GAIN`：材料收益提升
+- `ENCOUNTER_RATE_DOWN`：遇敌率降低
+- `ROOT`：束缚
+- `REMOVE_DEBUFF`：移除负面状态
+- `DEBUFF_DURATION_MINUS`：负面持续回合减少
+- `REVEAL_NEXT_NODE`：显示下一节点风险
+- `DISARM_TRAP`：解除陷阱判定
+- `MATERIAL_BONUS`：事件材料收益提升
+- `CHEST_NO_TRAP`：开箱不触发陷阱概率提升
+- `GOLD_BONUS`：金币收益提升
+- `SHIELD_BREAK`：破除护盾/障碍
+
+> 注意：界面优先展示 `note`。如果不写 `note`，会使用内置兜底文案，但可能不够精确。
+
+### 2) 伤害/数值缩放字段（`effects.scaling`）
+
+可用取值（与属性一致）：`ATK` / `DEF` / `HP` / `SPD`
+
+### 3) 装备词条类型（`affixes.type`）
+
+当前词条类型来自 `data/affixes.json`：
+- `ATK` / `DEF` / `HP`
+- `CRIT` / `SPEED` / `HIT`
+
+### 4) 装备基础属性键（`baseStats` / `statScale`）
+
+可用键来自装备系统的属性类型：
+- `ATK` / `DEF` / `HP` / `SPEED`
+- `HIT` / `EVADE` / `CRIT` / `CRIT_RESIST`
+
 如需扩展效果类型或词条类型，请同步更新逻辑侧与配置描述。
