@@ -1,4 +1,4 @@
-package com.jungleadventure.shared
+﻿package com.jungleadventure.shared
 
 import kotlinx.serialization.Serializable
 

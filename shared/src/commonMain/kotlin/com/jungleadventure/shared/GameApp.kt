@@ -14,9 +14,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -29,9 +32,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun GameApp(resourceReader: ResourceReader, viewModel: GameViewModel = remember {
-    GameViewModel(resourceReader)
-}) {
+fun GameApp(
+    resourceReader: ResourceReader,
+    saveStore: SaveStore = defaultSaveStore(),
+    viewModel: GameViewModel = remember {
+        GameViewModel(resourceReader, saveStore)
+    }
+) {
     val state by viewModel.state.collectAsState()
 
     MaterialTheme {
@@ -59,7 +66,9 @@ fun GameApp(resourceReader: ResourceReader, viewModel: GameViewModel = remember 
                     state = state,
                     onOpenStatus = viewModel::onOpenStatus,
                     onOpenEquipment = viewModel::onOpenEquipment,
-                    onOpenInventory = viewModel::onOpenInventory
+                    onOpenInventory = viewModel::onOpenInventory,
+                    onSave = viewModel::onSave,
+                    onLoad = viewModel::onLoad
                 )
             }
         }
@@ -162,63 +171,184 @@ private fun RoleSelectionPanel(state: GameUiState, onSelectRole: (String) -> Uni
     val selectedRole = state.roles.firstOrNull { it.id == state.selectedRoleId }
         ?: state.roles.firstOrNull { it.unlocked }
 
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Column(
-            modifier = Modifier.weight(0.45f),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "可选名单", fontWeight = FontWeight.SemiBold)
-            state.roles.forEach { role ->
-                val isSelected = role.id == state.selectedRoleId
-                val label = when {
-                    !role.unlocked -> "${role.name} · 未解锁"
-                    isSelected -> "${role.name} · 已选择"
-                    else -> role.name
-                }
-                Button(
-                    onClick = { onSelectRole(role.id) },
-                    enabled = role.unlocked,
-                    modifier = Modifier.fillMaxWidth()
+            Text(text = "候选角色", fontWeight = FontWeight.SemiBold)
+            Text(
+                text = "当前：${selectedRole?.name ?: "无"}",
+                color = Color(0xFF8DB38B)
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier = Modifier.weight(0.48f),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(360.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(label)
+                    items(state.roles) { role ->
+                        val isSelected = role.id == selectedRole?.id
+                        RoleCard(role = role, isSelected = isSelected, onSelectRole = onSelectRole)
+                    }
                 }
-                Text(text = role.title, color = Color(0xFF7B756B))
+            }
+            Column(
+                modifier = Modifier.weight(0.52f),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                RoleDetailPanel(selectedRole = selectedRole, onSelectRole = onSelectRole)
             }
         }
+    }
+}
+
+@Composable
+private fun RoleCard(
+    role: RoleProfile,
+    isSelected: Boolean,
+    onSelectRole: (String) -> Unit
+) {
+    val containerColor = when {
+        isSelected -> Color(0xFF1C3B30)
+        role.unlocked -> Color(0xFF182720)
+        else -> Color(0xFF29231D)
+    }
+    val contentColor = if (role.unlocked) Color(0xFFECE8D9) else Color(0xFF9B9587)
+    Card(
+        onClick = { onSelectRole(role.id) },
+        enabled = role.unlocked,
+        colors = CardDefaults.cardColors(
+            containerColor = containerColor,
+            contentColor = contentColor
+        ),
+        modifier = Modifier.fillMaxWidth()
+    ) {
         Column(
-            modifier = Modifier.weight(0.55f),
+            modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            if (selectedRole == null) {
-                Text("暂无可用角色")
-            } else {
-                Text(text = "角色特长", fontWeight = FontWeight.SemiBold)
-                Text(selectedRole.specialty)
-
-                Divider(modifier = Modifier.padding(vertical = 6.dp))
-                Text(text = "等级属性成长", fontWeight = FontWeight.SemiBold)
-                selectedRole.growth.forEach { stat ->
-                    Text("${stat.label} +${stat.perLevel}/级")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(text = role.name, fontWeight = FontWeight.Bold)
+                    Text(text = role.role, color = Color(0xFFB8B2A6))
                 }
-
-                Divider(modifier = Modifier.padding(vertical = 6.dp))
-                Text(text = "装备特长", fontWeight = FontWeight.SemiBold)
-                Text(selectedRole.equipmentTrait)
-
-                Divider(modifier = Modifier.padding(vertical = 6.dp))
-                Text(text = "角色技能特长", fontWeight = FontWeight.SemiBold)
-                Text(selectedRole.skillTrait)
-
-                Divider(modifier = Modifier.padding(vertical = 6.dp))
-                Text(text = "技能详情", fontWeight = FontWeight.SemiBold)
-                Text("被动：${selectedRole.passiveSkill.name}")
-                Text(selectedRole.passiveSkill.description)
-                Text("主动：${selectedRole.activeSkill.name}")
-                Text(
-                    "${selectedRole.activeSkill.description}（${selectedRole.activeSkill.cost}，${selectedRole.activeSkill.cooldown}）"
+                RoleTag(
+                    text = when {
+                        isSelected -> "已选择"
+                        role.unlocked -> "可选"
+                        else -> "未解锁"
+                    },
+                    background = when {
+                        isSelected -> Color(0xFF3A7A5F)
+                        role.unlocked -> Color(0xFF2B4E41)
+                        else -> Color(0xFF4A3B2A)
+                    }
                 )
             }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                RoleStat(label = "HP", value = role.stats.hp)
+                RoleStat(label = "ATK", value = role.stats.atk)
+                RoleStat(label = "DEF", value = role.stats.def)
+                RoleStat(label = "SPD", value = role.stats.speed)
+            }
+            if (!role.unlocked && role.unlock.isNotBlank()) {
+                Text(text = "解锁条件：${role.unlock}", color = Color(0xFFD6B36A))
+            }
         }
+    }
+}
+
+@Composable
+private fun RoleDetailPanel(
+    selectedRole: RoleProfile?,
+    onSelectRole: (String) -> Unit
+) {
+    if (selectedRole == null) {
+        Text("暂无可用角色")
+        return
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(text = "角色详情", fontWeight = FontWeight.SemiBold)
+                Text(
+                    text = "${selectedRole.name} · ${selectedRole.role}",
+                    color = Color(0xFFB8B2A6)
+                )
+            }
+            OutlinedButton(
+                onClick = { onSelectRole(selectedRole.id) },
+                enabled = selectedRole.unlocked,
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = Color(0xFFECE8D9)
+                )
+            ) {
+                Text("使用角色")
+            }
+        }
+
+        Divider()
+        Text(text = "基础属性", fontWeight = FontWeight.SemiBold)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            RoleStat(label = "HP", value = selectedRole.stats.hp)
+            RoleStat(label = "ATK", value = selectedRole.stats.atk)
+            RoleStat(label = "DEF", value = selectedRole.stats.def)
+            RoleStat(label = "SPD", value = selectedRole.stats.speed)
+            RoleStat(label = "PER", value = selectedRole.stats.perception)
+        }
+
+        Divider()
+        Text(text = "技能组合", fontWeight = FontWeight.SemiBold)
+        Text(text = "被动：${selectedRole.passiveSkill.name}")
+        Text(text = selectedRole.passiveSkill.description, color = Color(0xFFB8B2A6))
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(text = "主动：${selectedRole.activeSkill.name}")
+        Text(
+            text = "${selectedRole.activeSkill.description}（${selectedRole.activeSkill.cost}，${selectedRole.activeSkill.cooldown}）",
+            color = Color(0xFFB8B2A6)
+        )
+
+        if (!selectedRole.unlocked) {
+            Divider()
+            Text(text = "解锁条件", fontWeight = FontWeight.SemiBold)
+            Text(text = selectedRole.unlock.ifBlank { "暂无说明" }, color = Color(0xFFD6B36A))
+        }
+    }
+}
+
+@Composable
+private fun RoleStat(label: String, value: Int) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(text = label, color = Color(0xFF7B756B))
+        Text(text = value.toString(), fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+private fun RoleTag(text: String, background: Color) {
+    Box(
+        modifier = Modifier
+            .background(background)
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+    ) {
+        Text(text = text, color = Color(0xFFECE8D9))
     }
 }
 
@@ -228,7 +358,9 @@ private fun SidePanel(
     state: GameUiState,
     onOpenStatus: () -> Unit,
     onOpenEquipment: () -> Unit,
-    onOpenInventory: () -> Unit
+    onOpenInventory: () -> Unit,
+    onSave: (Int) -> Unit,
+    onLoad: (Int) -> Unit
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -239,6 +371,27 @@ private fun SidePanel(
                     Button(onClick = onOpenStatus) { Text("状态") }
                     Button(onClick = onOpenEquipment) { Text("装备") }
                     Button(onClick = onOpenInventory) { Text("背包") }
+                }
+            }
+        }
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(text = "存档管理", fontWeight = FontWeight.Bold)
+                Divider(modifier = Modifier.padding(vertical = 4.dp))
+                if (state.saveSlots.isEmpty()) {
+                    Text("存档信息加载中...")
+                } else {
+                    state.saveSlots.forEach { slot ->
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(text = slot.title, fontWeight = FontWeight.SemiBold)
+                            Text(text = slot.detail, color = Color(0xFF7B756B))
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(onClick = { onSave(slot.slot) }) { Text("保存") }
+                                Button(onClick = { onLoad(slot.slot) }, enabled = slot.hasData) { Text("读取") }
+                            }
+                        }
+                        Divider(modifier = Modifier.padding(vertical = 6.dp))
+                    }
                 }
             }
         }
