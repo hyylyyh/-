@@ -3,6 +3,12 @@
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -26,6 +32,9 @@ class GameViewModel(
     private val roles = loadRoleProfiles()
     private val enemyRepository = loadEnemyRepository()
     private val battleSystem = BattleSystem(enemyRepository, rng)
+    private val autoSaveScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val autoSaveSlot = 1
+    private val autoSaveIntervalMs = 10_000L
     private val json = Json {
         encodeDefaults = true
         prettyPrint = true
@@ -55,6 +64,7 @@ class GameViewModel(
         }
         startStageForTurn(_state.value.turn, reason = "初始化关卡")
         refreshSaveSlots()
+        startAutoSaveLoop()
     }
 
     fun onSelectRole(roleId: String) {
@@ -145,22 +155,7 @@ class GameViewModel(
 
     fun onSave(slot: Int) {
         GameLogger.info("存档系统", "准备存档，槽位=$slot，回合=${_state.value.turn}")
-        val snapshot = _state.value
-        val runtime = stageRuntime
-        val saveGame = SaveGame(
-            turn = snapshot.turn,
-            chapter = snapshot.chapter,
-            selectedRoleId = snapshot.selectedRoleId,
-            player = snapshot.player,
-            log = snapshot.log,
-            lastAction = snapshot.lastAction,
-            activePanel = snapshot.activePanel,
-            currentEventId = snapshot.currentEvent?.eventId,
-            stageId = runtime?.stage?.id,
-            nodeId = runtime?.currentNodeId,
-            visitedNodes = runtime?.visited?.toList() ?: emptyList(),
-            stageCompleted = runtime?.completed ?: false
-        )
+        val saveGame = buildSaveGameSnapshot()
         runCatching {
             val payload = json.encodeToString(saveGame)
             saveStore.save(slot, payload)
@@ -524,6 +519,50 @@ class GameViewModel(
 
     private fun isBattleEvent(event: EventDefinition): Boolean {
         return !event.enemyGroupId.isNullOrBlank() || event.type.lowercase().startsWith("battle")
+    }
+
+    private fun buildSaveGameSnapshot(): SaveGame {
+        val snapshot = _state.value
+        val runtime = stageRuntime
+        return SaveGame(
+            turn = snapshot.turn,
+            chapter = snapshot.chapter,
+            selectedRoleId = snapshot.selectedRoleId,
+            player = snapshot.player,
+            log = snapshot.log,
+            lastAction = snapshot.lastAction,
+            activePanel = snapshot.activePanel,
+            currentEventId = snapshot.currentEvent?.eventId,
+            stageId = runtime?.stage?.id,
+            nodeId = runtime?.currentNodeId,
+            visitedNodes = runtime?.visited?.toList() ?: emptyList(),
+            stageCompleted = runtime?.completed ?: false
+        )
+    }
+
+    private fun startAutoSaveLoop() {
+        GameLogger.info(
+            "存档系统",
+            "启动自动存档：间隔=${autoSaveIntervalMs}ms 槽位=$autoSaveSlot"
+        )
+        autoSaveScope.launch {
+            while (isActive) {
+                delay(autoSaveIntervalMs)
+                val saveGame = buildSaveGameSnapshot()
+                runCatching {
+                    val payload = json.encodeToString(saveGame)
+                    saveStore.save(autoSaveSlot, payload)
+                }.onFailure { error ->
+                    GameLogger.error("存档系统", "自动存档失败，槽位=$autoSaveSlot", error)
+                    return@onFailure
+                }
+                GameLogger.info(
+                    "存档系统",
+                    "自动存档完成，槽位=$autoSaveSlot，回合=${saveGame.turn}"
+                )
+                refreshSaveSlots()
+            }
+        }
     }
 
     private fun loadEnemyRepository(): EnemyRepository {

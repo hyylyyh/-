@@ -443,16 +443,23 @@ private fun SidePanel(
                 if (state.saveSlots.isEmpty()) {
                     Text("存档信息加载中...")
                 } else {
-                    state.saveSlots.forEach { slot ->
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(text = slot.title, fontWeight = FontWeight.SemiBold)
-                            Text(text = slot.detail, color = Color(0xFF7B756B))
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Button(onClick = { onSave(slot.slot) }) { Text("保存") }
-                                Button(onClick = { onLoad(slot.slot) }, enabled = slot.hasData) { Text("读取") }
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(240.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(state.saveSlots) { slot ->
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(text = slot.title, fontWeight = FontWeight.SemiBold)
+                                Text(text = slot.detail, color = Color(0xFF7B756B))
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Button(onClick = { onSave(slot.slot) }) { Text("保存") }
+                                    Button(onClick = { onLoad(slot.slot) }, enabled = slot.hasData) { Text("读取") }
+                                }
                             }
+                            Divider(modifier = Modifier.padding(vertical = 6.dp))
                         }
-                        Divider(modifier = Modifier.padding(vertical = 6.dp))
                     }
                 }
             }
