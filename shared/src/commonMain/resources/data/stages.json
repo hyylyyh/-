@@ -1,0 +1,55 @@
+﻿{
+  "schema": "stages.v1",
+  "stages": [
+    {
+      "id": "stage_1",
+      "name": "雨林入口",
+      "chapter": 1,
+      "difficulty": 1,
+      "floors": 1,
+      "nodes": ["st1_n1", "st1_n2", "st1_n3", "st1_n4", "st1_exit"],
+      "entry": "st1_n1",
+      "exit": "st1_exit"
+    },
+    {
+      "id": "stage_2",
+      "name": "节目任务单",
+      "chapter": 2,
+      "difficulty": 2,
+      "floors": 1,
+      "nodes": ["st2_n1", "st2_n2", "st2_n3", "st2_n4", "st2_exit"],
+      "entry": "st2_n1",
+      "exit": "st2_exit"
+    },
+    {
+      "id": "stage_3",
+      "name": "打工人吐槽会",
+      "chapter": 3,
+      "difficulty": 3,
+      "floors": 1,
+      "nodes": ["st3_n1", "st3_n2", "st3_n3", "st3_n4", "st3_exit"],
+      "entry": "st3_n1",
+      "exit": "st3_exit"
+    },
+    {
+      "id": "stage_4",
+      "name": "出口反转铺垫",
+      "chapter": 4,
+      "difficulty": 4,
+      "floors": 1,
+      "nodes": ["st4_n1", "st4_n2", "st4_n3", "st4_n4", "st4_exit"],
+      "entry": "st4_n1",
+      "exit": "st4_exit"
+    },
+    {
+      "id": "stage_5",
+      "name": "最后一步",
+      "chapter": 5,
+      "difficulty": 5,
+      "floors": 1,
+      "nodes": ["st5_n1", "st5_n2", "st5_n3", "st5_n4", "st5_exit"],
+      "entry": "st5_n1",
+      "exit": "st5_exit"
+    }
+  ]
+}

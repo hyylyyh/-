@@ -92,8 +92,13 @@ private fun HeaderBar(state: GameUiState) {
                 color = Color(0xFFECE8D9),
                 fontWeight = FontWeight.Bold
             )
+            val stageLabel = if (state.stage.id.isNotBlank()) {
+                " | 关卡 ${state.stage.name} ${state.stage.visited}/${state.stage.total}"
+            } else {
+                ""
+            }
             Text(
-                text = "回合 ${state.turn}  |  章节 ${state.chapter}",
+                text = "回合 ${state.turn}  |  章节 ${state.chapter}$stageLabel",
                 color = Color(0xFFB8B2A6)
             )
         }
@@ -129,6 +134,9 @@ private fun MainPanel(
                 } else {
                     Text(state.currentEvent.title, fontWeight = FontWeight.SemiBold)
                     Text("类型 ${state.currentEvent.type}  难度 ${state.currentEvent.difficulty}")
+                    if (state.stage.id.isNotBlank()) {
+                        Text("节点 ${state.stage.nodeId}  类型 ${state.stage.nodeType}")
+                    }
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(state.currentEvent.introText)
                 }

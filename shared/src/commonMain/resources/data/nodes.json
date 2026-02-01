@@ -1,0 +1,180 @@
+﻿{
+  "schema": "nodes.v1",
+  "nodes": [
+    {
+      "id": "st1_n1",
+      "type": "EVENT",
+      "neighbors": ["st1_n2"],
+      "eventId": "ch1_guide_sign",
+      "conditions": []
+    },
+    {
+      "id": "st1_n2",
+      "type": "BATTLE",
+      "neighbors": ["st1_n3"],
+      "eventId": "ch1_grass_cat",
+      "conditions": []
+    },
+    {
+      "id": "st1_n3",
+      "type": "TRAP",
+      "neighbors": ["st1_n4"],
+      "eventId": "ch1_trap_chest",
+      "conditions": []
+    },
+    {
+      "id": "st1_n4",
+      "type": "REST",
+      "neighbors": ["st1_exit"],
+      "eventId": "ch1_rest_tree",
+      "conditions": []
+    },
+    {
+      "id": "st1_exit",
+      "type": "EVENT",
+      "neighbors": [],
+      "eventId": "ch1_lost_tourist",
+      "conditions": []
+    },
+    {
+      "id": "st2_n1",
+      "type": "SHOP",
+      "neighbors": ["st2_n2"],
+      "eventId": "ch2_shop_open",
+      "conditions": []
+    },
+    {
+      "id": "st2_n2",
+      "type": "EVENT",
+      "neighbors": ["st2_n3"],
+      "eventId": "ch2_sign_riddle",
+      "conditions": []
+    },
+    {
+      "id": "st2_n3",
+      "type": "BATTLE",
+      "neighbors": ["st2_n4"],
+      "eventId": "ch2_elite_first",
+      "conditions": []
+    },
+    {
+      "id": "st2_n4",
+      "type": "TRAP",
+      "neighbors": ["st2_exit"],
+      "eventId": "ch2_trap_house",
+      "conditions": []
+    },
+    {
+      "id": "st2_exit",
+      "type": "EVENT",
+      "neighbors": [],
+      "eventId": "ch2_temp_worker",
+      "conditions": []
+    },
+    {
+      "id": "st3_n1",
+      "type": "EVENT",
+      "neighbors": ["st3_n2"],
+      "eventId": "ch3_hidden_path",
+      "conditions": []
+    },
+    {
+      "id": "st3_n2",
+      "type": "EVENT",
+      "neighbors": ["st3_n3"],
+      "eventId": "ch3_appraisal",
+      "conditions": []
+    },
+    {
+      "id": "st3_n3",
+      "type": "EVENT",
+      "neighbors": ["st3_n4"],
+      "eventId": "ch3_gossip",
+      "conditions": []
+    },
+    {
+      "id": "st3_n4",
+      "type": "BATTLE",
+      "neighbors": ["st3_exit"],
+      "eventId": "ch3_group_battle",
+      "conditions": []
+    },
+    {
+      "id": "st3_exit",
+      "type": "BATTLE",
+      "neighbors": [],
+      "eventId": "ch3_mini_boss",
+      "conditions": []
+    },
+    {
+      "id": "st4_n1",
+      "type": "TRAP",
+      "neighbors": ["st4_n2"],
+      "eventId": "ch4_fake_exit",
+      "conditions": []
+    },
+    {
+      "id": "st4_n2",
+      "type": "EVENT",
+      "neighbors": ["st4_n3"],
+      "eventId": "ch4_recorder",
+      "conditions": []
+    },
+    {
+      "id": "st4_n3",
+      "type": "BATTLE",
+      "neighbors": ["st4_n4"],
+      "eventId": "ch4_sponsor_challenge",
+      "conditions": []
+    },
+    {
+      "id": "st4_n4",
+      "type": "TRAP",
+      "neighbors": ["st4_exit"],
+      "eventId": "ch4_true_false_guide",
+      "conditions": []
+    },
+    {
+      "id": "st4_exit",
+      "type": "BATTLE",
+      "neighbors": [],
+      "eventId": "ch4_boss_outpost",
+      "conditions": []
+    },
+    {
+      "id": "st5_n1",
+      "type": "EVENT",
+      "neighbors": ["st5_n2"],
+      "eventId": "ch5_exit_hint",
+      "conditions": []
+    },
+    {
+      "id": "st5_n2",
+      "type": "EVENT",
+      "neighbors": ["st5_n3"],
+      "eventId": "ch5_forge",
+      "conditions": []
+    },
+    {
+      "id": "st5_n3",
+      "type": "EVENT",
+      "neighbors": ["st5_n4"],
+      "eventId": "ch5_last_step",
+      "conditions": []
+    },
+    {
+      "id": "st5_n4",
+      "type": "EVENT",
+      "neighbors": ["st5_exit"],
+      "eventId": "ch5_truth_reveal",
+      "conditions": []
+    },
+    {
+      "id": "st5_exit",
+      "type": "BATTLE",
+      "neighbors": [],
+      "eventId": "ch5_final_boss",
+      "conditions": []
+    }
+  ]
+}
