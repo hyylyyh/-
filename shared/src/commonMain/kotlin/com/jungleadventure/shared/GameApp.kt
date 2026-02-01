@@ -148,6 +148,15 @@ private fun MainPanel(
                 }
             }
         }
+        if (state.enemyPreview != null) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(text = "敌人情报", fontWeight = FontWeight.Bold)
+                    Divider(modifier = Modifier.padding(vertical = 4.dp))
+                    EnemyPreviewPanel(preview = state.enemyPreview)
+                }
+            }
+        }
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(12.dp)) {
                 Text(text = "事件日志", fontWeight = FontWeight.Bold)
@@ -398,6 +407,53 @@ private fun RoleTag(text: String, background: Color) {
             .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
         Text(text = text, color = Color(0xFFECE8D9))
+    }
+}
+
+@Composable
+private fun EnemyPreviewPanel(preview: EnemyPreviewUiState) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(text = preview.name, fontWeight = FontWeight.SemiBold)
+                Text(text = "${preview.type}  Lv.${preview.level}  数量 ${preview.count}", color = Color(0xFFB8B2A6))
+            }
+            RoleTag(
+                text = preview.threat,
+                background = when (preview.threat) {
+                    "优势" -> Color(0xFF2F6B52)
+                    "均势" -> Color(0xFF5B5A3A)
+                    "偏难" -> Color(0xFF7B5A2E)
+                    else -> Color(0xFF7A3A2E)
+                }
+            )
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            RoleStat(label = "生命", value = preview.hp)
+            RoleStat(label = "攻击", value = preview.atk)
+            RoleStat(label = "防御", value = preview.def)
+            RoleStat(label = "速度", value = preview.speed)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            RoleStat(label = "命中", value = preview.hit)
+            RoleStat(label = "闪避", value = preview.eva)
+            RoleStat(label = "暴击", value = preview.crit)
+            RoleStat(label = "抗暴", value = preview.resist)
+        }
+
+        Text(text = "先手规则：${preview.firstStrike}", color = Color(0xFFB8B2A6))
+        if (preview.roundLimit != null) {
+            Text(text = "回合上限：${preview.roundLimit}", color = Color(0xFFB8B2A6))
+        }
+        if (preview.note.isNotBlank()) {
+            Text(text = "备注：${preview.note}", color = Color(0xFFB8B2A6))
+        }
+        Text(text = "战斗评估：${preview.tip}", color = Color(0xFF8DB38B))
     }
 }
 

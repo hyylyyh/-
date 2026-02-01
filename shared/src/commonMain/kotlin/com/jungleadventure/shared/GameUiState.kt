@@ -11,6 +11,7 @@ data class GameUiState(
     val roles: List<RoleProfile> = emptyList(),
     val selectedRoleId: String = "",
     val currentEvent: EventDefinition? = null,
+    val enemyPreview: EnemyPreviewUiState? = null,
     val log: List<String> = listOf("冒险开始"),
     val choices: List<GameChoice> = listOf(),
     val activePanel: GamePanel = GamePanel.STATUS,
@@ -47,6 +48,27 @@ data class PlayerStats(
 data class GameChoice(
     val id: String,
     val label: String
+)
+
+data class EnemyPreviewUiState(
+    val name: String,
+    val type: String,
+    val level: Int,
+    val count: Int,
+    val hp: Int,
+    val atk: Int,
+    val def: Int,
+    val speed: Int,
+    val hit: Int,
+    val eva: Int,
+    val crit: Int,
+    val critDmg: Double,
+    val resist: Int,
+    val note: String,
+    val threat: String,
+    val tip: String,
+    val roundLimit: Int?,
+    val firstStrike: String
 )
 
 @Serializable

@@ -276,11 +276,13 @@ class GameViewModel(
             )
 
         _state.update { state ->
+            val enemyPreview = buildEnemyPreview(nextEvent, state.player)
             state.copy(
                 turn = nextTurn,
                 chapter = chapter,
                 stage = nextRuntime.toUiState(node),
                 currentEvent = nextEvent,
+                enemyPreview = enemyPreview,
                 choices = nextChoices,
                 log = state.log + listOf(stageLog) + listOfNotNull(nextEvent?.introText)
             )
@@ -317,6 +319,7 @@ class GameViewModel(
         }
 
         _state.update { current ->
+            val enemyPreview = buildEnemyPreview(event, saveGame.player)
             current.copy(
                 turn = saveGame.turn,
                 chapter = saveGame.chapter,
@@ -324,6 +327,7 @@ class GameViewModel(
                 selectedRoleId = validRoleId,
                 player = saveGame.player,
                 currentEvent = event,
+                enemyPreview = enemyPreview,
                 choices = choices,
                 activePanel = saveGame.activePanel,
                 lastAction = "已读取槽位 $slot",
@@ -352,11 +356,13 @@ class GameViewModel(
             "初始化关卡：回合=$turn 章节=$chapter 关卡编号=${runtime.stage.id} 节点编号=${node?.id ?: "无"}"
         )
         _state.update { current ->
+            val enemyPreview = buildEnemyPreview(event, current.player)
             current.copy(
                 turn = turn,
                 chapter = chapter,
                 stage = runtime.toUiState(node),
                 currentEvent = event,
+                enemyPreview = enemyPreview,
                 choices = choices,
                 log = current.log + listOf(stageLog) + listOfNotNull(event?.introText)
             )
@@ -523,6 +529,91 @@ class GameViewModel(
 
     private fun isBattleEvent(event: EventDefinition): Boolean {
         return !event.enemyGroupId.isNullOrBlank() || event.type.lowercase().startsWith("battle")
+    }
+
+    private fun buildEnemyPreview(
+        event: EventDefinition?,
+        player: PlayerStats
+    ): EnemyPreviewUiState? {
+        if (event == null || !isBattleEvent(event)) return null
+        val group = enemyRepository.findGroup(event.enemyGroupId) ?: run {
+            GameLogger.warn(logTag, "敌群配置缺失，使用默认敌群预览：敌群编号=${event.enemyGroupId}")
+            defaultEnemyGroupFile().groups.first()
+        }
+        val enemyDef = enemyRepository.findEnemy(group.enemyId) ?: run {
+            GameLogger.warn(logTag, "敌人配置缺失，使用默认敌人预览：敌人编号=${group.enemyId}")
+            defaultEnemyFile().enemies.first()
+        }
+
+        val count = group.count.coerceAtLeast(1)
+        val hpMultiplier = event.battleModifiers?.enemyHpMultiplier ?: 1.0
+        val damageMultiplier = event.battleModifiers?.enemyDamageMultiplier ?: 1.0
+        val groupHpMultiplier = if (count <= 1) 1.0 else 1.0 + 0.35 * (count - 1)
+        val groupAtkMultiplier = if (count <= 1) 1.0 else 1.0 + 0.2 * (count - 1)
+        val groupDefMultiplier = if (count <= 1) 1.0 else 1.0 + 0.15 * (count - 1)
+        val groupSpdMultiplier = if (count <= 1) 1.0 else 1.0 + 0.05 * (count - 1)
+
+        val scaledHp = (enemyDef.stats.hp * groupHpMultiplier * hpMultiplier).toInt().coerceAtLeast(1)
+        val scaledAtk = (enemyDef.stats.atk * groupAtkMultiplier * damageMultiplier).toInt().coerceAtLeast(1)
+        val scaledDef = (enemyDef.stats.def * groupDefMultiplier).toInt().coerceAtLeast(1)
+        val scaledSpd = (enemyDef.stats.spd * groupSpdMultiplier).toInt().coerceAtLeast(1)
+
+        val playerScore = player.hp + player.atk * 2.0 + player.def * 1.5 + player.speed * 0.8
+        val enemyScore = scaledHp + scaledAtk * 2.0 + scaledDef * 1.5 + scaledSpd * 0.8
+        var ratio = if (enemyScore <= 0.0) 1.0 else playerScore / enemyScore
+
+        when (event.firstStrike?.lowercase()) {
+            "player" -> ratio *= 1.05
+            "enemy" -> ratio *= 0.9
+        }
+        val roundLimit = event.roundLimit
+        if (roundLimit != null) {
+            ratio *= when {
+                roundLimit <= 3 -> 0.85
+                roundLimit <= 5 -> 0.93
+                else -> 1.0
+            }
+        }
+
+        val (threat, tip) = when {
+            ratio >= 1.2 -> "优势" to "你在属性上占优，主动进攻更稳。"
+            ratio >= 0.95 -> "均势" to "胜负接近，优先保证生命与命中。"
+            ratio >= 0.8 -> "偏难" to "建议先恢复或消耗型技能再战。"
+            else -> "危险" to "差距较大，谨慎进入或等待更好机会。"
+        }
+
+        val firstStrikeLabel = when (event.firstStrike?.lowercase()) {
+            "player" -> "玩家先手"
+            "enemy" -> "敌人先手"
+            "random" -> "随机先手"
+            else -> "速度先手"
+        }
+
+        GameLogger.info(
+            logTag,
+            "生成敌人预览：敌人=${enemyDef.name} 数量=$count 生命=$scaledHp 攻击=$scaledAtk 防御=$scaledDef 速度=$scaledSpd 评估=$threat"
+        )
+
+        return EnemyPreviewUiState(
+            name = enemyDef.name,
+            type = enemyDef.type,
+            level = enemyDef.level,
+            count = count,
+            hp = scaledHp,
+            atk = scaledAtk,
+            def = scaledDef,
+            speed = scaledSpd,
+            hit = enemyDef.stats.hit,
+            eva = enemyDef.stats.eva,
+            crit = enemyDef.stats.crit,
+            critDmg = enemyDef.stats.critDmg,
+            resist = enemyDef.stats.resist,
+            note = enemyDef.notes.ifBlank { group.note },
+            threat = threat,
+            tip = tip,
+            roundLimit = roundLimit,
+            firstStrike = firstStrikeLabel
+        )
     }
 
     private fun buildSaveGameSnapshot(): SaveGame {
