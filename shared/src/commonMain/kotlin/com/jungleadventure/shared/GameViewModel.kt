@@ -1,5 +1,11 @@
 ﻿package com.jungleadventure.shared
 
+import com.jungleadventure.shared.loot.EquipmentInstance
+import com.jungleadventure.shared.loot.EquipmentSlot
+import com.jungleadventure.shared.loot.LootOutcome
+import com.jungleadventure.shared.loot.LootRepository
+import com.jungleadventure.shared.loot.LootSourceType
+import com.jungleadventure.shared.loot.StatType
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
@@ -21,6 +27,14 @@ class GameViewModel(
     private val saveStore: SaveStore = defaultSaveStore()
 ) {
     private val logTag = "界面模型"
+    private val levelMax = 50
+    private val expBase = 30
+    private val expGrowth = 20
+    private val hpGainPerLevel = 12
+    private val mpGainPerLevel = 4
+    private val atkGainPerLevel = 3
+    private val defGainPerLevel = 2
+    private val speedGainPerLevel = 1
     private val repository = GameContentRepository(resourceReader)
     private val rng = Random.Default
     private val characterDefinitions = runCatching { repository.loadCharacters().characters }.getOrElse { emptyList() }
@@ -37,6 +51,7 @@ class GameViewModel(
     private val enemyRepository = loadEnemyRepository()
     private val battleSystem = BattleSystem(enemyRepository, rng)
     private val turnEngine = TurnBasedCombatEngine(rng)
+    private val lootRepository = LootRepository()
     private var battleSession: BattleSession? = null
     private var battleEventId: String? = null
     private var pendingNewSaveSlot: Int? = null
@@ -163,14 +178,14 @@ class GameViewModel(
         val nextNodeId = result?.nextNodeId
 
         _state.update { current ->
-            val updatedPlayer = result?.let { applyResult(current.player, it) } ?: current.player
+            val applied = applyEventResult(current.player, result, currentEvent, "事件结算")
             current.copy(
-                player = updatedPlayer,
+                player = applied.player,
                 lastAction = "选择: ${option?.text ?: choiceId}",
                 log = current.log + listOfNotNull(
                     currentEvent.logText.ifBlank { null },
                     result?.let { summarizeResult(it) }
-                )
+                ) + applied.logs
             )
         }
 
@@ -194,6 +209,92 @@ class GameViewModel(
     fun onOpenInventory() {
         GameLogger.info(logTag, "切换面板：背包")
         _state.update { it.copy(activePanel = GamePanel.INVENTORY, lastAction = "查看背包") }
+    }
+
+    fun onEquipItem(itemId: String) {
+        val current = _state.value
+        if (current.screen != GameScreen.ADVENTURE) {
+            GameLogger.warn("装备系统", "未进入冒险界面，无法装备")
+            return
+        }
+        if (current.battle != null) {
+            GameLogger.warn("装备系统", "战斗中禁止更换装备")
+            _state.update { it.copy(lastAction = "战斗中无法更换装备", log = it.log + "战斗中无法更换装备") }
+            return
+        }
+        val inventory = current.player.inventory
+        val target = inventory.items.firstOrNull { it.uid == itemId }
+        if (target == null) {
+            GameLogger.warn("装备系统", "未找到待装备物品：$itemId")
+            return
+        }
+        val loadout = current.player.equipment
+        val equipped = loadout.equipped(target.slot)
+        val remaining = inventory.items.filterNot { it.uid == itemId }
+        val newInventory = if (equipped == null) remaining else remaining + equipped
+        val nextLoadout = loadout.copy(slots = loadout.slots + (target.slot to target))
+        val updatedPlayer = recalculatePlayerStats(
+            current.player.copy(
+                equipment = nextLoadout,
+                inventory = inventory.copy(items = newInventory)
+            ),
+            "装备 ${target.name}"
+        )
+        GameLogger.info(
+            "装备系统",
+            "装备完成：${target.name} 槽位=${target.slot} 替换=${equipped?.name ?: "无"}"
+        )
+        val logLine = if (equipped == null) {
+            "装备 ${target.name}（${target.rarityName}）"
+        } else {
+            "装备 ${target.name}（${target.rarityName}），替换 ${equipped.name}"
+        }
+        _state.update {
+            it.copy(
+                player = updatedPlayer,
+                lastAction = "已装备 ${target.name}",
+                log = it.log + logLine
+            )
+        }
+    }
+
+    fun onUnequipSlot(slot: EquipmentSlot) {
+        val current = _state.value
+        if (current.screen != GameScreen.ADVENTURE) {
+            GameLogger.warn("装备系统", "未进入冒险界面，无法卸下装备")
+            return
+        }
+        if (current.battle != null) {
+            GameLogger.warn("装备系统", "战斗中禁止更换装备")
+            _state.update { it.copy(lastAction = "战斗中无法更换装备", log = it.log + "战斗中无法更换装备") }
+            return
+        }
+        val loadout = current.player.equipment
+        val item = loadout.equipped(slot)
+        if (item == null) {
+            GameLogger.warn("装备系统", "该槽位暂无装备：$slot")
+            return
+        }
+        val inventory = current.player.inventory
+        if (inventory.items.size >= inventory.capacity) {
+            GameLogger.warn("装备系统", "背包已满，无法卸下装备：${item.name}")
+            _state.update { it.copy(lastAction = "背包已满，无法卸下装备", log = it.log + "背包已满，无法卸下装备") }
+            return
+        }
+        val nextLoadout = loadout.copy(slots = loadout.slots - slot)
+        val nextInventory = inventory.copy(items = inventory.items + item)
+        val updatedPlayer = recalculatePlayerStats(
+            current.player.copy(equipment = nextLoadout, inventory = nextInventory),
+            "卸下 ${item.name}"
+        )
+        GameLogger.info("装备系统", "卸下装备：${item.name} 槽位=$slot")
+        _state.update {
+            it.copy(
+                player = updatedPlayer,
+                lastAction = "已卸下 ${item.name}",
+                log = it.log + "卸下 ${item.name}"
+            )
+        }
     }
 
     fun onAdvance() {
@@ -440,15 +541,16 @@ class GameViewModel(
         } else {
             roles.firstOrNull { it.unlocked }?.id ?: ""
         }
+        val normalizedPlayer = normalizePlayerStats(saveGame.player, "读取存档")
 
         _state.update { current ->
-            val enemyPreview = buildEnemyPreview(event, saveGame.player)
+            val enemyPreview = buildEnemyPreview(event, normalizedPlayer)
             current.copy(
                 turn = saveGame.turn,
                 chapter = saveGame.chapter,
                 stage = assignedRuntime.toUiState(runtimeNode),
                 selectedRoleId = validRoleId,
-                player = saveGame.player,
+                player = normalizedPlayer,
                 currentEvent = event,
                 enemyPreview = enemyPreview,
                 battle = null,
@@ -529,6 +631,12 @@ class GameViewModel(
     }
 
     private fun toPlayerStats(role: RoleProfile): PlayerStats {
+        val base = PlayerBaseStats(
+            hpMax = role.stats.hp,
+            atk = role.stats.atk,
+            def = role.stats.def,
+            speed = role.stats.speed
+        )
         return PlayerStats(
             name = role.name,
             hp = role.stats.hp,
@@ -539,23 +647,227 @@ class GameViewModel(
             def = role.stats.def,
             speed = role.stats.speed,
             level = 1,
+            exp = 0,
+            expToNext = expRequiredFor(1),
             gold = 0,
-            materials = 0
+            materials = 0,
+            baseStats = base,
+            equipment = EquipmentLoadout(),
+            inventory = InventoryState()
         )
     }
 
-    private fun applyResult(player: PlayerStats, result: EventResult): PlayerStats {
+    private data class ResultApplication(
+        val player: PlayerStats,
+        val logs: List<String>
+    )
+
+    private data class LootApplication(
+        val player: PlayerStats,
+        val logs: List<String>
+    )
+
+    private fun applyEventResult(
+        player: PlayerStats,
+        result: EventResult?,
+        event: EventDefinition?,
+        reason: String
+    ): ResultApplication {
+        if (result == null) return ResultApplication(player, emptyList())
         val nextHp = (player.hp + result.hpDelta).coerceIn(0, player.hpMax)
         val nextMp = (player.mp + result.mpDelta).coerceIn(0, player.mpMax)
         GameLogger.info(
             logTag,
-            "结算结果：生命${signed(result.hpDelta)} 能量${signed(result.mpDelta)} 金币${signed(result.goldDelta)} 经验${signed(result.expDelta)}"
+            "结算结果：生命${signed(result.hpDelta)} 能量${signed(result.mpDelta)} 金币${signed(result.goldDelta)} 经验${signed(result.expDelta)}，原因=$reason"
         )
-        return player.copy(
+        var updated = player.copy(
             hp = nextHp,
             mp = nextMp,
             gold = player.gold + result.goldDelta
         )
+
+        val logs = mutableListOf<String>()
+        if (result.expDelta != 0) {
+            val expApplied = applyExperience(updated, result.expDelta, reason)
+            updated = expApplied.player
+            logs += expApplied.logs
+        }
+        val dropId = result.dropTableId ?: event?.dropTableId
+        if (!dropId.isNullOrBlank()) {
+            val loot = applyLoot(updated, dropId, event, reason)
+            updated = loot.player
+            logs += loot.logs
+        }
+        return ResultApplication(updated, logs)
+    }
+
+    private fun applyExperience(
+        player: PlayerStats,
+        expDelta: Int,
+        reason: String
+    ): ResultApplication {
+        val nextExp = (player.exp + expDelta).coerceAtLeast(0)
+        var current = player.copy(exp = nextExp)
+        val logs = mutableListOf<String>()
+        logs += "经验变化 ${signed(expDelta)}（当前 ${current.exp}/${current.expToNext}）"
+        GameLogger.info(
+            logTag,
+            "经验结算：变化=${signed(expDelta)} 当前=${current.exp}/${current.expToNext} 原因=$reason"
+        )
+        while (current.exp >= current.expToNext && current.level < levelMax) {
+            val beforeLevel = current.level
+            val nextLevel = current.level + 1
+            val remainingExp = current.exp - current.expToNext
+            val nextBase = current.baseStats.copy(
+                hpMax = current.baseStats.hpMax + hpGainPerLevel,
+                atk = current.baseStats.atk + atkGainPerLevel,
+                def = current.baseStats.def + defGainPerLevel,
+                speed = current.baseStats.speed + speedGainPerLevel
+            )
+            val boosted = current.copy(
+                level = nextLevel,
+                exp = remainingExp,
+                expToNext = expRequiredFor(nextLevel),
+                baseStats = nextBase,
+                hp = current.hp + hpGainPerLevel,
+                mp = current.mp + mpGainPerLevel,
+                mpMax = current.mpMax + mpGainPerLevel
+            )
+            current = recalculatePlayerStats(boosted, "升级")
+            val log = "升级到 Lv$nextLevel：生命上限+$hpGainPerLevel 能量上限+$mpGainPerLevel 攻击+$atkGainPerLevel 防御+$defGainPerLevel 速度+$speedGainPerLevel"
+            logs += log
+            GameLogger.info(
+                logTag,
+                "角色升级：Lv$beforeLevel -> Lv$nextLevel 经验=${current.exp}/${current.expToNext} 原因=$reason"
+            )
+        }
+        return ResultApplication(current, logs)
+    }
+
+    private fun applyLoot(
+        player: PlayerStats,
+        dropTableId: String,
+        event: EventDefinition?,
+        reason: String
+    ): LootApplication {
+        val tier = resolveLootTier(dropTableId, event?.difficulty ?: 1)
+        val sourceType = if (event != null && isBattleEvent(event)) {
+            LootSourceType.ENEMY
+        } else {
+            LootSourceType.EVENT
+        }
+        val pity = player.pityCounters.toMutableMap()
+        val outcome = lootRepository.generateLoot(sourceType, tier, rng, pity)
+        GameLogger.info(
+            "掉落系统",
+            "生成掉落：来源=$sourceType 层级=$tier 掉落表=$dropTableId 结果=$outcome 原因=$reason"
+        )
+        val updatedPlayer = player.copy(pityCounters = pity)
+        return applyLootOutcome(updatedPlayer, outcome, dropTableId)
+    }
+
+    private fun applyLootOutcome(
+        player: PlayerStats,
+        outcome: LootOutcome,
+        dropTableId: String
+    ): LootApplication {
+        var updated = player.copy(
+            gold = player.gold + outcome.gold,
+            materials = player.materials + outcome.materials
+        )
+        val logs = mutableListOf<String>()
+        if (outcome.gold > 0) {
+            logs += "获得金币 +${outcome.gold}"
+        }
+        if (outcome.materials > 0) {
+            logs += "获得材料 +${outcome.materials}"
+        }
+        if (outcome.equipment != null) {
+            val item = buildEquipmentItem(outcome.equipment, dropTableId, _state.value.turn)
+            val added = addEquipmentToInventory(updated, item)
+            updated = added.player
+            logs += added.logs
+        }
+        if (logs.isEmpty()) {
+            logs += "掉落为空（掉落表 $dropTableId）"
+        }
+        return LootApplication(updated, logs)
+    }
+
+    private fun buildEquipmentItem(
+        equipment: EquipmentInstance,
+        source: String,
+        turn: Int
+    ): EquipmentItem {
+        val uid = "eq_${equipment.id}_${equipment.rarity.tier}_${rng.nextInt(10000)}_$turn"
+        return EquipmentItem(
+            uid = uid,
+            templateId = equipment.id,
+            name = equipment.name,
+            slot = equipment.slot,
+            rarityId = equipment.rarity.id,
+            rarityName = equipment.rarity.name,
+            rarityTier = equipment.rarity.tier,
+            level = equipment.level,
+            stats = equipment.stats,
+            affixes = equipment.affixes.map { affix ->
+                EquipmentAffix(
+                    id = affix.definition.id,
+                    type = affix.definition.type,
+                    value = affix.value
+                )
+            },
+            score = lootRepository.scoreEquipment(equipment),
+            source = source,
+            obtainedAtTurn = turn
+        )
+    }
+
+    private fun addEquipmentToInventory(
+        player: PlayerStats,
+        item: EquipmentItem
+    ): LootApplication {
+        val inventory = player.inventory
+        return if (inventory.items.size >= inventory.capacity) {
+            val gold = estimateSellValue(item)
+            GameLogger.warn(
+                "掉落系统",
+                "背包已满，装备自动折算：${item.name} -> 金币+$gold"
+            )
+            LootApplication(
+                player = player.copy(gold = player.gold + gold),
+                logs = listOf("背包已满，${item.name} 已折算金币 +$gold")
+            )
+        } else {
+            GameLogger.info("掉落系统", "新增装备到背包：${item.name}（${item.rarityName}）")
+            LootApplication(
+                player = player.copy(
+                    inventory = inventory.copy(items = inventory.items + item)
+                ),
+                logs = listOf("获得装备：${item.name}（${item.rarityName}）")
+            )
+        }
+    }
+
+    private fun estimateSellValue(item: EquipmentItem): Int {
+        return (4 + item.rarityTier * 4 + item.level).coerceAtLeast(1)
+    }
+
+    private fun resolveLootTier(dropTableId: String, difficulty: Int): Int {
+        val chapterTier = when {
+            dropTableId.contains("ch1") -> 1
+            dropTableId.contains("ch2") -> 2
+            dropTableId.contains("ch3") -> 3
+            dropTableId.contains("ch4") -> 3
+            dropTableId.contains("ch5") -> 3
+            else -> difficulty
+        }
+        val bonus = when {
+            dropTableId.contains("boss") -> 2
+            dropTableId.contains("elite") -> 1
+            else -> 0
+        }
+        return (chapterTier + bonus).coerceIn(1, 3)
     }
 
     private fun summarizeResult(result: EventResult): String {
@@ -566,6 +878,76 @@ class GameViewModel(
         if (result.expDelta != 0) parts += "经验 ${signed(result.expDelta)}"
         if (result.dropTableId != null) parts += "掉落表 ${result.dropTableId}"
         return if (parts.isEmpty()) "没有额外变化" else parts.joinToString("，")
+    }
+
+    private fun expRequiredFor(level: Int): Int {
+        val safeLevel = level.coerceAtLeast(1)
+        return expBase + (safeLevel - 1) * expGrowth
+    }
+
+    private fun normalizePlayerStats(player: PlayerStats, reason: String): PlayerStats {
+        val base = if (player.baseStats.hpMax <= 0 || player.baseStats.atk <= 0) {
+            PlayerBaseStats(
+                hpMax = player.hpMax.coerceAtLeast(1),
+                atk = player.atk.coerceAtLeast(1),
+                def = player.def.coerceAtLeast(0),
+                speed = player.speed.coerceAtLeast(1)
+            )
+        } else {
+            player.baseStats
+        }
+        val expToNext = if (player.expToNext <= 0) {
+            expRequiredFor(player.level)
+        } else {
+            player.expToNext
+        }
+        val normalized = player.copy(
+            baseStats = base,
+            exp = player.exp.coerceAtLeast(0),
+            expToNext = expToNext
+        )
+        return recalculatePlayerStats(normalized, reason)
+    }
+
+    private fun recalculatePlayerStats(player: PlayerStats, reason: String): PlayerStats {
+        val base = player.baseStats
+        val bonus = collectEquipmentStats(player.equipment)
+        val nextHpMax = (base.hpMax + (bonus[StatType.HP] ?: 0)).coerceAtLeast(1)
+        val nextAtk = (base.atk + (bonus[StatType.ATK] ?: 0)).coerceAtLeast(1)
+        val nextDef = (base.def + (bonus[StatType.DEF] ?: 0)).coerceAtLeast(0)
+        val nextSpeed = (base.speed + (bonus[StatType.SPEED] ?: 0)).coerceAtLeast(1)
+        val nextHp = player.hp.coerceIn(0, nextHpMax)
+        val nextHitBonus = bonus[StatType.HIT] ?: 0
+        val nextEvaBonus = bonus[StatType.EVADE] ?: 0
+        val nextCritBonus = bonus[StatType.CRIT] ?: 0
+        val nextResistBonus = bonus[StatType.CRIT_RESIST] ?: 0
+        if (player.hpMax != nextHpMax || player.atk != nextAtk || player.def != nextDef || player.speed != nextSpeed) {
+            GameLogger.info(
+                "装备系统",
+                "刷新角色属性：生命上限${player.hpMax}->$nextHpMax 攻击${player.atk}->$nextAtk 防御${player.def}->$nextDef 速度${player.speed}->$nextSpeed 原因=$reason"
+            )
+        }
+        return player.copy(
+            hp = nextHp,
+            hpMax = nextHpMax,
+            atk = nextAtk,
+            def = nextDef,
+            speed = nextSpeed,
+            hitBonus = nextHitBonus,
+            evaBonus = nextEvaBonus,
+            critBonus = nextCritBonus,
+            resistBonus = nextResistBonus
+        )
+    }
+
+    private fun collectEquipmentStats(loadout: EquipmentLoadout): Map<StatType, Int> {
+        val totals = mutableMapOf<StatType, Int>()
+        loadout.slots.values.forEach { item ->
+            item.totalStats().forEach { (type, value) ->
+                totals[type] = (totals[type] ?: 0) + value
+            }
+        }
+        return totals
     }
 
     private fun signed(value: Int): String {
@@ -751,11 +1133,12 @@ class GameViewModel(
             hp = outcome.playerRemainingHp.coerceAtLeast(0),
             mp = battleSession?.player?.mp ?: _state.value.player.mp
         )
-        val rewardPlayer = if (victory) {
-            event.result?.let { applyResult(basePlayer, it) } ?: basePlayer
+        val applied = if (victory) {
+            applyEventResult(basePlayer, event.result, event, "战斗奖励")
         } else {
-            basePlayer
+            ResultApplication(basePlayer, emptyList())
         }
+        val rewardPlayer = applied.player
         val resultSummary = if (victory) {
             event.result?.let { summarizeResult(it) } ?: "战斗无额外奖励"
         } else if (escaped) {
@@ -776,7 +1159,7 @@ class GameViewModel(
                     outcomeText.ifBlank { null },
                     event.logText.ifBlank { null },
                     resultSummary
-                )
+                ) + applied.logs
             )
         }
 
@@ -836,11 +1219,12 @@ class GameViewModel(
         val outcomeText = if (battle.victory) event.successText else event.failText
         val safeHp = if (battle.victory) battle.playerRemainingHp else max(1, battle.playerRemainingHp)
         val postBattlePlayer = current.player.copy(hp = safeHp)
-        val rewardPlayer = if (battle.victory) {
-            event.result?.let { applyResult(postBattlePlayer, it) } ?: postBattlePlayer
+        val applied = if (battle.victory) {
+            applyEventResult(postBattlePlayer, event.result, event, "战斗奖励")
         } else {
-            postBattlePlayer
+            ResultApplication(postBattlePlayer, emptyList())
         }
+        val rewardPlayer = applied.player
 
         val resultSummary = if (battle.victory) {
             event.result?.let { summarizeResult(it) } ?: "战斗无额外奖励"
@@ -856,7 +1240,7 @@ class GameViewModel(
                     outcomeText.ifBlank { null },
                     event.logText.ifBlank { null },
                     resultSummary
-                )
+                ) + applied.logs
             )
         }
 

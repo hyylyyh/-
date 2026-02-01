@@ -38,6 +38,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.jungleadventure.shared.loot.EquipmentSlot
+import com.jungleadventure.shared.loot.StatType
 
 @Composable
 fun GameApp(
@@ -78,6 +80,8 @@ fun GameApp(
                     onOpenStatus = viewModel::onOpenStatus,
                     onOpenEquipment = viewModel::onOpenEquipment,
                     onOpenInventory = viewModel::onOpenInventory,
+                    onEquipItem = viewModel::onEquipItem,
+                    onUnequipSlot = viewModel::onUnequipSlot,
                     onSave = viewModel::onSave,
                     onLoad = viewModel::onLoad
                 )
@@ -563,6 +567,8 @@ private fun SidePanel(
     onOpenStatus: () -> Unit,
     onOpenEquipment: () -> Unit,
     onOpenInventory: () -> Unit,
+    onEquipItem: (String) -> Unit,
+    onUnequipSlot: (EquipmentSlot) -> Unit,
     onSave: (Int) -> Unit,
     onLoad: (Int) -> Unit
 ) {
@@ -626,8 +632,14 @@ private fun SidePanel(
                 Divider(modifier = Modifier.padding(vertical = 8.dp))
                 when (state.activePanel) {
                     GamePanel.STATUS -> StatusPanel(state.player)
-                    GamePanel.EQUIPMENT -> PlaceholderPanel("暂无装备")
-                    GamePanel.INVENTORY -> PlaceholderPanel("暂无物品")
+                    GamePanel.EQUIPMENT -> EquipmentPanel(
+                        player = state.player,
+                        onUnequip = onUnequipSlot
+                    )
+                    GamePanel.INVENTORY -> InventoryPanel(
+                        player = state.player,
+                        onEquipItem = onEquipItem
+                    )
                 }
             }
         }
@@ -638,15 +650,92 @@ private fun SidePanel(
 private fun StatusPanel(player: PlayerStats) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text("${player.name}  等级 ${player.level}")
+        Text("经验 ${player.exp}/${player.expToNext}")
         Text("生命 ${player.hp}/${player.hpMax}")
         Text("能量 ${player.mp}/${player.mpMax}")
         Text("攻击 ${player.atk}  防御 ${player.def}")
         Text("速度 ${player.speed}")
+        if (player.hitBonus != 0 || player.evaBonus != 0 || player.critBonus != 0 || player.resistBonus != 0) {
+            Text(
+                text = "命中+${player.hitBonus} 闪避+${player.evaBonus} 暴击+${player.critBonus} 抗暴+${player.resistBonus}",
+                color = Color(0xFFB8B2A6)
+            )
+        }
         Spacer(modifier = Modifier.height(4.dp))
         Row {
             Text("金币 ${player.gold}")
             Spacer(modifier = Modifier.width(12.dp))
             Text("材料 ${player.materials}")
+        }
+    }
+}
+
+@Composable
+private fun EquipmentPanel(
+    player: PlayerStats,
+    onUnequip: (EquipmentSlot) -> Unit
+) {
+    val loadout = player.equipment
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        EquipmentSlot.values().forEach { slot ->
+            val item = loadout.slots[slot]
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(text = "${slotLabel(slot)}：${item?.name ?: "空"}", fontWeight = FontWeight.SemiBold)
+                if (item != null) {
+                    Text(
+                        text = "稀有度 ${item.rarityName} | 等级 ${item.level} | 评分 ${item.score}",
+                        color = Color(0xFFB8B2A6)
+                    )
+                    Text(text = "属性 ${formatStats(item.totalStats())}", color = Color(0xFFB8B2A6))
+                    if (item.affixes.isNotEmpty()) {
+                        Text(text = "词条 ${formatAffixes(item.affixes)}", color = Color(0xFF8DB38B))
+                    }
+                    OutlinedButton(onClick = { onUnequip(slot) }) {
+                        Text("卸下")
+                    }
+                }
+                Divider(modifier = Modifier.padding(vertical = 4.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun InventoryPanel(
+    player: PlayerStats,
+    onEquipItem: (String) -> Unit
+) {
+    val inventory = player.inventory
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("容量 ${inventory.items.size}/${inventory.capacity}", color = Color(0xFFB8B2A6))
+        if (inventory.items.isEmpty()) {
+            PlaceholderPanel("背包空空如也")
+            return
+        }
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(220.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(inventory.items, key = { it.uid }) { item ->
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(text = "${item.name}（${item.rarityName}）", fontWeight = FontWeight.SemiBold)
+                        Text(
+                            text = "部位 ${slotLabel(item.slot)} | 等级 ${item.level} | 评分 ${item.score}",
+                            color = Color(0xFFB8B2A6)
+                        )
+                        Text(text = "属性 ${formatStats(item.totalStats())}", color = Color(0xFFB8B2A6))
+                        if (item.affixes.isNotEmpty()) {
+                            Text(text = "词条 ${formatAffixes(item.affixes)}", color = Color(0xFF8DB38B))
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = { onEquipItem(item.uid) }) { Text("装备") }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -660,6 +749,38 @@ private fun nodeTypeLabel(raw: String): String {
         "REST" -> "休息"
         else -> raw
     }
+}
+
+private fun slotLabel(slot: EquipmentSlot): String {
+    return when (slot) {
+        EquipmentSlot.WEAPON -> "武器"
+        EquipmentSlot.ARMOR -> "护甲"
+        EquipmentSlot.HELM -> "头盔"
+        EquipmentSlot.ACCESSORY -> "饰品"
+    }
+}
+
+private fun statLabel(stat: StatType): String {
+    return when (stat) {
+        StatType.HP -> "生命"
+        StatType.ATK -> "攻击"
+        StatType.DEF -> "防御"
+        StatType.SPEED -> "速度"
+        StatType.HIT -> "命中"
+        StatType.EVADE -> "闪避"
+        StatType.CRIT -> "暴击"
+        StatType.CRIT_RESIST -> "抗暴"
+    }
+}
+
+private fun formatStats(stats: Map<StatType, Int>): String {
+    if (stats.isEmpty()) return "无"
+    return stats.entries.joinToString(" ") { "${statLabel(it.key)}+${it.value}" }
+}
+
+private fun formatAffixes(affixes: List<EquipmentAffix>): String {
+    if (affixes.isEmpty()) return "无"
+    return affixes.joinToString(" ") { "${statLabel(it.type)}+${it.value}" }
 }
 
 @Composable

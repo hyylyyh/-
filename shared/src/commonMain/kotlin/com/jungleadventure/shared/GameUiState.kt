@@ -56,8 +56,23 @@ data class PlayerStats(
     val def: Int = 8,
     val speed: Int = 10,
     val level: Int = 1,
+    val exp: Int = 0,
+    val expToNext: Int = 30,
     val gold: Int = 0,
-    val materials: Int = 0
+    val materials: Int = 0,
+    val baseStats: PlayerBaseStats = PlayerBaseStats(
+        hpMax = hpMax,
+        atk = atk,
+        def = def,
+        speed = speed
+    ),
+    val hitBonus: Int = 0,
+    val evaBonus: Int = 0,
+    val critBonus: Int = 0,
+    val resistBonus: Int = 0,
+    val equipment: EquipmentLoadout = EquipmentLoadout(),
+    val inventory: InventoryState = InventoryState(),
+    val pityCounters: Map<String, Int> = emptyMap()
 )
 
 data class GameChoice(
