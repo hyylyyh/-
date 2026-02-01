@@ -187,3 +187,93 @@ Android 资源有一份镜像（需要同步）：
 - `HIT` / `EVADE` / `CRIT` / `CRIT_RESIST`
 
 如需扩展效果类型或词条类型，请同步更新逻辑侧与配置描述。
+
+## 六、掉落表 / 稀有度 / 词条配置
+
+### 1) 掉落表（`loot_tables.json`）
+
+文件：`shared/src/commonMain/resources/data/loot_tables.json`
+
+字段说明：
+- `id`：掉落表 ID（如 `enemy_tier_1`）
+- `sourceType`：来源类型（`ENEMY` / `EVENT`）
+- `tier`：层级（整数，数值越高越好）
+- `guarantee`：保底配置
+  - `counterKey`：计数 key（如 `enemy_basic`）
+  - `threshold`：达到次数触发保底
+  - `grantRarityMin`：保底最低稀有度 tier（与 `rarities.json` 的 `tier` 对应）
+- `weightedPool`：权重池
+  - `type`：`EQUIPMENT` / `GOLD` / `MATERIAL` / `CONSUMABLE`
+  - `refId`：引用 ID（装备 ID 或道具 ID）
+  - `weight`：权重
+  - `min` / `max`：数量范围
+
+示例：
+```json
+{
+  "id": "enemy_tier_2",
+  "sourceType": "ENEMY",
+  "tier": 2,
+  "guarantee": { "counterKey": "enemy_basic", "threshold": 5, "grantRarityMin": 3 },
+  "weightedPool": [
+    { "type": "EQUIPMENT", "refId": "hunter_armor", "weight": 18, "min": 1, "max": 1 },
+    { "type": "GOLD", "refId": "gold", "weight": 50, "min": 6, "max": 12 },
+    { "type": "MATERIAL", "refId": "fiber", "weight": 22, "min": 1, "max": 3 }
+  ]
+}
+```
+
+### 2) 稀有度（`rarities.json`）
+
+文件：`shared/src/commonMain/resources/data/rarities.json`
+
+字段说明：
+- `id`：稀有度 ID（`common` / `uncommon` / `rare` / `epic` / `legendary`）
+- `name`：显示名称
+- `tier`：稀有度层级（整数，越高越稀有）
+- `mainStatMultiplierRange`：主属性倍率区间
+- `affixCountRange`：词条数量区间
+- `dropWeight`：在随机稀有度时的权重
+
+示例：
+```json
+{
+  "id": "epic",
+  "name": "史诗",
+  "tier": 4,
+  "mainStatMultiplierRange": { "min": 1.3, "max": 1.5 },
+  "affixCountRange": { "min": 3, "max": 4 },
+  "dropWeight": 4
+}
+```
+
+### 3) 词条（`affixes.json`）
+
+文件：`shared/src/commonMain/resources/data/affixes.json`
+
+字段说明：
+- `id`：词条 ID（在装备 `affixPool` 中引用）
+- `type`：词条类型（属性类型）
+- `valueRange`：取值范围
+- `weight`：权重
+- `rarityGate`：最低稀有度门槛（对应 `rarities.json` 的 `tier`）
+- `stackRule`：叠加规则（当前为 `UNIQUE`）
+
+示例：
+```json
+{
+  "id": "crit",
+  "type": "CRIT",
+  "valueRange": { "min": 1, "max": 4 },
+  "weight": 15,
+  "rarityGate": 2,
+  "stackRule": "UNIQUE"
+}
+```
+
+### 4) 同步说明
+
+Android 资源同样有镜像文件，需要保持一致：
+- `androidApp/src/main/assets/data/loot_tables.json`
+- `androidApp/src/main/assets/data/rarities.json`
+- `androidApp/src/main/assets/data/affixes.json`
