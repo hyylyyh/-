@@ -991,14 +991,17 @@ class GameViewModel(
         val skillMap = skills.associateBy { it.id }
         val profiles = characters.map { character ->
             val passiveSkill = skillMap[character.passiveSkillId].toRoleSkill()
-            val activeSkills = if (character.activeSkillIds.isEmpty()) {
-                listOf<SkillDefinition?>(null).map { it.toRoleSkill() }
-            } else {
-                character.activeSkillIds.map { skillId ->
-                    skillMap[skillId].toRoleSkill()
-                }
+            val activeSkills = character.activeSkillIds.mapNotNull { skillId ->
+                skillMap[skillId].toRoleSkill()
+            }.toMutableList()
+            while (activeSkills.size < 2) {
+                activeSkills += defaultFallbackActive(activeSkills.size + 1)
             }
-            val ultimateSkill = skillMap[character.ultimateSkillId].toRoleSkill()
+            val ultimateSkill = if (character.ultimateSkillId.isBlank()) {
+                defaultFallbackUltimate()
+            } else {
+                skillMap[character.ultimateSkillId].toRoleSkill()
+            }
             val growth = character.growth ?: defaultGrowthProfile()
             RoleProfile(
                 id = character.id,
@@ -1045,6 +1048,32 @@ class GameViewModel(
             target = skillTargetLabel(target),
             effectLines = effectLines,
             formulaLines = formulaLines
+        )
+    }
+
+    private fun defaultFallbackActive(index: Int): RoleSkill {
+        return RoleSkill(
+            name = "基础技能$index",
+            type = "ACTIVE",
+            description = "未配置技能，使用基础攻击。",
+            cost = "-",
+            cooldown = "-",
+            target = "敌方",
+            effectLines = listOf("造成基础伤害"),
+            formulaLines = listOf("100%ATK伤害")
+        )
+    }
+
+    private fun defaultFallbackUltimate(): RoleSkill {
+        return RoleSkill(
+            name = "未配置大招",
+            type = "ULTIMATE",
+            description = "未配置终极技能。",
+            cost = "-",
+            cooldown = "-",
+            target = "敌方",
+            effectLines = listOf("暂无效果说明"),
+            formulaLines = emptyList()
         )
     }
 
