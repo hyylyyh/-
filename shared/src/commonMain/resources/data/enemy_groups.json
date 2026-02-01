@@ -1,0 +1,13 @@
+﻿{
+  "groups": [
+    { "id": "eg_ch1_grass_cat_1", "enemyId": "e_grass_cat", "count": 1, "note": "草丛猫" },
+    { "id": "eg_ch2_elite_1", "enemyId": "e_elite_badge", "count": 1, "note": "精英怪" },
+    { "id": "eg_ch2_temp_worker", "enemyId": "e_temp_worker", "count": 1, "note": "临时工怪物" },
+    { "id": "eg_ch3_group_1", "enemyId": "e_overtime_pack", "count": 3, "note": "群怪战" },
+    { "id": "eg_ch3_mini_boss", "enemyId": "e_mini_boss", "count": 1, "note": "小首领" },
+    { "id": "eg_ch4_sponsor_1", "enemyId": "e_sponsor_gladiator", "count": 1, "note": "赞助商挑战" },
+    { "id": "eg_ch4_outpost", "enemyId": "e_outpost_guard", "count": 1, "note": "首领前哨" },
+    { "id": "eg_ch5_final_boss", "enemyId": "e_final_boss", "count": 1, "note": "最终首领" },
+    { "id": "eg_default", "enemyId": "e_grass_cat", "count": 1, "note": "默认敌人" }
+  ]
+}

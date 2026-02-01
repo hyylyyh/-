@@ -76,7 +76,7 @@ data class RoleSkill(
 fun defaultRoles(): List<RoleProfile> = listOf(
     RoleProfile(
         id = "fallback_explorer",
-        name = "探险家",
+        name = "探险者",
         role = "探索/侦察",
         stats = CharacterStats(hp = 120, atk = 22, def = 14, speed = 18, perception = 28),
         passiveSkill = RoleSkill(

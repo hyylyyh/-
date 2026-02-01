@@ -19,8 +19,13 @@ class GameViewModel(
     private val rng = Random.Default
     private val events = runCatching { repository.loadEvents() }.getOrElse { emptyList() }
     private val engine = EventEngine(events)
+    private val stageBundle = loadStageBundle()
+    private val stageEngine = StageEngine(stageBundle.stages, stageBundle.nodes, engine)
+    private var stageRuntime: StageRuntime? = null
     private val maxChapter = events.maxOfOrNull { it.chapter } ?: 1
     private val roles = loadRoleProfiles()
+    private val enemyRepository = loadEnemyRepository()
+    private val battleSystem = BattleSystem(enemyRepository, rng)
     private val json = Json {
         encodeDefaults = true
         prettyPrint = true
@@ -48,7 +53,7 @@ class GameViewModel(
         } else {
             GameLogger.warn(logTag, "未找到可用的初始角色")
         }
-        advanceToNextEvent(incrementTurn = false)
+        startStageForTurn(_state.value.turn, reason = "初始化关卡")
         refreshSaveSlots()
     }
 
@@ -68,13 +73,19 @@ class GameViewModel(
         val currentEvent = _state.value.currentEvent
         if (currentEvent == null) {
             GameLogger.warn(logTag, "当前事件为空，直接进入下一个事件")
-            advanceToNextEvent(incrementTurn = true)
+            advanceToNextNode(incrementTurn = true)
+            return
+        }
+
+        if (isBattleEvent(currentEvent)) {
+            GameLogger.info(logTag, "检测到战斗事件，进入战斗流程")
+            resolveBattleAndAdvance(currentEvent)
             return
         }
 
         if (choiceId == "advance") {
             GameLogger.info(logTag, "选择继续前进")
-            advanceToNextEvent(incrementTurn = true)
+            advanceToNextNode(incrementTurn = true)
             return
         }
 
@@ -84,6 +95,8 @@ class GameViewModel(
             logTag,
             "结算选项：事件=${currentEvent.title}，选项=${option?.text ?: "默认"}"
         )
+        val nextEventId = result?.nextEventId
+        val nextNodeId = result?.nextNodeId
 
         _state.update { current ->
             val updatedPlayer = result?.let { applyResult(current.player, it) } ?: current.player
@@ -97,7 +110,11 @@ class GameViewModel(
             )
         }
 
-        advanceToNextEvent(incrementTurn = true)
+        advanceToNextNode(
+            incrementTurn = true,
+            forcedEventId = nextEventId,
+            forcedNodeId = nextNodeId
+        )
     }
 
     fun onOpenStatus() {
@@ -117,12 +134,19 @@ class GameViewModel(
 
     fun onAdvance() {
         GameLogger.info(logTag, "点击继续前进")
-        advanceToNextEvent(incrementTurn = true)
+        val currentEvent = _state.value.currentEvent
+        if (currentEvent != null && isBattleEvent(currentEvent)) {
+            GameLogger.info(logTag, "继续前进触发战斗事件")
+            resolveBattleAndAdvance(currentEvent)
+        } else {
+            advanceToNextNode(incrementTurn = true)
+        }
     }
 
     fun onSave(slot: Int) {
         GameLogger.info("SaveSystem", "准备存档，槽位=$slot，回合=${_state.value.turn}")
         val snapshot = _state.value
+        val runtime = stageRuntime
         val saveGame = SaveGame(
             turn = snapshot.turn,
             chapter = snapshot.chapter,
@@ -131,7 +155,11 @@ class GameViewModel(
             log = snapshot.log,
             lastAction = snapshot.lastAction,
             activePanel = snapshot.activePanel,
-            currentEventId = snapshot.currentEvent?.eventId
+            currentEventId = snapshot.currentEvent?.eventId,
+            stageId = runtime?.stage?.id,
+            nodeId = runtime?.currentNodeId,
+            visitedNodes = runtime?.visited?.toList() ?: emptyList(),
+            stageCompleted = runtime?.completed ?: false
         )
         runCatching {
             val payload = json.encodeToString(saveGame)
@@ -203,38 +231,72 @@ class GameViewModel(
         GameLogger.info("SaveSystem", "读档完成，槽位=$slot，回合=${saveGame.turn}")
     }
 
-    private fun advanceToNextEvent(incrementTurn: Boolean) {
-        _state.update { current ->
-            val nextTurn = if (incrementTurn) current.turn + 1 else current.turn
-            val chapter = chapterForTurn(nextTurn)
-            val nextEvent = if (events.isNotEmpty()) {
-                engine.nextEvent(chapter, rng)
-            } else {
-                null
-            }
+    private fun advanceToNextNode(
+        incrementTurn: Boolean,
+        forcedEventId: String? = null,
+        forcedNodeId: String? = null
+    ) {
+        val current = _state.value
+        val nextTurn = if (incrementTurn) current.turn + 1 else current.turn
+        val chapter = chapterForTurn(nextTurn)
+        val runtime = stageRuntime ?: stageEngine.startStageForChapter(chapter, rng)
+        val shouldRestartStage = runtime.completed || runtime.stage.chapter != chapter
+        val nextRuntime = if (shouldRestartStage) {
+            stageEngine.startStageForChapter(chapter, rng)
+        } else if (!forcedNodeId.isNullOrBlank()) {
+            stageEngine.moveToNode(runtime, forcedNodeId) ?: stageEngine.moveToNextNode(runtime, rng)
+        } else {
+            stageEngine.moveToNextNode(runtime, rng)
+        }
+        stageRuntime = nextRuntime
+        val node = stageEngine.currentNode(nextRuntime)
+        val forcedEvent = if (!forcedEventId.isNullOrBlank()) {
+            engine.eventById(forcedEventId)
+        } else {
+            null
+        }
+        val nextEvent = forcedEvent ?: stageEngine.eventForNode(nextRuntime, chapter, rng)
+        val nextChoices = nextEvent?.let { engine.toChoices(it) } ?: listOf(
+            GameChoice("advance", "继续")
+        )
 
-            val nextChoices = nextEvent?.let { engine.toChoices(it) } ?: listOf(
-                GameChoice("advance", "继续")
-            )
+        val stageLog = if (shouldRestartStage) {
+            "进入关卡：${nextRuntime.stage.name}"
+        } else {
+            "移动到节点：${node?.id ?: nextRuntime.currentNodeId}"
+        }
 
-            GameLogger.info(
-                logTag,
-                "推进事件：turn=$nextTurn，chapter=$chapter，event=${nextEvent?.eventId ?: "无"}，选项数=${nextChoices.size}"
-            )
-            current.copy(
+        GameLogger.info(
+            logTag,
+            "推进关卡：turn=$nextTurn，chapter=$chapter，stage=${nextRuntime.stage.id} node=${node?.id ?: "无"} event=${nextEvent?.eventId ?: "无"} forced=${forcedEventId ?: "无"}"
+        )
+
+        _state.update { state ->
+            state.copy(
                 turn = nextTurn,
                 chapter = chapter,
+                stage = nextRuntime.toUiState(node),
                 currentEvent = nextEvent,
                 choices = nextChoices,
-                log = current.log + listOfNotNull(nextEvent?.introText)
+                log = state.log + listOf(stageLog) + listOfNotNull(nextEvent?.introText)
             )
         }
     }
 
     private fun applySaveGame(slot: Int, saveGame: SaveGame) {
+        val runtime = stageEngine.restoreStage(
+            stageId = saveGame.stageId,
+            nodeId = saveGame.nodeId,
+            visitedNodes = saveGame.visitedNodes,
+            completed = saveGame.stageCompleted,
+            chapter = saveGame.chapter,
+            rng = rng
+        )
+        stageRuntime = runtime
+
         val event = saveGame.currentEventId?.let { id ->
-            events.firstOrNull { it.eventId == id }
-        }
+            engine.eventById(id)
+        } ?: stageEngine.eventForNode(runtime, saveGame.chapter, rng)
         if (saveGame.currentEventId != null && event == null) {
             GameLogger.warn("SaveSystem", "存档事件未找到，eventId=${saveGame.currentEventId}")
         }
@@ -242,6 +304,7 @@ class GameViewModel(
         val choices = event?.let { engine.toChoices(it) } ?: listOf(
             GameChoice("advance", "继续")
         )
+        val node = stageEngine.currentNode(runtime)
 
         val validRoleId = if (roles.any { it.id == saveGame.selectedRoleId }) {
             saveGame.selectedRoleId
@@ -253,6 +316,7 @@ class GameViewModel(
             current.copy(
                 turn = saveGame.turn,
                 chapter = saveGame.chapter,
+                stage = runtime.toUiState(node),
                 selectedRoleId = validRoleId,
                 player = saveGame.player,
                 currentEvent = event,
@@ -261,6 +325,36 @@ class GameViewModel(
                 lastAction = "已读取槽位 $slot",
                 log = saveGame.log + "已读取槽位 $slot",
                 saveSlots = current.saveSlots
+            )
+        }
+    }
+
+    private fun startStageForTurn(turn: Int, reason: String) {
+        val chapter = chapterForTurn(turn)
+        val runtime = stageEngine.startStageForChapter(chapter, rng)
+        stageRuntime = runtime
+        val node = stageEngine.currentNode(runtime)
+        val event = stageEngine.eventForNode(runtime, chapter, rng)
+        val choices = event?.let { engine.toChoices(it) } ?: listOf(
+            GameChoice("advance", "继续")
+        )
+        val stageLog = if (reason.isBlank()) {
+            "进入关卡：${runtime.stage.name}"
+        } else {
+            "$reason：${runtime.stage.name}"
+        }
+        GameLogger.info(
+            logTag,
+            "初始化关卡：turn=$turn chapter=$chapter stage=${runtime.stage.id} node=${node?.id ?: "无"}"
+        )
+        _state.update { current ->
+            current.copy(
+                turn = turn,
+                chapter = chapter,
+                stage = runtime.toUiState(node),
+                currentEvent = event,
+                choices = choices,
+                log = current.log + listOf(stageLog) + listOfNotNull(event?.introText)
             )
         }
     }
@@ -379,6 +473,101 @@ class GameViewModel(
         )
     }
 
+    private fun resolveBattleAndAdvance(event: EventDefinition) {
+        GameLogger.info(logTag, "进入战斗：eventId=${event.eventId} title=${event.title}")
+        val current = _state.value
+        val battle = battleSystem.resolveBattle(current.player, event)
+        val outcomeText = if (battle.victory) event.successText else event.failText
+        val safeHp = if (battle.victory) battle.playerRemainingHp else max(1, battle.playerRemainingHp)
+        val postBattlePlayer = current.player.copy(hp = safeHp)
+        val rewardPlayer = if (battle.victory) {
+            event.result?.let { applyResult(postBattlePlayer, it) } ?: postBattlePlayer
+        } else {
+            postBattlePlayer
+        }
+
+        val resultSummary = if (battle.victory) {
+            event.result?.let { summarizeResult(it) } ?: "战斗无额外奖励"
+        } else {
+            "战斗失败，保留部分资源后继续"
+        }
+
+        _state.update { state ->
+            state.copy(
+                player = rewardPlayer,
+                lastAction = outcomeText.ifBlank { "战斗结束" },
+                log = state.log + battle.logLines + listOfNotNull(
+                    outcomeText.ifBlank { null },
+                    event.logText.ifBlank { null },
+                    resultSummary
+                )
+            )
+        }
+
+        val nextEventId = if (battle.victory) {
+            event.result?.nextEventId ?: event.nextEventId
+        } else {
+            event.failEventId
+        }
+        val nextNodeId = if (battle.victory) event.result?.nextNodeId else null
+        advanceToNextNode(
+            incrementTurn = true,
+            forcedEventId = nextEventId,
+            forcedNodeId = nextNodeId
+        )
+    }
+
+    private fun isBattleEvent(event: EventDefinition): Boolean {
+        return !event.enemyGroupId.isNullOrBlank() || event.type.lowercase().startsWith("battle")
+    }
+
+    private fun loadEnemyRepository(): EnemyRepository {
+        val enemyFile = runCatching { repository.loadEnemies() }.getOrElse { defaultEnemyFile() }
+        val groupFile = runCatching { repository.loadEnemyGroups() }.getOrElse { defaultEnemyGroupFile() }
+        GameLogger.info(
+            logTag,
+            "敌人数据已加载：敌人=${enemyFile.enemies.size}，敌群=${groupFile.groups.size}"
+        )
+        return EnemyRepository(enemyFile, groupFile)
+    }
+
+    private data class StageBundle(
+        val stages: List<StageDefinition>,
+        val nodes: List<NodeDefinition>
+    )
+
+    private fun loadStageBundle(): StageBundle {
+        val stages = runCatching { repository.loadStages().stages }.getOrElse { emptyList() }
+        val nodes = runCatching { repository.loadNodes().nodes }.getOrElse { emptyList() }
+        if (stages.isEmpty() || nodes.isEmpty()) {
+            GameLogger.warn(logTag, "关卡或节点配置为空，使用默认关卡")
+            return StageBundle(defaultStages(), defaultNodes())
+        }
+        val referencedNodes = nodes.filter { node -> stages.any { it.nodes.contains(node.id) } }
+        if (referencedNodes.isEmpty()) {
+            GameLogger.warn(logTag, "节点未被关卡引用，使用默认关卡")
+            return StageBundle(defaultStages(), defaultNodes())
+        }
+        GameLogger.info(
+            logTag,
+            "关卡数据已加载：关卡=${stages.size} 节点=${referencedNodes.size}"
+        )
+        return StageBundle(stages, referencedNodes)
+    }
+
+    private fun StageRuntime.toUiState(node: NodeDefinition?): StageUiState {
+        return StageUiState(
+            id = stage.id,
+            name = stage.name,
+            chapter = stage.chapter,
+            nodeId = node?.id ?: currentNodeId,
+            nodeType = node?.type ?: "UNKNOWN",
+            visited = visited.size,
+            total = stage.nodes.size,
+            isCompleted = completed
+        )
+    }
+
     private fun refreshSaveSlots() {
         val summaries = (1..8).map { slot ->
             val payload = runCatching { saveStore.load(slot) }.getOrNull()
@@ -399,10 +588,13 @@ class GameViewModel(
                         hasData = true
                     )
                 } else {
+                    val stageName = saveGame.stageId?.let { stageId ->
+                        stageBundle.stages.firstOrNull { it.id == stageId }?.name
+                    } ?: "未知关卡"
                     SaveSlotSummary(
                         slot = slot,
                         title = "槽位 $slot：第 ${saveGame.turn} 回合",
-                        detail = "角色 ${saveGame.player.name} | 章节 ${saveGame.chapter}",
+                        detail = "角色 ${saveGame.player.name} | 章节 ${saveGame.chapter} | 关卡 $stageName",
                         hasData = true
                     )
                 }
