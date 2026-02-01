@@ -39,6 +39,7 @@ class GameViewModel(
     private val turnEngine = TurnBasedCombatEngine(rng)
     private var battleSession: BattleSession? = null
     private var battleEventId: String? = null
+    private var pendingNewSaveSlot: Int? = null
     private val autoSaveScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val autoSaveIntervalMs = 10_000L
     private var autoSaveSlot: Int? = null
@@ -60,32 +61,79 @@ class GameViewModel(
         _state.update { current ->
             current.copy(
                 roles = roles,
-                selectedRoleId = initialRole?.id ?: ""
+                selectedRoleId = initialRole?.id ?: "",
+                screen = GameScreen.SAVE_SELECT,
+                lastAction = "请选择存档",
+                log = listOf("请选择存档：读取已有存档或创建新存档")
             )
         }
         if (initialRole != null) {
-            GameLogger.info(logTag, "自动选择初始角色：${initialRole.name}")
-            applyRole(initialRole, reason = "初始角色")
+            GameLogger.info(logTag, "初始角色候选：${initialRole.name}")
         } else {
             GameLogger.warn(logTag, "未找到可用的初始角色")
         }
-        startStageForTurn(_state.value.turn, reason = "初始化关卡")
         refreshSaveSlots()
         startAutoSaveLoop()
     }
 
     fun onSelectRole(roleId: String) {
         GameLogger.info(logTag, "收到角色选择请求：角色编号=$roleId")
+        if (_state.value.screen != GameScreen.ROLE_SELECT) {
+            GameLogger.warn(logTag, "当前界面不允许切换角色")
+            return
+        }
         val role = roles.firstOrNull { it.id == roleId } ?: return
         if (!role.unlocked) {
             GameLogger.warn(logTag, "角色未解锁：${role.name}，解锁条件=${role.unlock}")
             _state.update { it.copy(lastAction = "角色未解锁") }
             return
         }
-        applyRole(role, reason = "选择角色")
+        _state.update { it.copy(selectedRoleId = role.id, lastAction = "已选择角色：${role.name}") }
+    }
+
+    fun onConfirmRole() {
+        GameLogger.info(logTag, "确认角色并进入冒险")
+        if (_state.value.screen != GameScreen.ROLE_SELECT) {
+            GameLogger.warn(logTag, "当前界面不允许确认角色")
+            return
+        }
+        val role = roles.firstOrNull { it.id == _state.value.selectedRoleId }
+        if (role == null) {
+            _state.update { it.copy(lastAction = "请先选择角色", log = it.log + "请先选择角色") }
+            return
+        }
+        if (!role.unlocked) {
+            _state.update { it.copy(lastAction = "角色未解锁", log = it.log + "角色未解锁") }
+            return
+        }
+        applyRole(role, reason = "确认角色")
+        startStageForTurn(1, reason = "新建存档")
+        val slot = pendingNewSaveSlot
+        if (slot != null) {
+            autoSaveSlot = slot
+            _state.update { current ->
+                current.copy(
+                    screen = GameScreen.ADVENTURE,
+                    selectedSaveSlot = slot,
+                    lastAction = "已确认角色，进入冒险"
+                )
+            }
+            onSave(slot)
+        } else {
+            _state.update { current ->
+                current.copy(
+                    screen = GameScreen.ADVENTURE,
+                    lastAction = "已确认角色，进入冒险"
+                )
+            }
+        }
     }
 
     fun onSelectChoice(choiceId: String) {
+        if (_state.value.screen != GameScreen.ADVENTURE) {
+            GameLogger.warn(logTag, "未进入冒险界面，无法选择行动")
+            return
+        }
         GameLogger.info(logTag, "收到事件选项：选项编号=$choiceId")
         val currentEvent = _state.value.currentEvent
         if (currentEvent == null) {
@@ -150,6 +198,10 @@ class GameViewModel(
 
     fun onAdvance() {
         GameLogger.info(logTag, "点击继续前进")
+        if (_state.value.screen != GameScreen.ADVENTURE) {
+            GameLogger.warn(logTag, "未进入冒险界面，无法继续前进")
+            return
+        }
         val currentEvent = _state.value.currentEvent
         if (currentEvent != null && isBattleEvent(currentEvent)) {
             GameLogger.info(logTag, "战斗事件中不支持继续前进")
@@ -159,6 +211,10 @@ class GameViewModel(
     }
 
     fun onSave(slot: Int) {
+        if (_state.value.screen != GameScreen.ADVENTURE) {
+            GameLogger.warn("存档系统", "未进入冒险界面，无法存档")
+            return
+        }
         GameLogger.info("存档系统", "准备存档，槽位=$slot，回合=${_state.value.turn}")
         val saveGame = buildSaveGameSnapshot()
         runCatching {
@@ -234,8 +290,30 @@ class GameViewModel(
         applySaveGame(slot, saveGame)
         autoSaveSlot = slot
         GameLogger.info("存档系统", "自动存档槽位已更新为 $slot")
+        _state.update { current ->
+            current.copy(
+                screen = GameScreen.ADVENTURE,
+                selectedSaveSlot = slot,
+                lastAction = "已读取槽位 $slot"
+            )
+        }
         refreshSaveSlots()
         GameLogger.info("存档系统", "读档完成，槽位=$slot，回合=${saveGame.turn}")
+    }
+
+    fun onCreateNewSave(slot: Int) {
+        GameLogger.info("存档系统", "创建新存档：槽位=$slot")
+        pendingNewSaveSlot = slot
+        val initialRole = roles.firstOrNull { it.unlocked }
+        _state.update { current ->
+            current.copy(
+                screen = GameScreen.ROLE_SELECT,
+                selectedSaveSlot = slot,
+                selectedRoleId = initialRole?.id ?: "",
+                lastAction = "已选择新存档槽位 $slot",
+                log = current.log + "已选择新存档槽位 $slot，请选择角色"
+            )
+        }
     }
 
     private fun advanceToNextNode(
@@ -316,6 +394,7 @@ class GameViewModel(
     private fun applySaveGame(slot: Int, saveGame: SaveGame) {
         battleSession = null
         battleEventId = null
+        pendingNewSaveSlot = null
         val runtime = stageEngine.restoreStage(
             stageId = saveGame.stageId,
             nodeId = saveGame.nodeId,
@@ -375,6 +454,10 @@ class GameViewModel(
     }
 
     private fun startStageForTurn(turn: Int, reason: String) {
+        if (_state.value.screen == GameScreen.SAVE_SELECT) {
+            GameLogger.info(logTag, "尚未完成存档选择，跳过关卡初始化")
+            return
+        }
         val chapter = chapterForTurn(turn)
         val runtime = assignGuardian(stageEngine.startStageForChapter(chapter, rng))
         stageRuntime = runtime
@@ -616,13 +699,33 @@ class GameViewModel(
         )
         val choices = buildBattleChoices(session)
         _state.update { current ->
+            val syncedPlayer = syncBattlePlayerStats(current.player, session)
             current.copy(
+                player = syncedPlayer,
                 battle = battleState,
-                enemyPreview = buildEnemyPreview(current.currentEvent, current.player),
+                enemyPreview = buildEnemyPreview(current.currentEvent, syncedPlayer),
                 choices = choices,
                 log = current.log + newLogs
             )
         }
+    }
+
+    private fun syncBattlePlayerStats(current: PlayerStats, session: BattleSession): PlayerStats {
+        val actor = session.player
+        val nextHpMax = actor.stats.hpMax
+        val nextHp = actor.hp.coerceIn(0, nextHpMax)
+        val nextMp = actor.mp.coerceIn(0, current.mpMax)
+        if (current.hp != nextHp || current.mp != nextMp || current.hpMax != nextHpMax) {
+            GameLogger.info(
+                logTag,
+                "同步战斗状态面板：生命${current.hp}/${current.hpMax} -> ${nextHp}/${nextHpMax}，能量${current.mp}/${current.mpMax} -> ${nextMp}/${current.mpMax}"
+            )
+        }
+        return current.copy(
+            hp = nextHp,
+            hpMax = nextHpMax,
+            mp = nextMp
+        )
     }
 
     private fun finishBattle(event: EventDefinition, outcome: BattleOutcome) {
