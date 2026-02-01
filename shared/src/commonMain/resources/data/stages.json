@@ -7,7 +7,7 @@
       "chapter": 1,
       "difficulty": 1,
       "floors": 1,
-      "nodes": ["st1_n1", "st1_n2", "st1_n3", "st1_n4", "st1_exit"],
+      "nodes": ["st1_n1", "st1_n2", "st1_n3", "st1_branch", "st1_hidden", "st1_n4", "st1_exit"],
       "entry": "st1_n1",
       "exit": "st1_exit"
     },
@@ -17,7 +17,7 @@
       "chapter": 2,
       "difficulty": 2,
       "floors": 1,
-      "nodes": ["st2_n1", "st2_n2", "st2_n3", "st2_n4", "st2_exit"],
+      "nodes": ["st2_n1", "st2_n2", "st2_n3", "st2_branch", "st2_hidden", "st2_n4", "st2_exit"],
       "entry": "st2_n1",
       "exit": "st2_exit"
     },
@@ -27,7 +27,7 @@
       "chapter": 3,
       "difficulty": 3,
       "floors": 1,
-      "nodes": ["st3_n1", "st3_n2", "st3_n3", "st3_n4", "st3_exit"],
+      "nodes": ["st3_n1", "st3_hidden", "st3_n2", "st3_n3", "st3_n4", "st3_exit"],
       "entry": "st3_n1",
       "exit": "st3_exit"
     },
@@ -37,7 +37,7 @@
       "chapter": 4,
       "difficulty": 4,
       "floors": 1,
-      "nodes": ["st4_n1", "st4_n2", "st4_n3", "st4_n4", "st4_exit"],
+      "nodes": ["st4_n1", "st4_n2", "st4_branch", "st4_n3", "st4_n4", "st4_exit"],
       "entry": "st4_n1",
       "exit": "st4_exit"
     },
@@ -47,7 +47,7 @@
       "chapter": 5,
       "difficulty": 5,
       "floors": 1,
-      "nodes": ["st5_n1", "st5_n2", "st5_n3", "st5_n4", "st5_exit"],
+      "nodes": ["st5_n1", "st5_branch", "st5_n2", "st5_n3", "st5_n4", "st5_exit"],
       "entry": "st5_n1",
       "exit": "st5_exit"
     }

@@ -11,12 +11,26 @@
     {
       "id": "st1_n2",
       "type": "BATTLE",
-      "neighbors": ["st1_n3"],
+      "neighbors": ["st1_n3", "st1_branch"],
       "eventId": "ch1_grass_cat",
       "conditions": []
     },
     {
       "id": "st1_n3",
+      "type": "TRAP",
+      "neighbors": ["st1_n4"],
+      "eventId": "ch1_trap_chest",
+      "conditions": []
+    },
+    {
+      "id": "st1_branch",
+      "type": "EVENT",
+      "neighbors": ["st1_hidden"],
+      "eventId": "ch1_lost_tourist",
+      "conditions": []
+    },
+    {
+      "id": "st1_hidden",
       "type": "TRAP",
       "neighbors": ["st1_n4"],
       "eventId": "ch1_trap_chest",
@@ -46,7 +60,7 @@
     {
       "id": "st2_n2",
       "type": "EVENT",
-      "neighbors": ["st2_n3"],
+      "neighbors": ["st2_n3", "st2_branch"],
       "eventId": "ch2_sign_riddle",
       "conditions": []
     },
@@ -55,6 +69,20 @@
       "type": "BATTLE",
       "neighbors": ["st2_n4"],
       "eventId": "ch2_elite_first",
+      "conditions": []
+    },
+    {
+      "id": "st2_branch",
+      "type": "EVENT",
+      "neighbors": ["st2_hidden"],
+      "eventId": "ch2_temp_worker",
+      "conditions": []
+    },
+    {
+      "id": "st2_hidden",
+      "type": "TRAP",
+      "neighbors": ["st2_n4"],
+      "eventId": "ch2_trap_house",
       "conditions": []
     },
     {
@@ -73,6 +101,13 @@
     },
     {
       "id": "st3_n1",
+      "type": "EVENT",
+      "neighbors": ["st3_n2", "st3_hidden"],
+      "eventId": "ch3_hidden_path",
+      "conditions": []
+    },
+    {
+      "id": "st3_hidden",
       "type": "EVENT",
       "neighbors": ["st3_n2"],
       "eventId": "ch3_hidden_path",
@@ -116,8 +151,15 @@
     {
       "id": "st4_n2",
       "type": "EVENT",
-      "neighbors": ["st4_n3"],
+      "neighbors": ["st4_n3", "st4_branch"],
       "eventId": "ch4_recorder",
+      "conditions": []
+    },
+    {
+      "id": "st4_branch",
+      "type": "TRAP",
+      "neighbors": ["st4_n3"],
+      "eventId": "ch4_true_false_guide",
       "conditions": []
     },
     {
@@ -144,8 +186,15 @@
     {
       "id": "st5_n1",
       "type": "EVENT",
-      "neighbors": ["st5_n2"],
+      "neighbors": ["st5_n2", "st5_branch"],
       "eventId": "ch5_exit_hint",
+      "conditions": []
+    },
+    {
+      "id": "st5_branch",
+      "type": "EVENT",
+      "neighbors": ["st5_n2"],
+      "eventId": "ch5_forge",
       "conditions": []
     },
     {
