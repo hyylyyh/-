@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
@@ -28,7 +29,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import kotlinx.coroutines.CancellationException
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -64,7 +67,10 @@ fun GameApp(
                     state = state,
                     onChoice = viewModel::onSelectChoice,
                     onAdvance = viewModel::onAdvance,
-                    onSelectRole = viewModel::onSelectRole
+                    onSelectRole = viewModel::onSelectRole,
+                    onConfirmRole = viewModel::onConfirmRole,
+                    onCreateNewSave = viewModel::onCreateNewSave,
+                    onLoadSave = viewModel::onLoad
                 )
                 SidePanel(
                     modifier = Modifier.weight(0.8f),
@@ -123,81 +129,151 @@ private fun MainPanel(
     state: GameUiState,
     onChoice: (String) -> Unit,
     onAdvance: () -> Unit,
-    onSelectRole: (String) -> Unit
+    onSelectRole: (String) -> Unit,
+    onConfirmRole: () -> Unit,
+    onCreateNewSave: (Int) -> Unit,
+    onLoadSave: (Int) -> Unit
 ) {
     val scrollState = rememberScrollState()
     Column(
         modifier = modifier.verticalScroll(scrollState),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text(text = "选择角色", fontWeight = FontWeight.Bold)
-                Divider(modifier = Modifier.padding(vertical = 8.dp))
-                RoleSelectionPanel(state = state, onSelectRole = onSelectRole)
+        when (state.screen) {
+            GameScreen.SAVE_SELECT -> {
+                SaveSelectPanel(
+                    state = state,
+                    onCreateNewSave = onCreateNewSave,
+                    onLoadSave = onLoadSave
+                )
             }
-        }
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text(text = "当前事件", fontWeight = FontWeight.Bold)
-                Divider(modifier = Modifier.padding(vertical = 8.dp))
-                if (state.currentEvent == null) {
-                    Text("事件加载中...")
-                } else {
-                    Text(state.currentEvent.title, fontWeight = FontWeight.SemiBold)
-                    Text("类型 ${state.currentEvent.type}  难度 ${state.currentEvent.difficulty}")
-                    if (state.stage.id.isNotBlank()) {
-                        Text("节点 ${state.stage.nodeId}  类型 ${nodeTypeLabel(state.stage.nodeType)}")
-                        if (state.stage.guardian.isNotBlank()) {
-                            Text("守卫：${state.stage.guardian}", color = Color(0xFFE8C07D))
+            GameScreen.ROLE_SELECT -> {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(text = "选择角色", fontWeight = FontWeight.Bold)
+                        Divider(modifier = Modifier.padding(vertical = 8.dp))
+                        RoleSelectionPanel(state = state, onSelectRole = onSelectRole)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = onConfirmRole,
+                            enabled = state.selectedRoleId.isNotBlank(),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("确认角色并开始")
                         }
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    state.battle?.let { battle ->
-                        Text("战斗回合 ${battle.round} | ${battle.enemyName}")
-                        Text("敌方生命 ${battle.enemyHp}  |  装备 ${battle.equipmentMode}")
-                        Text("我方生命 ${battle.playerHp}  能量 ${battle.playerMp}  技能冷却 ${battle.skillCooldown}")
-                        Spacer(modifier = Modifier.height(6.dp))
-                    }
-                    Text(state.currentEvent.introText)
-                }
-            }
-        }
-        if (state.enemyPreview != null) {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(text = "敌人情报", fontWeight = FontWeight.Bold)
-                    Divider(modifier = Modifier.padding(vertical = 4.dp))
-                    EnemyPreviewPanel(preview = state.enemyPreview)
-                }
-            }
-        }
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text(text = "事件日志", fontWeight = FontWeight.Bold)
-                Divider(modifier = Modifier.padding(vertical = 8.dp))
-                LazyColumn(modifier = Modifier.height(200.dp)) {
-                    items(state.log) { line ->
-                        Text(text = "- $line")
                     }
                 }
             }
+            GameScreen.ADVENTURE -> {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(text = "当前事件", fontWeight = FontWeight.Bold)
+                        Divider(modifier = Modifier.padding(vertical = 8.dp))
+                        if (state.currentEvent == null) {
+                            Text("事件加载中...")
+                        } else {
+                            Text(state.currentEvent.title, fontWeight = FontWeight.SemiBold)
+                            Text("类型 ${state.currentEvent.type}  难度 ${state.currentEvent.difficulty}")
+                            if (state.stage.id.isNotBlank()) {
+                                Text("节点 ${state.stage.nodeId}  类型 ${nodeTypeLabel(state.stage.nodeType)}")
+                                if (state.stage.guardian.isNotBlank()) {
+                                    Text("守卫：${state.stage.guardian}", color = Color(0xFFE8C07D))
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            state.battle?.let { battle ->
+                                Text("战斗回合 ${battle.round} | ${battle.enemyName}")
+                                Text("敌方生命 ${battle.enemyHp}  |  装备 ${battle.equipmentMode}")
+                                Text("我方生命 ${battle.playerHp}  能量 ${battle.playerMp}  技能冷却 ${battle.skillCooldown}")
+                                Spacer(modifier = Modifier.height(6.dp))
+                            }
+                            Text(state.currentEvent.introText)
+                        }
+                    }
+                }
+                if (state.enemyPreview != null) {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(text = "敌人情报", fontWeight = FontWeight.Bold)
+                            Divider(modifier = Modifier.padding(vertical = 4.dp))
+                            EnemyPreviewPanel(preview = state.enemyPreview)
+                        }
+                    }
+                }
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(text = "事件日志", fontWeight = FontWeight.Bold)
+                        Divider(modifier = Modifier.padding(vertical = 8.dp))
+                        val listState = rememberLazyListState()
+                        LaunchedEffect(state.log.size) {
+                            if (state.log.isNotEmpty()) {
+                                try {
+                                    listState.animateScrollToItem(state.log.size - 1)
+                                } catch (_: CancellationException) {
+                                }
+                            }
+                        }
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.height(200.dp)
+                        ) {
+                            items(state.log) { line ->
+                                Text(text = "- $line")
+                            }
+                        }
+                    }
+                }
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(text = "可选行动", fontWeight = FontWeight.Bold)
+                        Divider(modifier = Modifier.padding(vertical = 8.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            state.choices.forEach { choice ->
+                                Button(onClick = { onChoice(choice.id) }, modifier = Modifier.fillMaxWidth()) {
+                                    Text(choice.label)
+                                }
+                            }
+                            if (state.battle == null) {
+                                Button(onClick = onAdvance, modifier = Modifier.fillMaxWidth()) {
+                                    Text("继续前进")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text(text = "可选行动", fontWeight = FontWeight.Bold)
-                Divider(modifier = Modifier.padding(vertical = 8.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    state.choices.forEach { choice ->
-                        Button(onClick = { onChoice(choice.id) }, modifier = Modifier.fillMaxWidth()) {
-                            Text(choice.label)
+    }
+}
+
+@Composable
+private fun SaveSelectPanel(
+    state: GameUiState,
+    onCreateNewSave: (Int) -> Unit,
+    onLoadSave: (Int) -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(text = "存档选择", fontWeight = FontWeight.Bold)
+            Divider(modifier = Modifier.padding(vertical = 6.dp))
+            Text(text = "开始游戏前必须选择读取存档或创建新存档。", color = Color(0xFFB8B2A6))
+            if (state.saveSlots.isEmpty()) {
+                Text("存档信息加载中...")
+            } else {
+                state.saveSlots.forEach { slot ->
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(text = slot.title, fontWeight = FontWeight.SemiBold)
+                        Text(text = slot.detail, color = Color(0xFF7B756B))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = { onCreateNewSave(slot.slot) }) {
+                                Text("新建此槽位")
+                            }
+                            Button(onClick = { onLoadSave(slot.slot) }, enabled = slot.hasData) {
+                                Text("读取此存档")
+                            }
                         }
                     }
-                    if (state.battle == null) {
-                        Button(onClick = onAdvance, modifier = Modifier.fillMaxWidth()) {
-                            Text("继续前进")
-                        }
-                    }
+                    Divider(modifier = Modifier.padding(vertical = 6.dp))
                 }
             }
         }
@@ -225,6 +301,9 @@ private fun RoleSelectionPanel(state: GameUiState, onSelectRole: (String) -> Uni
                 text = "当前：${selectedRole?.name ?: "无"}",
                 color = Color(0xFF8DB38B)
             )
+        }
+        state.selectedSaveSlot?.let { slot ->
+            Text(text = "新存档槽位：$slot", color = Color(0xFFB8B2A6))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(
@@ -488,6 +567,16 @@ private fun SidePanel(
     onLoad: (Int) -> Unit
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (state.screen != GameScreen.ADVENTURE) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(text = "提示", fontWeight = FontWeight.Bold)
+                    Divider(modifier = Modifier.padding(vertical = 6.dp))
+                    Text("请先在左侧完成存档选择与角色确认。", color = Color(0xFFB8B2A6))
+                }
+            }
+            return
+        }
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(12.dp)) {
                 Text(text = "快捷面板", fontWeight = FontWeight.Bold)

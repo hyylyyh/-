@@ -304,12 +304,23 @@ class GameViewModel(
     fun onCreateNewSave(slot: Int) {
         GameLogger.info("存档系统", "创建新存档：槽位=$slot")
         pendingNewSaveSlot = slot
+        battleSession = null
+        battleEventId = null
+        stageRuntime = null
         val initialRole = roles.firstOrNull { it.unlocked }
         _state.update { current ->
             current.copy(
                 screen = GameScreen.ROLE_SELECT,
                 selectedSaveSlot = slot,
                 selectedRoleId = initialRole?.id ?: "",
+                turn = 1,
+                chapter = 1,
+                stage = StageUiState(),
+                player = PlayerStats(),
+                currentEvent = null,
+                enemyPreview = null,
+                battle = null,
+                choices = emptyList(),
                 lastAction = "已选择新存档槽位 $slot",
                 log = current.log + "已选择新存档槽位 $slot，请选择角色"
             )

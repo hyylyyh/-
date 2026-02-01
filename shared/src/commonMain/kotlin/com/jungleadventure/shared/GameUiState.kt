@@ -4,16 +4,18 @@ import kotlinx.serialization.Serializable
 
 data class GameUiState(
     val title: String = "丛林大冒险",
+    val screen: GameScreen = GameScreen.SAVE_SELECT,
     val turn: Int = 1,
     val chapter: Int = 1,
     val stage: StageUiState = StageUiState(),
     val player: PlayerStats = PlayerStats(),
     val roles: List<RoleProfile> = emptyList(),
     val selectedRoleId: String = "",
+    val selectedSaveSlot: Int? = null,
     val currentEvent: EventDefinition? = null,
     val enemyPreview: EnemyPreviewUiState? = null,
     val battle: BattleUiState? = null,
-    val log: List<String> = listOf("冒险开始"),
+    val log: List<String> = listOf("请选择存档：读取已有存档或创建新存档"),
     val choices: List<GameChoice> = listOf(),
     val activePanel: GamePanel = GamePanel.STATUS,
     val lastAction: String = "",
@@ -91,4 +93,10 @@ enum class GamePanel {
     STATUS,
     EQUIPMENT,
     INVENTORY
+}
+
+enum class GameScreen {
+    SAVE_SELECT,
+    ROLE_SELECT,
+    ADVENTURE
 }
