@@ -33,8 +33,8 @@ class GameViewModel(
     private val enemyRepository = loadEnemyRepository()
     private val battleSystem = BattleSystem(enemyRepository, rng)
     private val autoSaveScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val autoSaveSlot = 1
     private val autoSaveIntervalMs = 10_000L
+    private var autoSaveSlot: Int? = null
     private val json = Json {
         encodeDefaults = true
         prettyPrint = true
@@ -177,6 +177,8 @@ class GameViewModel(
             )
         }
         refreshSaveSlots()
+        autoSaveSlot = slot
+        GameLogger.info("存档系统", "自动存档槽位已更新为 $slot")
         GameLogger.info("存档系统", "存档完成，槽位=$slot")
     }
 
@@ -222,6 +224,8 @@ class GameViewModel(
             ?: return
 
         applySaveGame(slot, saveGame)
+        autoSaveSlot = slot
+        GameLogger.info("存档系统", "自动存档槽位已更新为 $slot")
         refreshSaveSlots()
         GameLogger.info("存档系统", "读档完成，槽位=$slot，回合=${saveGame.turn}")
     }
@@ -543,22 +547,27 @@ class GameViewModel(
     private fun startAutoSaveLoop() {
         GameLogger.info(
             "存档系统",
-            "启动自动存档：间隔=${autoSaveIntervalMs}ms 槽位=$autoSaveSlot"
+            "启动自动存档：间隔=${autoSaveIntervalMs}ms，等待玩家读档/手动存档后自动存档"
         )
         autoSaveScope.launch {
             while (isActive) {
                 delay(autoSaveIntervalMs)
+                val slot = autoSaveSlot
+                if (slot == null) {
+                    GameLogger.info("存档系统", "自动存档跳过：尚未选择存档槽位")
+                    continue
+                }
                 val saveGame = buildSaveGameSnapshot()
                 runCatching {
                     val payload = json.encodeToString(saveGame)
-                    saveStore.save(autoSaveSlot, payload)
+                    saveStore.save(slot, payload)
                 }.onFailure { error ->
-                    GameLogger.error("存档系统", "自动存档失败，槽位=$autoSaveSlot", error)
+                    GameLogger.error("存档系统", "自动存档失败，槽位=$slot", error)
                     return@onFailure
                 }
                 GameLogger.info(
                     "存档系统",
-                    "自动存档完成，槽位=$autoSaveSlot，回合=${saveGame.turn}"
+                    "自动存档完成，槽位=$slot，回合=${saveGame.turn}"
                 )
                 refreshSaveSlots()
             }
