@@ -10,9 +10,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -29,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -240,9 +243,18 @@ private fun RoleCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(text = role.name, fontWeight = FontWeight.Bold)
-                    Text(text = role.role, color = Color(0xFFB8B2A6))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RoleAvatar(
+                        name = role.name,
+                        size = 36.dp,
+                        background = if (role.unlocked) Color(0xFF27473A) else Color(0xFF3A2F22),
+                        textColor = if (role.unlocked) Color(0xFFECE8D9) else Color(0xFFB1AB9F)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(text = role.name, fontWeight = FontWeight.Bold)
+                        Text(text = role.role, color = Color(0xFFB8B2A6))
+                    }
                 }
                 RoleTag(
                     text = when {
@@ -286,12 +298,21 @@ private fun RoleDetailPanel(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(text = "角色详情", fontWeight = FontWeight.SemiBold)
-                Text(
-                    text = "${selectedRole.name} · ${selectedRole.role}",
-                    color = Color(0xFFB8B2A6)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RoleAvatar(
+                    name = selectedRole.name,
+                    size = 44.dp,
+                    background = Color(0xFF27473A),
+                    textColor = Color(0xFFECE8D9)
                 )
+                Spacer(modifier = Modifier.width(10.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(text = "角色详情", fontWeight = FontWeight.SemiBold)
+                    Text(
+                        text = "${selectedRole.name} · ${selectedRole.role}",
+                        color = Color(0xFFB8B2A6)
+                    )
+                }
             }
             OutlinedButton(
                 onClick = { onSelectRole(selectedRole.id) },
@@ -349,6 +370,19 @@ private fun RoleTag(text: String, background: Color) {
             .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
         Text(text = text, color = Color(0xFFECE8D9))
+    }
+}
+
+@Composable
+private fun RoleAvatar(name: String, size: Dp, background: Color, textColor: Color) {
+    Box(
+        modifier = Modifier
+            .size(size)
+            .background(background, CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        val label = name.take(1).ifBlank { "?" }
+        Text(text = label, fontWeight = FontWeight.Bold, color = textColor)
     }
 }
 
