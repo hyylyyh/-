@@ -17,14 +17,15 @@
       "id": "sk_act_scout",
       "name": "勘探",
       "type": "ACTIVE",
-      "target": "SELF",
+      "target": "ENEMY",
       "cost": 6,
       "cooldown": 3,
       "effects": [
+        { "type": "DAMAGE", "value": 0.60, "scaling": "ATK", "note": "60%ATK伤害" },
         { "type": "REVEAL_NEXT_NODE", "value": 1, "note": "显示下一节点风险" },
         { "type": "HIT_UP", "value": 0.10, "note": "命中率+10%，持续2回合" }
       ],
-      "desc": "观察前路并提高后续行动命中。"
+      "desc": "观察前路并用快速攻击试探敌人。"
     },
     {
       "id": "sk_pass_mark_weakness",
@@ -92,14 +93,15 @@
       "id": "sk_act_mech_break",
       "name": "机关破解",
       "type": "ACTIVE",
-      "target": "EVENT",
+      "target": "ENEMY",
       "cost": 8,
       "cooldown": 3,
       "effects": [
+        { "type": "DAMAGE", "value": 0.70, "scaling": "ATK", "note": "70%ATK伤害" },
         { "type": "DISARM_TRAP", "value": 1, "note": "解除一次陷阱判定" },
         { "type": "MATERIAL_BONUS", "value": 0.10, "note": "本次事件材料+10%" }
       ],
-      "desc": "提升事件处理收益并规避风险。"
+      "desc": "拆解敌人的防御结构并提升事件收益。"
     },
     {
       "id": "sk_pass_stealth",
@@ -117,14 +119,15 @@
       "id": "sk_act_quick_open",
       "name": "速开",
       "type": "ACTIVE",
-      "target": "EVENT",
+      "target": "ENEMY",
       "cost": 7,
       "cooldown": 3,
       "effects": [
+        { "type": "DAMAGE", "value": 0.65, "scaling": "ATK", "note": "65%ATK伤害" },
         { "type": "CHEST_NO_TRAP", "value": 0.70, "note": "开箱不触发陷阱概率+70%" },
         { "type": "GOLD_BONUS", "value": 0.15, "note": "成功额外金币+15%" }
       ],
-      "desc": "快速开箱，降低陷阱概率并增加收益。"
+      "desc": "迅速攻击并延续快速开箱的收益手感。"
     },
     {
       "id": "sk_pass_hardening",

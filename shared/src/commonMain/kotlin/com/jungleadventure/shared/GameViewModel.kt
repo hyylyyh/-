@@ -39,7 +39,6 @@ class GameViewModel(
     private val turnEngine = TurnBasedCombatEngine(rng)
     private var battleSession: BattleSession? = null
     private var battleEventId: String? = null
-    private var battleContext: BattleContext? = null
     private val autoSaveScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val autoSaveIntervalMs = 10_000L
     private var autoSaveSlot: Int? = null
@@ -100,7 +99,7 @@ class GameViewModel(
             return
         }
 
-        if (choiceId == "advance") {
+        if (choiceId == "继续") {
             GameLogger.info(logTag, "选择继续前进")
             advanceToNextNode(incrementTurn = true)
             return
@@ -244,6 +243,8 @@ class GameViewModel(
         forcedEventId: String? = null,
         forcedNodeId: String? = null
     ) {
+        battleSession = null
+        battleEventId = null
         val current = _state.value
         val nextTurn = if (incrementTurn) current.turn + 1 else current.turn
         val chapter = chapterForTurn(nextTurn)
@@ -265,7 +266,7 @@ class GameViewModel(
         }
         val nextEvent = forcedEvent ?: resolveEventForNode(nextRuntime, node, chapter)
         val nextChoices = nextEvent?.let { engine.toChoices(it) } ?: listOf(
-            GameChoice("advance", "继续")
+            GameChoice("继续", "继续")
         )
 
         val stageLog = if (shouldRestartStage) {
@@ -302,13 +303,19 @@ class GameViewModel(
                 stage = nextRuntime.toUiState(node),
                 currentEvent = nextEvent,
                 enemyPreview = enemyPreview,
+                battle = null,
                 choices = nextChoices,
                 log = state.log + listOf(stageLog) + listOfNotNull(commandLog, guardianLog, nextEvent?.introText)
             )
         }
+        if (nextEvent != null && isBattleEvent(nextEvent)) {
+            startBattleSession(nextEvent)
+        }
     }
 
     private fun applySaveGame(slot: Int, saveGame: SaveGame) {
+        battleSession = null
+        battleEventId = null
         val runtime = stageEngine.restoreStage(
             stageId = saveGame.stageId,
             nodeId = saveGame.nodeId,
@@ -334,7 +341,7 @@ class GameViewModel(
         }
 
         val choices = event?.let { engine.toChoices(it) } ?: listOf(
-            GameChoice("advance", "继续")
+            GameChoice("继续", "继续")
         )
         val runtimeNode = node
 
@@ -354,12 +361,16 @@ class GameViewModel(
                 player = saveGame.player,
                 currentEvent = event,
                 enemyPreview = enemyPreview,
+                battle = null,
                 choices = choices,
                 activePanel = saveGame.activePanel,
                 lastAction = "已读取槽位 $slot",
                 log = saveGame.log + "已读取槽位 $slot",
                 saveSlots = current.saveSlots
             )
+        }
+        if (event != null && isBattleEvent(event)) {
+            startBattleSession(event)
         }
     }
 
@@ -370,7 +381,7 @@ class GameViewModel(
         val node = stageEngine.currentNode(runtime)
         val event = resolveEventForNode(runtime, node, chapter)
         val choices = event?.let { engine.toChoices(it) } ?: listOf(
-            GameChoice("advance", "继续")
+            GameChoice("继续", "继续")
         )
         val stageLog = if (reason.isBlank()) {
             "进入关卡：${runtime.stage.name}"
@@ -393,9 +404,13 @@ class GameViewModel(
                 stage = runtime.toUiState(node),
                 currentEvent = event,
                 enemyPreview = enemyPreview,
+                battle = null,
                 choices = choices,
                 log = current.log + listOf(stageLog) + listOfNotNull(commandLog, guardianLog, event?.introText)
             )
+        }
+        if (event != null && isBattleEvent(event)) {
+            startBattleSession(event)
         }
     }
 
@@ -511,6 +526,192 @@ class GameViewModel(
             cost = costLabel,
             cooldown = cooldownLabel
         )
+    }
+
+    private fun handleBattleChoice(choiceId: String, event: EventDefinition) {
+        val currentSession = battleSession
+        if (currentSession == null || battleEventId != event.eventId) {
+            GameLogger.info(logTag, "初始化回合制战斗：事件编号=${event.eventId}")
+            startBattleSession(event)
+            return
+        }
+
+        val action = when (choiceId) {
+            "battle_attack" -> PlayerBattleAction(PlayerBattleActionType.BASIC_ATTACK)
+            "battle_skill" -> PlayerBattleAction(PlayerBattleActionType.SKILL, activeSkillDefinition())
+            "battle_item" -> PlayerBattleAction(PlayerBattleActionType.ITEM)
+            "battle_equip" -> PlayerBattleAction(PlayerBattleActionType.EQUIP)
+            "battle_flee" -> PlayerBattleAction(PlayerBattleActionType.FLEE)
+            else -> PlayerBattleAction(PlayerBattleActionType.BASIC_ATTACK)
+        }
+
+        val beforeSize = currentSession.logLines.size
+        var step = turnEngine.applyPlayerAction(currentSession, action)
+        var sessionAfter = step.session
+        var newLogs = sessionAfter.logLines.drop(beforeSize)
+
+        if (step.outcome == null) {
+            val beforeEnemy = sessionAfter.logLines.size
+            val enemyStep = turnEngine.applyEnemyTurn(sessionAfter)
+            sessionAfter = enemyStep.session
+            newLogs = newLogs + sessionAfter.logLines.drop(beforeEnemy)
+            step = enemyStep
+        }
+
+        updateBattleState(sessionAfter, newLogs)
+
+        if (step.outcome != null) {
+            finishBattle(event, step.outcome)
+        }
+    }
+
+    private fun startBattleSession(event: EventDefinition) {
+        val context = battleSystem.buildBattleContext(_state.value.player, event)
+        val session = turnEngine.startSession(
+            player = context.player,
+            enemy = context.enemy,
+            config = context.config,
+            enemyDamageMultiplier = context.enemyDamageMultiplier,
+            initialCooldown = 0
+        )
+        battleEventId = event.eventId
+
+        val firstStrike = turnEngine.determineFirstStrike(session.player, session.enemy, session.config.firstStrike)
+        val updatedSession = if (firstStrike == CombatActorType.ENEMY) {
+            val enemyStep = turnEngine.applyEnemyTurn(session, advanceRound = false)
+            enemyStep.session
+        } else {
+            session
+        }
+
+        battleSession = updatedSession
+        updateBattleState(updatedSession, updatedSession.logLines)
+
+        if (updatedSession.player.hp <= 0 || updatedSession.enemy.hp <= 0) {
+            finishBattle(
+                event,
+                BattleOutcome(
+                    victory = updatedSession.enemy.hp <= 0,
+                    escaped = updatedSession.escaped,
+                    rounds = updatedSession.round,
+                    playerRemainingHp = updatedSession.player.hp,
+                    enemyRemainingHp = updatedSession.enemy.hp,
+                    logLines = updatedSession.logLines
+                )
+            )
+        }
+    }
+
+    private fun updateBattleState(session: BattleSession, newLogs: List<String>) {
+        battleSession = session
+        val battleState = BattleUiState(
+            round = session.round,
+            playerHp = session.player.hp,
+            playerMp = session.player.mp,
+            enemyHp = session.enemy.hp,
+            enemyName = session.enemy.name,
+            equipmentMode = equipmentModeLabel(session.equipmentMode),
+            skillCooldown = session.skillCooldown
+        )
+        val choices = buildBattleChoices(session)
+        _state.update { current ->
+            current.copy(
+                battle = battleState,
+                enemyPreview = buildEnemyPreview(current.currentEvent, current.player),
+                choices = choices,
+                log = current.log + newLogs
+            )
+        }
+    }
+
+    private fun finishBattle(event: EventDefinition, outcome: BattleOutcome) {
+        val escaped = outcome.escaped
+        val victory = outcome.victory
+        val outcomeText = when {
+            escaped -> "成功撤离战斗"
+            victory -> event.successText
+            else -> event.failText
+        }
+        val basePlayer = _state.value.player.copy(
+            hp = outcome.playerRemainingHp.coerceAtLeast(0),
+            mp = battleSession?.player?.mp ?: _state.value.player.mp
+        )
+        val rewardPlayer = if (victory) {
+            event.result?.let { applyResult(basePlayer, it) } ?: basePlayer
+        } else {
+            basePlayer
+        }
+        val resultSummary = if (victory) {
+            event.result?.let { summarizeResult(it) } ?: "战斗无额外奖励"
+        } else if (escaped) {
+            "撤离成功，未获得奖励"
+        } else {
+            "战斗失败，保留部分资源后继续"
+        }
+
+        battleSession = null
+        battleEventId = null
+
+        _state.update { state ->
+            state.copy(
+                player = rewardPlayer,
+                battle = null,
+                lastAction = outcomeText.ifBlank { "战斗结束" },
+                log = state.log + listOfNotNull(
+                    outcomeText.ifBlank { null },
+                    event.logText.ifBlank { null },
+                    resultSummary
+                )
+            )
+        }
+
+        val nextEventId = if (victory) {
+            event.result?.nextEventId ?: event.nextEventId
+        } else {
+            event.failEventId
+        }
+        val nextNodeId = if (victory) event.result?.nextNodeId else null
+        advanceToNextNode(
+            incrementTurn = true,
+            forcedEventId = nextEventId,
+            forcedNodeId = nextNodeId
+        )
+    }
+
+    private fun buildBattleChoices(session: BattleSession): List<GameChoice> {
+        val skill = activeSkillDefinition()
+        val skillLabel = if (skill == null) {
+            "技能（未配置）"
+        } else {
+            val tip = when {
+                session.skillCooldown > 0 -> "冷却${session.skillCooldown}"
+                session.player.mp < skill.cost -> "能量不足"
+                else -> "可用"
+            }
+            "技能：${skill.name}（$tip）"
+        }
+        val equipLabel = "换装备（${equipmentModeLabel(session.equipmentMode)}）"
+        return listOf(
+            GameChoice("battle_attack", "普通攻击"),
+            GameChoice("battle_skill", skillLabel),
+            GameChoice("battle_item", "使用药丸"),
+            GameChoice("battle_equip", equipLabel),
+            GameChoice("battle_flee", "撤离战斗")
+        )
+    }
+
+    private fun activeSkillDefinition(): SkillDefinition? {
+        val roleId = _state.value.selectedRoleId
+        val skillId = roleActiveSkillMap[roleId]
+        return skillDefinitions.firstOrNull { it.id == skillId }
+    }
+
+    private fun equipmentModeLabel(mode: EquipmentMode): String {
+        return when (mode) {
+            EquipmentMode.NORMAL -> "默认"
+            EquipmentMode.OFFENSE -> "进攻"
+            EquipmentMode.DEFENSE -> "防御"
+        }
     }
 
     private fun resolveBattleAndAdvance(event: EventDefinition) {

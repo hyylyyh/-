@@ -12,11 +12,22 @@ data class GameUiState(
     val selectedRoleId: String = "",
     val currentEvent: EventDefinition? = null,
     val enemyPreview: EnemyPreviewUiState? = null,
+    val battle: BattleUiState? = null,
     val log: List<String> = listOf("冒险开始"),
     val choices: List<GameChoice> = listOf(),
     val activePanel: GamePanel = GamePanel.STATUS,
     val lastAction: String = "",
     val saveSlots: List<SaveSlotSummary> = emptyList()
+)
+
+data class BattleUiState(
+    val round: Int,
+    val playerHp: Int,
+    val playerMp: Int,
+    val enemyHp: Int,
+    val enemyName: String,
+    val equipmentMode: String,
+    val skillCooldown: Int
 )
 
 data class StageUiState(
