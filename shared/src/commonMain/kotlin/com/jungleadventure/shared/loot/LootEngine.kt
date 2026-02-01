@@ -12,6 +12,10 @@ class LootRepository(
     private val equipmentById = data.equipments.associateBy { it.id }
     private val affixById = data.affixes.associateBy { it.id }
 
+    fun getLootTableById(id: String): LootTable? {
+        return data.lootTables.firstOrNull { it.id == id }
+    }
+
     fun getLootTable(sourceType: LootSourceType, tier: Int): LootTable {
         return data.lootTables
             .filter { it.sourceType == sourceType }
@@ -54,6 +58,10 @@ class LootRepository(
         val base = equipment.stats.values.sum()
         val affix = equipment.affixes.sumOf { it.value }
         return base + affix + equipment.rarity.tier * 5
+    }
+
+    fun equipmentName(id: String): String {
+        return equipmentById[id]?.name ?: id
     }
 
     private fun generateEquipment(

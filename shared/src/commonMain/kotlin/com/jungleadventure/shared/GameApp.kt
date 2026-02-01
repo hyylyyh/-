@@ -552,6 +552,12 @@ private fun EnemyPreviewPanel(preview: EnemyPreviewUiState) {
         if (preview.note.isNotBlank()) {
             Text(text = "备注：${preview.note}", color = Color(0xFFB8B2A6))
         }
+        if (preview.dropTableId.isNotBlank()) {
+            Text(text = "掉落预览（${preview.dropTableId}）", color = Color(0xFFE8C07D))
+            preview.dropPreview.forEach { line ->
+                Text(text = "- $line", color = Color(0xFFB8B2A6))
+            }
+        }
         Text(text = "战斗评估：${preview.tip}", color = Color(0xFF8DB38B))
         Text(text = preview.summary, color = Color(0xFF8DB38B))
     }

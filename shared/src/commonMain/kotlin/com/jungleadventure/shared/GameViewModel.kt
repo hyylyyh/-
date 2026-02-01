@@ -1344,9 +1344,16 @@ class GameViewModel(
             else -> "速度先手"
         }
 
+        val dropTableId = event.result?.dropTableId ?: event.dropTableId ?: ""
+        val dropPreview = if (dropTableId.isNotBlank()) {
+            buildDropPreview(dropTableId, event)
+        } else {
+            emptyList()
+        }
+
         GameLogger.info(
             logTag,
-            "生成敌人预览：敌人=${enemyDef.name} 数量=$count 生命=$scaledHp 攻击=$scaledAtk 防御=$scaledDef 速度=$scaledSpd 评估=$threat 胜率=${winRate}%"
+            "生成敌人预览：敌人=${enemyDef.name} 数量=$count 生命=$scaledHp 攻击=$scaledAtk 防御=$scaledDef 速度=$scaledSpd 评估=$threat 胜率=${winRate}% 掉落表=$dropTableId"
         )
 
         return EnemyPreviewUiState(
@@ -1369,8 +1376,38 @@ class GameViewModel(
             winRate = winRate,
             summary = summary,
             roundLimit = roundLimit,
-            firstStrike = firstStrikeLabel
+            firstStrike = firstStrikeLabel,
+            dropTableId = dropTableId,
+            dropPreview = dropPreview
         )
+    }
+
+    private fun buildDropPreview(dropTableId: String, event: EventDefinition): List<String> {
+        val table = lootRepository.getLootTableById(dropTableId) ?: run {
+            val tier = resolveLootTier(dropTableId, event.difficulty)
+            val sourceType = if (isBattleEvent(event)) LootSourceType.ENEMY else LootSourceType.EVENT
+            GameLogger.warn(
+                "掉落系统",
+                "未找到掉落表编号=$dropTableId，改用来源=$sourceType 层级=$tier"
+            )
+            runCatching { lootRepository.getLootTable(sourceType, tier) }.getOrNull()
+        }
+        if (table == null) {
+            GameLogger.warn("掉落系统", "掉落表为空，无法生成预览：$dropTableId")
+            return listOf("掉落表缺失：$dropTableId")
+        }
+        val totalWeight = table.weightedPool.sumOf { it.weight }.coerceAtLeast(1)
+        return table.weightedPool.map { entry ->
+            val label = when (entry.type) {
+                com.jungleadventure.shared.loot.LootEntryType.EQUIPMENT -> "装备 ${lootRepository.equipmentName(entry.refId)}"
+                com.jungleadventure.shared.loot.LootEntryType.GOLD -> "金币 ${entry.min}-${entry.max}"
+                com.jungleadventure.shared.loot.LootEntryType.MATERIAL -> "材料 ${entry.min}-${entry.max}"
+                com.jungleadventure.shared.loot.LootEntryType.CONSUMABLE -> "消耗品 ${entry.refId}"
+            }
+            val percent = entry.weight * 100.0 / totalWeight
+            val rate = String.format("%.1f", percent)
+            "$label（$rate%）"
+        }
     }
 
     private fun enemyTypeLabel(raw: String): String {

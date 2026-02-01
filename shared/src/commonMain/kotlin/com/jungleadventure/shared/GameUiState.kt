@@ -100,7 +100,9 @@ data class EnemyPreviewUiState(
     val winRate: Int,
     val summary: String,
     val roundLimit: Int?,
-    val firstStrike: String
+    val firstStrike: String,
+    val dropTableId: String,
+    val dropPreview: List<String>
 )
 
 @Serializable
