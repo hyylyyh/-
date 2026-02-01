@@ -3,32 +3,33 @@
 import kotlin.random.Random
 
 class EventEngine(private val events: List<EventDefinition>) {
-    private val logTag = "EventEngine"
+    private val logTag = "事件引擎"
     private val eventMap = events.associateBy { it.eventId }
 
     fun nextEvent(chapter: Int, rng: Random): EventDefinition {
         val candidates = events.filter { it.chapter == chapter }.ifEmpty { events }
         val result = weightedPick(candidates, rng)
-        GameLogger.info(logTag, "按章节抽取事件：chapter=$chapter eventId=${result.eventId}")
+        GameLogger.info(logTag, "按章节抽取事件：章节=$chapter 事件编号=${result.eventId}")
         return result
     }
 
     fun eventById(eventId: String): EventDefinition? {
         val event = eventMap[eventId]
         if (event == null) {
-            GameLogger.warn(logTag, "未找到事件：eventId=$eventId")
+            GameLogger.warn(logTag, "未找到事件：事件编号=$eventId")
         }
         return event
     }
 
     fun nextEventForNode(chapter: Int, nodeType: String, rng: Random): EventDefinition? {
         val filtered = filterByNodeType(chapter, nodeType)
+        val typeLabel = nodeTypeLabel(nodeType)
         return if (filtered.isEmpty()) {
-            GameLogger.warn(logTag, "节点类型无可用事件，降级按章节抽取：nodeType=$nodeType chapter=$chapter")
+            GameLogger.warn(logTag, "节点类型无可用事件，降级按章节抽取：节点类型=$typeLabel 章节=$chapter")
             if (events.isEmpty()) null else nextEvent(chapter, rng)
         } else {
             val result = weightedPick(filtered, rng)
-            GameLogger.info(logTag, "按节点类型抽取事件：nodeType=$nodeType chapter=$chapter eventId=${result.eventId}")
+            GameLogger.info(logTag, "按节点类型抽取事件：节点类型=$typeLabel 章节=$chapter 事件编号=${result.eventId}")
             result
         }
     }
@@ -61,6 +62,17 @@ class EventEngine(private val events: List<EventDefinition>) {
             return pool
         }
         return events.filter { predicate(it) }
+    }
+
+    private fun nodeTypeLabel(nodeType: String): String {
+        return when (nodeType.uppercase()) {
+            "BATTLE" -> "战斗"
+            "TRAP" -> "陷阱"
+            "SHOP" -> "商店"
+            "REST" -> "休息"
+            "STORY" -> "剧情"
+            else -> "未知"
+        }
     }
 
     private fun weightedPick(pool: List<EventDefinition>, rng: Random): EventDefinition {

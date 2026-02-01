@@ -37,7 +37,7 @@ class BattleSystem(
             hp = scaledHp
         )
 
-        GameLogger.log("战斗", "准备战斗：敌人=${enemyDef.name}，数量=${group.count}，HP倍率=$hpMultiplier，伤害倍率=$damageMultiplier")
+        GameLogger.log("战斗", "准备战斗：敌人=${enemyDef.name}，数量=${group.count}，生命倍率=$hpMultiplier，伤害倍率=$damageMultiplier")
 
         val outcome = engine.simulateBattle(
             player = playerActor,
@@ -110,7 +110,7 @@ private fun EnemyDefinition.toCombatActor(count: Int): CombatActor {
         critDmg = stats.critDmg,
         resist = stats.resist
     )
-    GameLogger.log("战斗", "敌人转化战斗属性：$name x$count -> HP=$scaledHp ATK=$scaledAtk DEF=$scaledDef SPD=$scaledSpeed")
+    GameLogger.log("战斗", "敌人转化战斗属性：$name 数量=$count，生命=$scaledHp 攻击=$scaledAtk 防御=$scaledDef 速度=$scaledSpeed")
     return CombatActor(
         id = id,
         name = if (count <= 1) name else "${name}($count)",

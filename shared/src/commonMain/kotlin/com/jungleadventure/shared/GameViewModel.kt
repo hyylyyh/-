@@ -14,7 +14,7 @@ class GameViewModel(
     resourceReader: ResourceReader,
     private val saveStore: SaveStore = defaultSaveStore()
 ) {
-    private val logTag = "GameViewModel"
+    private val logTag = "界面模型"
     private val repository = GameContentRepository(resourceReader)
     private val rng = Random.Default
     private val events = runCatching { repository.loadEvents() }.getOrElse { emptyList() }
@@ -38,7 +38,7 @@ class GameViewModel(
     init {
         GameLogger.info(
             logTag,
-            "初始化完成：事件数=${events.size}，最大章节=$maxChapter，角色数=${roles.size}"
+            "初始化完成：事件数量=${events.size}，最大章节=$maxChapter，角色数量=${roles.size}"
         )
         val initialRole = roles.firstOrNull { it.unlocked }
         _state.update { current ->
@@ -58,7 +58,7 @@ class GameViewModel(
     }
 
     fun onSelectRole(roleId: String) {
-        GameLogger.info(logTag, "收到角色选择请求：roleId=$roleId")
+        GameLogger.info(logTag, "收到角色选择请求：角色编号=$roleId")
         val role = roles.firstOrNull { it.id == roleId } ?: return
         if (!role.unlocked) {
             GameLogger.warn(logTag, "角色未解锁：${role.name}，解锁条件=${role.unlock}")
@@ -69,7 +69,7 @@ class GameViewModel(
     }
 
     fun onSelectChoice(choiceId: String) {
-        GameLogger.info(logTag, "收到事件选项：choiceId=$choiceId")
+        GameLogger.info(logTag, "收到事件选项：选项编号=$choiceId")
         val currentEvent = _state.value.currentEvent
         if (currentEvent == null) {
             GameLogger.warn(logTag, "当前事件为空，直接进入下一个事件")
@@ -144,7 +144,7 @@ class GameViewModel(
     }
 
     fun onSave(slot: Int) {
-        GameLogger.info("SaveSystem", "准备存档，槽位=$slot，回合=${_state.value.turn}")
+        GameLogger.info("存档系统", "准备存档，槽位=$slot，回合=${_state.value.turn}")
         val snapshot = _state.value
         val runtime = stageRuntime
         val saveGame = SaveGame(
@@ -165,7 +165,7 @@ class GameViewModel(
             val payload = json.encodeToString(saveGame)
             saveStore.save(slot, payload)
         }.onFailure { error ->
-            GameLogger.error("SaveSystem", "存档失败，槽位=$slot", error)
+            GameLogger.error("存档系统", "存档失败，槽位=$slot", error)
             _state.update { current ->
                 current.copy(
                     lastAction = "存档失败：槽位 $slot",
@@ -182,14 +182,14 @@ class GameViewModel(
             )
         }
         refreshSaveSlots()
-        GameLogger.info("SaveSystem", "存档完成，槽位=$slot")
+        GameLogger.info("存档系统", "存档完成，槽位=$slot")
     }
 
     fun onLoad(slot: Int) {
-        GameLogger.info("SaveSystem", "准备读档，槽位=$slot")
+        GameLogger.info("存档系统", "准备读档，槽位=$slot")
         val payload = runCatching { saveStore.load(slot) }
             .onFailure { error ->
-                GameLogger.error("SaveSystem", "读取存档失败，槽位=$slot", error)
+                GameLogger.error("存档系统", "读取存档失败，槽位=$slot", error)
                 _state.update { current ->
                     current.copy(
                         lastAction = "读档失败：槽位 $slot",
@@ -207,14 +207,14 @@ class GameViewModel(
                     log = current.log + "存档槽 $slot 为空"
                 )
             }
-            GameLogger.warn("SaveSystem", "存档槽为空，槽位=$slot")
+            GameLogger.warn("存档系统", "存档槽为空，槽位=$slot")
             refreshSaveSlots()
             return
         }
 
         val saveGame = runCatching { json.decodeFromString<SaveGame>(payload) }
             .onFailure { error ->
-                GameLogger.error("SaveSystem", "解析存档失败，槽位=$slot", error)
+                GameLogger.error("存档系统", "解析存档失败，槽位=$slot", error)
                 _state.update { current ->
                     current.copy(
                         lastAction = "读档失败：槽位 $slot",
@@ -228,7 +228,7 @@ class GameViewModel(
 
         applySaveGame(slot, saveGame)
         refreshSaveSlots()
-        GameLogger.info("SaveSystem", "读档完成，槽位=$slot，回合=${saveGame.turn}")
+        GameLogger.info("存档系统", "读档完成，槽位=$slot，回合=${saveGame.turn}")
     }
 
     private fun advanceToNextNode(
@@ -271,10 +271,10 @@ class GameViewModel(
             }
         }
 
-        GameLogger.info(
-            logTag,
-            "推进关卡：turn=$nextTurn，chapter=$chapter，stage=${nextRuntime.stage.id} node=${node?.id ?: "无"} event=${nextEvent?.eventId ?: "无"} forced=${forcedEventId ?: "无"}"
-        )
+            GameLogger.info(
+                logTag,
+                "推进关卡：回合=$nextTurn，章节=$chapter，关卡编号=${nextRuntime.stage.id} 节点编号=${node?.id ?: "无"} 事件编号=${nextEvent?.eventId ?: "无"} 强制事件编号=${forcedEventId ?: "无"}"
+            )
 
         _state.update { state ->
             state.copy(
@@ -303,7 +303,7 @@ class GameViewModel(
             engine.eventById(id)
         } ?: stageEngine.eventForNode(runtime, saveGame.chapter, rng)
         if (saveGame.currentEventId != null && event == null) {
-            GameLogger.warn("SaveSystem", "存档事件未找到，eventId=${saveGame.currentEventId}")
+            GameLogger.warn("存档系统", "存档事件未找到：事件编号=${saveGame.currentEventId}")
         }
 
         val choices = event?.let { engine.toChoices(it) } ?: listOf(
@@ -350,7 +350,7 @@ class GameViewModel(
         }
         GameLogger.info(
             logTag,
-            "初始化关卡：turn=$turn chapter=$chapter stage=${runtime.stage.id} node=${node?.id ?: "无"}"
+            "初始化关卡：回合=$turn 章节=$chapter 关卡编号=${runtime.stage.id} 节点编号=${node?.id ?: "无"}"
         )
         _state.update { current ->
             current.copy(
@@ -372,7 +372,7 @@ class GameViewModel(
     private fun applyRole(role: RoleProfile, reason: String) {
         GameLogger.info(
             logTag,
-            "应用角色：${role.name}，原因=$reason，属性=HP${role.stats.hp}/ATK${role.stats.atk}/DEF${role.stats.def}/SPD${role.stats.speed}"
+            "应用角色：${role.name}，原因=$reason，属性=生命${role.stats.hp}/攻击${role.stats.atk}/防御${role.stats.def}/速度${role.stats.speed}"
         )
         _state.update { current ->
             current.copy(
@@ -405,7 +405,7 @@ class GameViewModel(
         val nextMp = (player.mp + result.mpDelta).coerceIn(0, player.mpMax)
         GameLogger.info(
             logTag,
-            "结算结果：HP${signed(result.hpDelta)} MP${signed(result.mpDelta)} 金币${signed(result.goldDelta)} 经验${signed(result.expDelta)}"
+            "结算结果：生命${signed(result.hpDelta)} 能量${signed(result.mpDelta)} 金币${signed(result.goldDelta)} 经验${signed(result.expDelta)}"
         )
         return player.copy(
             hp = nextHp,
@@ -416,8 +416,8 @@ class GameViewModel(
 
     private fun summarizeResult(result: EventResult): String {
         val parts = mutableListOf<String>()
-        if (result.hpDelta != 0) parts += "HP ${signed(result.hpDelta)}"
-        if (result.mpDelta != 0) parts += "MP ${signed(result.mpDelta)}"
+        if (result.hpDelta != 0) parts += "生命 ${signed(result.hpDelta)}"
+        if (result.mpDelta != 0) parts += "能量 ${signed(result.mpDelta)}"
         if (result.goldDelta != 0) parts += "金币 ${signed(result.goldDelta)}"
         if (result.expDelta != 0) parts += "经验 ${signed(result.expDelta)}"
         if (result.dropTableId != null) parts += "掉落表 ${result.dropTableId}"
@@ -479,7 +479,7 @@ class GameViewModel(
     }
 
     private fun resolveBattleAndAdvance(event: EventDefinition) {
-        GameLogger.info(logTag, "进入战斗：eventId=${event.eventId} title=${event.title}")
+        GameLogger.info(logTag, "进入战斗：事件编号=${event.eventId} 标题=${event.title}")
         val current = _state.value
         val battle = battleSystem.resolveBattle(current.player, event)
         val outcomeText = if (battle.victory) event.successText else event.failText

@@ -5,7 +5,7 @@ import kotlinx.serialization.json.Json
 
 class GameContentRepository(private val resourceReader: ResourceReader) {
     private val json = Json { ignoreUnknownKeys = true }
-    private val logTag = "GameContentRepository"
+    private val logTag = "内容仓库"
 
     fun loadEvents(): List<EventDefinition> {
         GameLogger.log(logTag, "开始读取事件配置 data/events.json")

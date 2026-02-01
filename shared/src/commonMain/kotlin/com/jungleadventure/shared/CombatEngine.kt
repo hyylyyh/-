@@ -11,9 +11,9 @@ class CombatEngine(private val rng: Random) {
         enemyDamageMultiplier: Double = 1.0
     ): CombatOutcome {
         val logLines = mutableListOf<String>()
-        logLines += "战斗开始：${player.name} VS ${enemy.name}"
-        GameLogger.log("战斗", "初始化：玩家HP ${player.hp}/${player.stats.hpMax}，敌人HP ${enemy.hp}/${enemy.stats.hpMax}")
-        GameLogger.log("战斗", "先手规则=${config.firstStrike}，回合上限=${config.roundLimit ?: "无限"}")
+        logLines += "战斗开始：${player.name} 对 ${enemy.name}"
+        GameLogger.log("战斗", "初始化：玩家生命 ${player.hp}/${player.stats.hpMax}，敌人生命 ${enemy.hp}/${enemy.stats.hpMax}")
+        GameLogger.log("战斗", "先手规则=${firstStrikeLabel(config.firstStrike)}，回合上限=${config.roundLimit ?: "无限"}")
 
         var currentPlayer = player
         var currentEnemy = enemy
@@ -33,7 +33,7 @@ class CombatEngine(private val rng: Random) {
             }
 
             logLines += "回合 $round 开始"
-            GameLogger.log("战斗", "回合 $round，玩家HP=${currentPlayer.hp}，敌人HP=${currentEnemy.hp}")
+            GameLogger.log("战斗", "回合 $round，玩家生命=${currentPlayer.hp}，敌人生命=${currentEnemy.hp}")
 
             val turnOrder = determineTurnOrder(currentPlayer, currentEnemy, config.firstStrike)
             for (actor in turnOrder) {
@@ -109,6 +109,15 @@ class CombatEngine(private val rng: Random) {
         }
     }
 
+    private fun firstStrikeLabel(rule: FirstStrikeRule): String {
+        return when (rule) {
+            FirstStrikeRule.PLAYER -> "玩家"
+            FirstStrikeRule.ENEMY -> "敌人"
+            FirstStrikeRule.RANDOM -> "随机"
+            FirstStrikeRule.SPEED -> "速度"
+        }
+    }
+
     private fun effectiveSpeed(actor: CombatActor): Int {
         val hasteStacks = actor.statuses.filter { it.type == StatusType.HASTE }.sumOf { it.stacks }
         val slowStacks = actor.statuses.filter { it.type == StatusType.SLOW }.sumOf { it.stacks }
@@ -155,7 +164,7 @@ class CombatEngine(private val rng: Random) {
             if (shielded != null) {
                 append("，护盾减伤 ${(0.3 * shielded.stacks * 100).toInt()}%")
             }
-            append("），${target.name} HP ${nextHp}/${target.stats.hpMax}")
+            append("），${target.name} 生命 ${nextHp}/${target.stats.hpMax}")
             append("（命中率 ${(hitRate * 100).toInt()}%，判定 ${"%.2f".format(hitRoll)}；暴击率 ${(critRate * 100).toInt()}%，判定 ${"%.2f".format(critRoll)}）")
         }
         logs += mainLog
@@ -197,7 +206,7 @@ class CombatEngine(private val rng: Random) {
             }
             val nextHp = max(0, actor.hp - totalDamage)
             nextActor = nextActor.withHp(nextHp)
-            val log = "${actor.name} 受到持续伤害 $totalDamage，HP ${nextHp}/${actor.stats.hpMax}"
+            val log = "${actor.name} 受到持续伤害 $totalDamage，生命 ${nextHp}/${actor.stats.hpMax}"
             logs += log
             GameLogger.log("战斗", log)
         }

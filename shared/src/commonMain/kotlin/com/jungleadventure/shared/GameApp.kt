@@ -157,6 +157,17 @@ private fun MainPanel(
             Column(modifier = Modifier.padding(12.dp)) {
                 Text(text = "可选行动", fontWeight = FontWeight.Bold)
                 Divider(modifier = Modifier.padding(vertical = 8.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = "3. 在可选行动中点击选项按钮做出选择，或点击继续前进。",
+                        color = Color(0xFFB8B2A6)
+                    )
+                    Text(
+                        text = "4. 若事件为战斗，会自动结算战斗并显示战斗日志。",
+                        color = Color(0xFFB8B2A6)
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     state.choices.forEach { choice ->
                         Button(onClick = { onChoice(choice.id) }, modifier = Modifier.fillMaxWidth()) {

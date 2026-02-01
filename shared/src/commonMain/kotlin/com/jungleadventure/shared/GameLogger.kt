@@ -5,23 +5,23 @@ import kotlin.math.min
 
 object GameLogger {
     fun log(tag: String, message: String) {
-        println("[LOG][$tag] $message")
+        println("[日志][$tag] $message")
     }
 
     fun info(tag: String, message: String) {
-        println("[INFO][$tag] $message")
+        println("[信息][$tag] $message")
     }
 
     fun warn(tag: String, message: String) {
-        println("[WARN][$tag] $message")
+        println("[警告][$tag] $message")
     }
 
     fun error(tag: String, message: String) {
-        println("[ERROR][$tag] $message")
+        println("[错误][$tag] $message")
     }
 
     fun error(tag: String, message: String, throwable: Throwable) {
-        println("[ERROR][$tag] $message，异常=${throwable.message}")
+        println("[错误][$tag] $message，异常=${throwable.message}")
     }
 
     fun logBlock(tag: String, title: String, lines: List<String>) {
