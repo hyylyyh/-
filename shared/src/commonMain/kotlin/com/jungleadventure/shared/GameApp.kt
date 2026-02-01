@@ -202,7 +202,7 @@ private fun RoleSelectionPanel(state: GameUiState, onSelectRole: (String) -> Uni
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 360.dp, max = 520.dp),
+                        .height(420.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(state.roles, key = { it.id }) { role ->
