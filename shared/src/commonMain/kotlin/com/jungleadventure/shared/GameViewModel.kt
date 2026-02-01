@@ -560,8 +560,9 @@ class GameViewModel(
 
         updateBattleState(sessionAfter, newLogs)
 
-        if (step.outcome != null) {
-            finishBattle(event, step.outcome)
+        val outcome = step.outcome
+        if (outcome != null) {
+            finishBattle(event, outcome)
         }
     }
 
