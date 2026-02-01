@@ -24,7 +24,9 @@ class StageEngine(
             stage = stage,
             currentNodeId = stage.entry,
             visited = setOf(stage.entry),
-            completed = stage.entry == stage.exit
+            completed = stage.entry == stage.exit,
+            command = stage.command,
+            guardianGroupId = null
         )
     }
 
@@ -34,7 +36,8 @@ class StageEngine(
         visitedNodes: List<String>,
         completed: Boolean,
         chapter: Int,
-        rng: Random
+        rng: Random,
+        guardianGroupId: String?
     ): StageRuntime {
         val stage = stageId?.let { stageMap[it] } ?: run {
             GameLogger.warn(logTag, "存档关卡不存在，改用章节关卡：关卡编号=$stageId 章节=$chapter")
@@ -52,7 +55,9 @@ class StageEngine(
             stage = stage,
             currentNodeId = validNodeId,
             visited = filteredVisited,
-            completed = isCompleted
+            completed = isCompleted,
+            command = stage.command,
+            guardianGroupId = guardianGroupId
         )
     }
 
@@ -86,7 +91,9 @@ class StageEngine(
             stage = runtime.stage,
             currentNodeId = nextNodeId,
             visited = updatedVisited,
-            completed = isCompleted
+            completed = isCompleted,
+            command = runtime.command,
+            guardianGroupId = runtime.guardianGroupId
         )
     }
 
@@ -109,7 +116,9 @@ class StageEngine(
             stage = runtime.stage,
             currentNodeId = nodeId,
             visited = updatedVisited,
-            completed = isCompleted
+            completed = isCompleted,
+            command = runtime.command,
+            guardianGroupId = runtime.guardianGroupId
         )
     }
 

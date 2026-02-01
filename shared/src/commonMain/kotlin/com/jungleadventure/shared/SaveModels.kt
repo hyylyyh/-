@@ -4,9 +4,10 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class SaveGame(
-    val version: Int = 2,
+    val version: Int = 3,
     val turn: Int,
     val chapter: Int,
+    val rngSeed: Long = 0,
     val selectedRoleId: String,
     val player: PlayerStats,
     val log: List<String>,
@@ -16,7 +17,8 @@ data class SaveGame(
     val stageId: String? = null,
     val nodeId: String? = null,
     val visitedNodes: List<String> = emptyList(),
-    val stageCompleted: Boolean = false
+    val stageCompleted: Boolean = false,
+    val guardianGroupId: String? = null
 )
 
 data class SaveSlotSummary(

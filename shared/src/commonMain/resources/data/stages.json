@@ -9,7 +9,9 @@
       "floors": 1,
       "nodes": ["st1_n1", "st1_n2", "st1_n3", "st1_branch", "st1_hidden", "st1_n4", "st1_exit"],
       "entry": "st1_n1",
-      "exit": "st1_exit"
+      "exit": "st1_exit",
+      "command": "MOSS-01",
+      "guardianPool": ["eg_stage1_guardian_a", "eg_stage1_guardian_b"]
     },
     {
       "id": "stage_2",
@@ -19,7 +21,9 @@
       "floors": 1,
       "nodes": ["st2_n1", "st2_n2", "st2_n3", "st2_branch", "st2_hidden", "st2_n4", "st2_exit"],
       "entry": "st2_n1",
-      "exit": "st2_exit"
+      "exit": "st2_exit",
+      "command": "BADGE-02",
+      "guardianPool": ["eg_stage2_guardian_a", "eg_stage2_guardian_b"]
     },
     {
       "id": "stage_3",
@@ -29,7 +33,9 @@
       "floors": 1,
       "nodes": ["st3_n1", "st3_hidden", "st3_n2", "st3_n3", "st3_n4", "st3_exit"],
       "entry": "st3_n1",
-      "exit": "st3_exit"
+      "exit": "st3_exit",
+      "command": "UNION-03",
+      "guardianPool": ["eg_stage3_guardian_a", "eg_stage3_guardian_b"]
     },
     {
       "id": "stage_4",
@@ -39,7 +45,9 @@
       "floors": 1,
       "nodes": ["st4_n1", "st4_n2", "st4_branch", "st4_n3", "st4_n4", "st4_exit"],
       "entry": "st4_n1",
-      "exit": "st4_exit"
+      "exit": "st4_exit",
+      "command": "MIRROR-04",
+      "guardianPool": ["eg_stage4_guardian_a", "eg_stage4_guardian_b"]
     },
     {
       "id": "stage_5",
@@ -49,7 +57,9 @@
       "floors": 1,
       "nodes": ["st5_n1", "st5_branch", "st5_n2", "st5_n3", "st5_n4", "st5_exit"],
       "entry": "st5_n1",
-      "exit": "st5_exit"
+      "exit": "st5_exit",
+      "command": "STAMP-05",
+      "guardianPool": ["eg_stage5_guardian_a", "eg_stage5_guardian_b"]
     }
   ]
 }

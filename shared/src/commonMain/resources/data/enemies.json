@@ -143,6 +143,186 @@
         "resist": 8
       },
       "notes": "最终关卡Boss。"
+    },
+    {
+      "id": "e_guardian_moss",
+      "name": "苔纹守卫",
+      "type": "ELITE",
+      "level": 1,
+      "stats": {
+        "hp": 40,
+        "atk": 9,
+        "def": 4,
+        "spd": 8,
+        "hit": 80,
+        "eva": 10,
+        "crit": 8,
+        "critDmg": 1.5,
+        "resist": 3
+      },
+      "notes": "雨林入口的苔纹石像。"
+    },
+    {
+      "id": "e_guardian_vine",
+      "name": "藤蔓守卫",
+      "type": "ELITE",
+      "level": 1,
+      "stats": {
+        "hp": 36,
+        "atk": 10,
+        "def": 3,
+        "spd": 10,
+        "hit": 81,
+        "eva": 12,
+        "crit": 9,
+        "critDmg": 1.5,
+        "resist": 2
+      },
+      "notes": "会捆人的藤蔓卫兵。"
+    },
+    {
+      "id": "e_guardian_badge",
+      "name": "考勤守卫",
+      "type": "ELITE",
+      "level": 2,
+      "stats": {
+        "hp": 62,
+        "atk": 14,
+        "def": 6,
+        "spd": 10,
+        "hit": 82,
+        "eva": 12,
+        "crit": 10,
+        "critDmg": 1.6,
+        "resist": 4
+      },
+      "notes": "胸前挂满工牌。"
+    },
+    {
+      "id": "e_guardian_clipboard",
+      "name": "清单守卫",
+      "type": "ELITE",
+      "level": 2,
+      "stats": {
+        "hp": 58,
+        "atk": 15,
+        "def": 5,
+        "spd": 11,
+        "hit": 82,
+        "eva": 13,
+        "crit": 10,
+        "critDmg": 1.6,
+        "resist": 4
+      },
+      "notes": "拿着任务清单盯你。"
+    },
+    {
+      "id": "e_guardian_union",
+      "name": "罢工守卫",
+      "type": "ELITE",
+      "level": 3,
+      "stats": {
+        "hp": 85,
+        "atk": 18,
+        "def": 8,
+        "spd": 12,
+        "hit": 84,
+        "eva": 13,
+        "crit": 12,
+        "critDmg": 1.7,
+        "resist": 5
+      },
+      "notes": "带着喇叭的守卫。"
+    },
+    {
+      "id": "e_guardian_overtime",
+      "name": "加班守卫",
+      "type": "ELITE",
+      "level": 3,
+      "stats": {
+        "hp": 78,
+        "atk": 20,
+        "def": 7,
+        "spd": 13,
+        "hit": 84,
+        "eva": 14,
+        "crit": 13,
+        "critDmg": 1.7,
+        "resist": 5
+      },
+      "notes": "疲惫但很凶。"
+    },
+    {
+      "id": "e_guardian_mirror",
+      "name": "镜像守卫",
+      "type": "ELITE",
+      "level": 4,
+      "stats": {
+        "hp": 110,
+        "atk": 23,
+        "def": 11,
+        "spd": 12,
+        "hit": 86,
+        "eva": 14,
+        "crit": 14,
+        "critDmg": 1.7,
+        "resist": 6
+      },
+      "notes": "招式像你一样。"
+    },
+    {
+      "id": "e_guardian_fake_exit",
+      "name": "假出口守卫",
+      "type": "ELITE",
+      "level": 4,
+      "stats": {
+        "hp": 105,
+        "atk": 24,
+        "def": 10,
+        "spd": 13,
+        "hit": 86,
+        "eva": 14,
+        "crit": 14,
+        "critDmg": 1.7,
+        "resist": 6
+      },
+      "notes": "专门把人骗回去。"
+    },
+    {
+      "id": "e_guardian_stamp",
+      "name": "盖章守卫",
+      "type": "BOSS",
+      "level": 5,
+      "stats": {
+        "hp": 155,
+        "atk": 29,
+        "def": 14,
+        "spd": 13,
+        "hit": 88,
+        "eva": 15,
+        "crit": 16,
+        "critDmg": 1.8,
+        "resist": 8
+      },
+      "notes": "只认通关凭证。"
+    },
+    {
+      "id": "e_guardian_gate",
+      "name": "关门守卫",
+      "type": "BOSS",
+      "level": 5,
+      "stats": {
+        "hp": 160,
+        "atk": 30,
+        "def": 15,
+        "spd": 12,
+        "hit": 88,
+        "eva": 14,
+        "crit": 15,
+        "critDmg": 1.8,
+        "resist": 8
+      },
+      "notes": "守着最后一步的大门。"
     }
   ]
 }

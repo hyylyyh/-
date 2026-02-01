@@ -28,6 +28,7 @@ class GameViewModel(
     private val stageBundle = loadStageBundle()
     private val stageEngine = StageEngine(stageBundle.stages, stageBundle.nodes, engine)
     private var stageRuntime: StageRuntime? = null
+    private var rngSeed: Long = Random.Default.nextLong()
     private val maxChapter = events.maxOfOrNull { it.chapter } ?: 1
     private val roles = loadRoleProfiles()
     private val enemyRepository = loadEnemyRepository()
@@ -222,7 +223,10 @@ class GameViewModel(
             }
             .getOrNull()
             ?: return
-
+        if (saveGame.rngSeed > 0) {
+            rngSeed = saveGame.rngSeed
+            GameLogger.info("存档系统", "恢复随机种子：seed=$rngSeed")
+        }
         applySaveGame(slot, saveGame)
         autoSaveSlot = slot
         GameLogger.info("存档系统", "自动存档槽位已更新为 $slot")
@@ -238,10 +242,10 @@ class GameViewModel(
         val current = _state.value
         val nextTurn = if (incrementTurn) current.turn + 1 else current.turn
         val chapter = chapterForTurn(nextTurn)
-        val runtime = stageRuntime ?: stageEngine.startStageForChapter(chapter, rng)
+        val runtime = stageRuntime ?: assignGuardian(stageEngine.startStageForChapter(chapter, rng))
         val shouldRestartStage = runtime.completed || runtime.stage.chapter != chapter
         val nextRuntime = if (shouldRestartStage) {
-            stageEngine.startStageForChapter(chapter, rng)
+            assignGuardian(stageEngine.startStageForChapter(chapter, rng))
         } else if (!forcedNodeId.isNullOrBlank()) {
             stageEngine.moveToNode(runtime, forcedNodeId) ?: stageEngine.moveToNextNode(runtime, rng)
         } else {
@@ -254,7 +258,7 @@ class GameViewModel(
         } else {
             null
         }
-        val nextEvent = forcedEvent ?: stageEngine.eventForNode(nextRuntime, chapter, rng)
+        val nextEvent = forcedEvent ?: resolveEventForNode(nextRuntime, node, chapter)
         val nextChoices = nextEvent?.let { engine.toChoices(it) } ?: listOf(
             GameChoice("advance", "继续")
         )
@@ -269,11 +273,21 @@ class GameViewModel(
                 "移动到节点：$nodeId"
             }
         }
+        val commandLog = if (shouldRestartStage && nextRuntime.command.isNotBlank()) {
+            "关卡口令：${nextRuntime.command}"
+        } else {
+            null
+        }
+        val guardianLog = if (shouldRestartStage && nextRuntime.guardianGroupId != null) {
+            "守卫已就位：${guardianNameForGroup(nextRuntime.guardianGroupId)}"
+        } else {
+            null
+        }
 
-            GameLogger.info(
-                logTag,
-                "推进关卡：回合=$nextTurn，章节=$chapter，关卡编号=${nextRuntime.stage.id} 节点编号=${node?.id ?: "无"} 事件编号=${nextEvent?.eventId ?: "无"} 强制事件编号=${forcedEventId ?: "无"}"
-            )
+        GameLogger.info(
+            logTag,
+            "推进关卡：回合=$nextTurn，章节=$chapter，关卡编号=${nextRuntime.stage.id} 节点编号=${node?.id ?: "无"} 事件编号=${nextEvent?.eventId ?: "无"} 强制事件编号=${forcedEventId ?: "无"}"
+        )
 
         _state.update { state ->
             val enemyPreview = buildEnemyPreview(nextEvent, state.player)
@@ -284,7 +298,7 @@ class GameViewModel(
                 currentEvent = nextEvent,
                 enemyPreview = enemyPreview,
                 choices = nextChoices,
-                log = state.log + listOf(stageLog) + listOfNotNull(nextEvent?.introText)
+                log = state.log + listOf(stageLog) + listOfNotNull(commandLog, guardianLog, nextEvent?.introText)
             )
         }
     }
@@ -296,13 +310,20 @@ class GameViewModel(
             visitedNodes = saveGame.visitedNodes,
             completed = saveGame.stageCompleted,
             chapter = saveGame.chapter,
-            rng = rng
+            rng = rng,
+            guardianGroupId = saveGame.guardianGroupId
         )
-        stageRuntime = runtime
+        val assignedRuntime = if (runtime.guardianGroupId == null) {
+            assignGuardian(runtime)
+        } else {
+            runtime
+        }
+        stageRuntime = assignedRuntime
 
+        val node = stageEngine.currentNode(assignedRuntime)
         val event = saveGame.currentEventId?.let { id ->
             engine.eventById(id)
-        } ?: stageEngine.eventForNode(runtime, saveGame.chapter, rng)
+        } ?: resolveEventForNode(assignedRuntime, node, saveGame.chapter)
         if (saveGame.currentEventId != null && event == null) {
             GameLogger.warn("存档系统", "存档事件未找到：事件编号=${saveGame.currentEventId}")
         }
@@ -310,7 +331,7 @@ class GameViewModel(
         val choices = event?.let { engine.toChoices(it) } ?: listOf(
             GameChoice("advance", "继续")
         )
-        val node = stageEngine.currentNode(runtime)
+        val runtimeNode = node
 
         val validRoleId = if (roles.any { it.id == saveGame.selectedRoleId }) {
             saveGame.selectedRoleId
@@ -323,7 +344,7 @@ class GameViewModel(
             current.copy(
                 turn = saveGame.turn,
                 chapter = saveGame.chapter,
-                stage = runtime.toUiState(node),
+                stage = assignedRuntime.toUiState(runtimeNode),
                 selectedRoleId = validRoleId,
                 player = saveGame.player,
                 currentEvent = event,
@@ -339,10 +360,10 @@ class GameViewModel(
 
     private fun startStageForTurn(turn: Int, reason: String) {
         val chapter = chapterForTurn(turn)
-        val runtime = stageEngine.startStageForChapter(chapter, rng)
+        val runtime = assignGuardian(stageEngine.startStageForChapter(chapter, rng))
         stageRuntime = runtime
         val node = stageEngine.currentNode(runtime)
-        val event = stageEngine.eventForNode(runtime, chapter, rng)
+        val event = resolveEventForNode(runtime, node, chapter)
         val choices = event?.let { engine.toChoices(it) } ?: listOf(
             GameChoice("advance", "继续")
         )
@@ -351,9 +372,13 @@ class GameViewModel(
         } else {
             "$reason：${runtime.stage.name}"
         }
+        val commandLog = if (runtime.command.isBlank()) null else "关卡口令：${runtime.command}"
+        val guardianLog = runtime.guardianGroupId?.let { groupId ->
+            "守卫已就位：${guardianNameForGroup(groupId)}"
+        }
         GameLogger.info(
             logTag,
-            "初始化关卡：回合=$turn 章节=$chapter 关卡编号=${runtime.stage.id} 节点编号=${node?.id ?: "无"}"
+            "初始化关卡：回合=$turn 章节=$chapter 关卡编号=${runtime.stage.id} 节点编号=${node?.id ?: "无"} seed=$rngSeed"
         )
         _state.update { current ->
             val enemyPreview = buildEnemyPreview(event, current.player)
@@ -364,7 +389,7 @@ class GameViewModel(
                 currentEvent = event,
                 enemyPreview = enemyPreview,
                 choices = choices,
-                log = current.log + listOf(stageLog) + listOfNotNull(event?.introText)
+                log = current.log + listOf(stageLog) + listOfNotNull(commandLog, guardianLog, event?.introText)
             )
         }
     }
@@ -654,6 +679,7 @@ class GameViewModel(
         return SaveGame(
             turn = snapshot.turn,
             chapter = snapshot.chapter,
+            rngSeed = rngSeed,
             selectedRoleId = snapshot.selectedRoleId,
             player = snapshot.player,
             log = snapshot.log,
@@ -663,7 +689,8 @@ class GameViewModel(
             stageId = runtime?.stage?.id,
             nodeId = runtime?.currentNodeId,
             visitedNodes = runtime?.visited?.toList() ?: emptyList(),
-            stageCompleted = runtime?.completed ?: false
+            stageCompleted = runtime?.completed ?: false,
+            guardianGroupId = runtime?.guardianGroupId
         )
     }
 
@@ -731,13 +758,81 @@ class GameViewModel(
         return StageBundle(stages, referencedNodes)
     }
 
+    private fun assignGuardian(runtime: StageRuntime): StageRuntime {
+        if (runtime.guardianGroupId != null) return runtime
+        val groupId = pickGuardianGroupId(runtime.stage)
+        GameLogger.info(
+            logTag,
+            "关卡守卫抽取：关卡编号=${runtime.stage.id} 口令=${runtime.command.ifBlank { "无" }} 守卫=${groupId ?: "无"} seed=$rngSeed"
+        )
+        return runtime.copy(guardianGroupId = groupId)
+    }
+
+    private fun pickGuardianGroupId(stage: StageDefinition): String? {
+        if (stage.guardianPool.isEmpty()) return null
+        val key = (rngSeed xor stage.id.hashCode().toLong()) and Long.MAX_VALUE
+        val index = (key % stage.guardianPool.size).toInt()
+        return stage.guardianPool[index]
+    }
+
+    private fun resolveEventForNode(
+        runtime: StageRuntime,
+        node: NodeDefinition?,
+        chapter: Int
+    ): EventDefinition? {
+        if (node == null) return null
+        val isExitNode = node.id == runtime.stage.exit
+        return if (isExitNode && runtime.guardianGroupId != null) {
+            buildGuardianEvent(runtime, chapter)
+        } else {
+            stageEngine.eventForNode(runtime, chapter, rng)
+        }
+    }
+
+    private fun buildGuardianEvent(runtime: StageRuntime, chapter: Int): EventDefinition {
+        val groupId = runtime.guardianGroupId ?: "eg_default"
+        val guardianName = guardianNameForGroup(groupId)
+        val rewardGold = 8 + chapter * 4
+        val rewardExp = 6 + chapter * 6
+        return EventDefinition(
+            eventId = "stage_guardian_${runtime.stage.id}_$groupId",
+            chapter = chapter,
+            title = "${runtime.stage.name}守卫 · $guardianName",
+            type = "battle_guardian",
+            difficulty = runtime.stage.difficulty,
+            weight = 1,
+            cooldown = 0,
+            introText = "你触发了关卡守卫：$guardianName。",
+            successText = "守卫倒下，关卡通道打开。",
+            failText = "守卫逼退你，但仍允许继续前进。",
+            logText = "守卫战结束：$guardianName",
+            result = EventResult(
+                hpDelta = 0,
+                mpDelta = 0,
+                goldDelta = rewardGold,
+                expDelta = rewardExp
+            ),
+            enemyGroupId = groupId,
+            firstStrike = "speed"
+        )
+    }
+
+    private fun guardianNameForGroup(groupId: String): String {
+        val group = enemyRepository.findGroup(groupId)
+        val enemy = enemyRepository.findEnemy(group?.enemyId)
+        return enemy?.name ?: group?.note ?: groupId
+    }
+
     private fun StageRuntime.toUiState(node: NodeDefinition?): StageUiState {
+        val guardianName = guardianGroupId?.let { guardianNameForGroup(it) }.orEmpty()
         return StageUiState(
             id = stage.id,
             name = stage.name,
             chapter = stage.chapter,
             nodeId = node?.id ?: currentNodeId,
             nodeType = node?.type ?: "UNKNOWN",
+            command = command,
+            guardian = guardianName,
             visited = visited.size,
             total = stage.nodes.size,
             isCompleted = completed

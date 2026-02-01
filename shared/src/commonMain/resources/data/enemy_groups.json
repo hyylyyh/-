@@ -8,6 +8,16 @@
     { "id": "eg_ch4_sponsor_1", "enemyId": "e_sponsor_gladiator", "count": 1, "note": "赞助商挑战" },
     { "id": "eg_ch4_outpost", "enemyId": "e_outpost_guard", "count": 1, "note": "首领前哨" },
     { "id": "eg_ch5_final_boss", "enemyId": "e_final_boss", "count": 1, "note": "最终首领" },
+    { "id": "eg_stage1_guardian_a", "enemyId": "e_guardian_moss", "count": 1, "note": "关卡1守卫A" },
+    { "id": "eg_stage1_guardian_b", "enemyId": "e_guardian_vine", "count": 1, "note": "关卡1守卫B" },
+    { "id": "eg_stage2_guardian_a", "enemyId": "e_guardian_badge", "count": 1, "note": "关卡2守卫A" },
+    { "id": "eg_stage2_guardian_b", "enemyId": "e_guardian_clipboard", "count": 1, "note": "关卡2守卫B" },
+    { "id": "eg_stage3_guardian_a", "enemyId": "e_guardian_union", "count": 1, "note": "关卡3守卫A" },
+    { "id": "eg_stage3_guardian_b", "enemyId": "e_guardian_overtime", "count": 1, "note": "关卡3守卫B" },
+    { "id": "eg_stage4_guardian_a", "enemyId": "e_guardian_mirror", "count": 1, "note": "关卡4守卫A" },
+    { "id": "eg_stage4_guardian_b", "enemyId": "e_guardian_fake_exit", "count": 1, "note": "关卡4守卫B" },
+    { "id": "eg_stage5_guardian_a", "enemyId": "e_guardian_stamp", "count": 1, "note": "关卡5守卫A" },
+    { "id": "eg_stage5_guardian_b", "enemyId": "e_guardian_gate", "count": 1, "note": "关卡5守卫B" },
     { "id": "eg_default", "enemyId": "e_grass_cat", "count": 1, "note": "默认敌人" }
   ]
 }

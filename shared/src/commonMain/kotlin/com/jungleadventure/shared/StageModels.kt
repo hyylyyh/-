@@ -17,7 +17,9 @@ data class StageDefinition(
     val floors: Int,
     val nodes: List<String>,
     val entry: String,
-    val exit: String
+    val exit: String,
+    val command: String = "",
+    val guardianPool: List<String> = emptyList()
 )
 
 @Serializable
@@ -39,7 +41,9 @@ data class StageRuntime(
     val stage: StageDefinition,
     val currentNodeId: String,
     val visited: Set<String>,
-    val completed: Boolean
+    val completed: Boolean,
+    val command: String,
+    val guardianGroupId: String?
 )
 
 fun defaultStages(): List<StageDefinition> {
@@ -52,7 +56,9 @@ fun defaultStages(): List<StageDefinition> {
             floors = 1,
             nodes = listOf("default_node"),
             entry = "default_node",
-            exit = "default_node"
+            exit = "default_node",
+            command = "JUNGLE-TEST",
+            guardianPool = emptyList()
         )
     )
 }
