@@ -662,34 +662,6 @@ private fun SidePanel(
             onToggleShowSkillFormula = onToggleShowSkillFormula
         )
         Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(text = "存档管理", fontWeight = FontWeight.Bold)
-                Divider(modifier = Modifier.padding(vertical = 4.dp))
-                if (state.saveSlots.isEmpty()) {
-                    Text("存档信息加载中...")
-                } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(240.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(state.saveSlots) { slot ->
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(text = slot.title, fontWeight = FontWeight.SemiBold)
-                                Text(text = slot.detail, color = Color(0xFF7B756B))
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Button(onClick = { onSave(slot.slot) }) { Text("保存") }
-                                    Button(onClick = { onLoad(slot.slot) }, enabled = slot.hasData) { Text("读取") }
-                                }
-                            }
-                            Divider(modifier = Modifier.padding(vertical = 6.dp))
-                        }
-                    }
-                }
-            }
-        }
-        Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(12.dp)) {
                 Text(text = when (state.activePanel) {
                     GamePanel.STATUS -> "角色状态"
