@@ -623,7 +623,12 @@ class GameViewModel(
             "推进关卡：回合=$nextTurn，章节=$chapter，关卡编号=${nextRuntime.stage.id} 节点编号=${node?.id ?: "无"} 事件编号=${nextEvent?.eventId ?: "无"} 强制事件编号=${forcedEventId ?: "无"}"
         )
 
-        val completionUpdate = computeCompletionUpdate(current.completedChapters, previousRuntime, nextRuntime)
+        val completionUpdate = computeCompletionUpdate(
+            current.completedChapters,
+            previousRuntime,
+            nextRuntime,
+            chapter
+        )
 
         _state.update { state ->
             val enemyPreview = buildEnemyPreview(nextEvent, state.player)
@@ -792,23 +797,26 @@ class GameViewModel(
     private fun computeCompletionUpdate(
         currentCompleted: List<Int>,
         previousRuntime: StageRuntime?,
-        nextRuntime: StageRuntime?
+        nextRuntime: StageRuntime?,
+        logicalChapter: Int
     ): Pair<List<Int>, List<String>> {
         val updated = currentCompleted.toMutableSet()
         val logs = mutableListOf<String>()
-        val previousChapter = previousRuntime?.stage?.chapter
-        if (previousRuntime?.completed == true && previousChapter != null) {
-            if (updated.add(previousChapter)) {
-                logs += "章节通关：第 $previousChapter 章"
-                GameLogger.info(logTag, "章节通关已记录：章节=$previousChapter")
+        if (previousRuntime?.completed == true) {
+            val chapterToMark = logicalChapter.coerceAtLeast(1)
+            if (updated.add(chapterToMark)) {
+                logs += "章节通关：第 $chapterToMark 章"
+                GameLogger.info(logTag, "章节通关已记录：章节=$chapterToMark")
             }
         }
-        val nextChapter = nextRuntime?.stage?.chapter
         if (previousRuntime != null && nextRuntime != null) {
             val justCompleted = !previousRuntime.completed && nextRuntime.completed && previousRuntime.stage.id == nextRuntime.stage.id
-            if (justCompleted && nextChapter != null && updated.add(nextChapter)) {
-                logs += "章节通关：第 $nextChapter 章"
-                GameLogger.info(logTag, "章节通关已记录：章节=$nextChapter")
+            if (justCompleted) {
+                val chapterToMark = logicalChapter.coerceAtLeast(1)
+                if (updated.add(chapterToMark)) {
+                    logs += "章节通关：第 $chapterToMark 章"
+                    GameLogger.info(logTag, "章节通关已记录：章节=$chapterToMark")
+                }
             }
         }
         return updated.toList().sorted() to logs
