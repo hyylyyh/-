@@ -7,6 +7,10 @@ data class GameUiState(
     val screen: GameScreen = GameScreen.SAVE_SELECT,
     val turn: Int = 1,
     val chapter: Int = 1,
+    val totalChapters: Int = 10,
+    val selectedChapter: Int = 1,
+    val selectedDifficulty: Int = 1,
+    val completedChapters: List<Int> = emptyList(),
     val stage: StageUiState = StageUiState(),
     val player: PlayerStats = PlayerStats(),
     val roles: List<RoleProfile> = emptyList(),
@@ -73,6 +77,7 @@ data class PlayerStats(
     val resistBonus: Int = 0,
     val equipment: EquipmentLoadout = EquipmentLoadout(),
     val inventory: InventoryState = InventoryState(),
+    val cards: List<CardInstance> = emptyList(),
     val pityCounters: Map<String, Int> = emptyMap()
 )
 
@@ -110,11 +115,13 @@ data class EnemyPreviewUiState(
 enum class GamePanel {
     STATUS,
     EQUIPMENT,
-    INVENTORY
+    INVENTORY,
+    CARDS
 }
 
 enum class GameScreen {
     SAVE_SELECT,
     ROLE_SELECT,
+    CHAPTER_SELECT,
     ADVENTURE
 }

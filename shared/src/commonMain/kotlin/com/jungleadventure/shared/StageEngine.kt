@@ -12,14 +12,38 @@ class StageEngine(
     private val nodeMap = nodes.associateBy { it.id }
     private val stageList = stages
 
-    fun startStageForChapter(chapter: Int, rng: Random): StageRuntime {
-        val candidates = stageList.filter { it.chapter == chapter }.ifEmpty { stageList }
+    fun startStageForChapter(
+        chapter: Int,
+        rng: Random,
+        difficulty: Int? = null
+    ): StageRuntime {
+        val chapterCandidates = stageList.filter { it.chapter == chapter }
+        if (chapterCandidates.isEmpty()) {
+            GameLogger.warn(logTag, "章节无对应关卡，降级随机关卡：章节=$chapter")
+        }
+        val difficultyCandidates = if (difficulty == null) {
+            chapterCandidates
+        } else {
+            chapterCandidates.filter { it.difficulty == difficulty }
+        }
+        if (difficulty != null && chapterCandidates.isNotEmpty() && difficultyCandidates.isEmpty()) {
+            GameLogger.warn(logTag, "章节匹配但难度无关卡，降级随机章节关卡：章节=$chapter 难度=$difficulty")
+        }
+        val candidates = when {
+            difficultyCandidates.isNotEmpty() -> difficultyCandidates
+            chapterCandidates.isNotEmpty() -> chapterCandidates
+            else -> stageList
+        }
         val stage = if (candidates.isNotEmpty()) {
             candidates[rng.nextInt(candidates.size)]
         } else {
             defaultStages().first()
         }
-        GameLogger.info(logTag, "选择关卡：章节=$chapter 关卡编号=${stage.id} 名称=${stage.name}")
+        val difficultyLabel = difficulty?.toString() ?: "自动"
+        GameLogger.info(
+            logTag,
+            "选择关卡：章节=$chapter 难度=$difficultyLabel 关卡编号=${stage.id} 名称=${stage.name}"
+        )
         return StageRuntime(
             stage = stage,
             currentNodeId = stage.entry,

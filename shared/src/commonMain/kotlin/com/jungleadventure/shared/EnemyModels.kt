@@ -49,6 +49,7 @@ class EnemyRepository(
 ) {
     private val enemies = enemyFile.enemies.associateBy { it.id }
     private val groups = groupFile.groups.associateBy { it.id }
+    private val groupList = groupFile.groups
 
     fun findEnemy(enemyId: String?): EnemyDefinition? {
         if (enemyId.isNullOrBlank()) return null
@@ -58,6 +59,10 @@ class EnemyRepository(
     fun findGroup(groupId: String?): EnemyGroupDefinition? {
         if (groupId.isNullOrBlank()) return null
         return groups[groupId]
+    }
+
+    fun allGroups(): List<EnemyGroupDefinition> {
+        return groupList
     }
 }
 

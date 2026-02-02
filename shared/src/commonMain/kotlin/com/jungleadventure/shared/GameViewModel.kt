@@ -42,12 +42,15 @@ class GameViewModel(
     private val stageEngine = StageEngine(stageBundle.stages, stageBundle.nodes, engine)
     private var stageRuntime: StageRuntime? = null
     private var rngSeed: Long = Random.Default.nextLong()
-    private val maxChapter = events.maxOfOrNull { it.chapter } ?: 1
+    private val totalChapters = 10
+    private val maxChapter = max(totalChapters, events.maxOfOrNull { it.chapter } ?: 1)
+    private val monsterOnlyMode = true
     private val roles = loadRoleProfiles()
     private val enemyRepository = loadEnemyRepository()
     private val battleSystem = BattleSystem(enemyRepository, rng)
     private val turnEngine = TurnBasedCombatEngine(rng)
     private val lootRepository = LootRepository()
+    private val cardRepository = CardRepository()
     private var battleSession: BattleSession? = null
     private var battleEventId: String? = null
     private var pendingNewSaveSlot: Int? = null
@@ -66,13 +69,17 @@ class GameViewModel(
     init {
         GameLogger.info(
             logTag,
-            "初始化完成：事件数量=${events.size}，最大章节=$maxChapter，角色数量=${roles.size}"
+            "初始化完成：事件数量=${events.size}，最大章节=$maxChapter，角色数量=${roles.size}，纯怪物模式=$monsterOnlyMode"
         )
         val initialRole = roles.firstOrNull { it.unlocked }
         _state.update { current ->
             current.copy(
                 roles = roles,
                 selectedRoleId = initialRole?.id ?: "",
+                totalChapters = totalChapters,
+                selectedChapter = 1,
+                selectedDifficulty = 1,
+                completedChapters = emptyList(),
                 screen = GameScreen.SAVE_SELECT,
                 lastAction = "请选择存档",
                 log = listOf("请选择存档：读取已有存档或创建新存档")
@@ -118,26 +125,100 @@ class GameViewModel(
             return
         }
         applyRole(role, reason = "确认角色")
-        startStageForTurn(1, reason = "新建存档")
+        _state.update { current ->
+            current.copy(
+                screen = GameScreen.CHAPTER_SELECT,
+                selectedChapter = 1,
+                selectedDifficulty = current.selectedDifficulty.coerceAtLeast(1),
+                lastAction = "已确认角色，请选择章节与难度",
+                log = current.log + "已确认角色，请选择章节与难度"
+            )
+        }
+        GameLogger.info(logTag, "进入关卡选择界面：章节=1 难度=${_state.value.selectedDifficulty}")
+    }
+
+    fun onOpenChapterSelect() {
+        val current = _state.value
+        if (current.screen == GameScreen.CHAPTER_SELECT) {
+            GameLogger.info(logTag, "已在关卡选择界面，忽略重复打开")
+            return
+        }
+        if (current.screen == GameScreen.ADVENTURE && current.battle != null) {
+            GameLogger.warn(logTag, "战斗中禁止切换关卡")
+            _state.update { it.copy(lastAction = "战斗中无法切换关卡", log = it.log + "战斗中无法切换关卡") }
+            return
+        }
+        GameLogger.info(logTag, "打开关卡选择界面")
+        _state.update {
+            it.copy(
+                screen = GameScreen.CHAPTER_SELECT,
+                lastAction = "打开关卡选择界面",
+                log = it.log + "打开关卡选择界面"
+            )
+        }
+    }
+
+    fun onSelectChapter(chapter: Int) {
+        if (_state.value.screen != GameScreen.CHAPTER_SELECT) {
+            GameLogger.warn(logTag, "当前界面不允许选择章节")
+            return
+        }
+        val normalized = chapter.coerceIn(1, totalChapters)
+        if (!isChapterUnlocked(normalized, _state.value.completedChapters)) {
+            GameLogger.warn(logTag, "章节未解锁：章节=$normalized")
+            _state.update { it.copy(lastAction = "章节 $normalized 未解锁") }
+            return
+        }
+        GameLogger.info(logTag, "选择章节：章节=$normalized")
+        _state.update { it.copy(selectedChapter = normalized, lastAction = "已选择第 $normalized 章") }
+    }
+
+    fun onSelectDifficulty(difficulty: Int) {
+        if (_state.value.screen != GameScreen.CHAPTER_SELECT) {
+            GameLogger.warn(logTag, "当前界面不允许选择难度")
+            return
+        }
+        val normalized = difficulty.coerceIn(1, 5)
+        GameLogger.info(logTag, "选择难度：难度=$normalized")
+        _state.update { it.copy(selectedDifficulty = normalized, lastAction = "已选择难度 $normalized") }
+    }
+
+    fun onConfirmChapterSelection() {
+        val current = _state.value
+        if (current.screen != GameScreen.CHAPTER_SELECT) {
+            GameLogger.warn(logTag, "当前界面不允许确认章节")
+            return
+        }
+        val chapter = current.selectedChapter.coerceIn(1, totalChapters)
+        if (!isChapterUnlocked(chapter, current.completedChapters)) {
+            GameLogger.warn(logTag, "章节未解锁，禁止进入：章节=$chapter")
+            _state.update { it.copy(lastAction = "章节 $chapter 未解锁") }
+            return
+        }
+        val difficulty = current.selectedDifficulty.coerceIn(1, 5)
+        val turn = chapterStartTurn(chapter)
+        startStageForSelection(turn, chapter, difficulty, reason = "关卡选择")
         val slot = pendingNewSaveSlot
         if (slot != null) {
             autoSaveSlot = slot
-            _state.update { current ->
-                current.copy(
+            pendingNewSaveSlot = null
+            _state.update { state ->
+                state.copy(
                     screen = GameScreen.ADVENTURE,
                     selectedSaveSlot = slot,
-                    lastAction = "已确认角色，进入冒险"
+                    lastAction = "已进入第 $chapter 章"
                 )
             }
             onSave(slot)
         } else {
-            _state.update { current ->
-                current.copy(
+            _state.update { state ->
+                state.copy(
                     screen = GameScreen.ADVENTURE,
-                    lastAction = "已确认角色，进入冒险"
+                    lastAction = "已进入第 $chapter 章"
                 )
             }
         }
+        GameLogger.info(logTag, "确认关卡选择：章节=$chapter 难度=$difficulty 回合=$turn")
     }
 
     fun onSelectChoice(choiceId: String) {
@@ -205,6 +286,11 @@ class GameViewModel(
     fun onOpenInventory() {
         GameLogger.info(logTag, "切换面板：背包")
         _state.update { it.copy(activePanel = GamePanel.INVENTORY, lastAction = "查看背包") }
+    }
+
+    fun onOpenCards() {
+        GameLogger.info(logTag, "切换面板：卡牌")
+        _state.update { it.copy(activePanel = GamePanel.CARDS, lastAction = "查看卡牌") }
     }
 
     fun onToggleShowSkillFormula(enabled: Boolean) {
@@ -424,6 +510,9 @@ class GameViewModel(
                 selectedRoleId = initialRole?.id ?: "",
                 turn = 1,
                 chapter = 1,
+                selectedChapter = 1,
+                selectedDifficulty = 1,
+                completedChapters = emptyList(),
                 stage = StageUiState(),
                 player = PlayerStats(),
                 currentEvent = null,
@@ -450,6 +539,9 @@ class GameViewModel(
                 selectedRoleId = initialRole?.id ?: "",
                 turn = 1,
                 chapter = 1,
+                selectedChapter = 1,
+                selectedDifficulty = current.selectedDifficulty.coerceAtLeast(1),
+                completedChapters = emptyList(),
                 stage = StageUiState(),
                 player = PlayerStats(),
                 currentEvent = null,
@@ -473,10 +565,12 @@ class GameViewModel(
         val current = _state.value
         val nextTurn = if (incrementTurn) current.turn + 1 else current.turn
         val chapter = chapterForTurn(nextTurn)
-        val runtime = stageRuntime ?: assignGuardian(stageEngine.startStageForChapter(chapter, rng))
+        val difficulty = current.selectedDifficulty.coerceIn(1, 5)
+        val previousRuntime = stageRuntime
+        val runtime = stageRuntime ?: assignGuardian(stageEngine.startStageForChapter(chapter, rng, difficulty))
         val shouldRestartStage = runtime.completed || runtime.stage.chapter != chapter
         val nextRuntime = if (shouldRestartStage) {
-            assignGuardian(stageEngine.startStageForChapter(chapter, rng))
+            assignGuardian(stageEngine.startStageForChapter(chapter, rng, difficulty))
         } else if (!forcedNodeId.isNullOrBlank()) {
             stageEngine.moveToNode(runtime, forcedNodeId) ?: stageEngine.moveToNextNode(runtime, rng)
         } else {
@@ -520,17 +614,22 @@ class GameViewModel(
             "推进关卡：回合=$nextTurn，章节=$chapter，关卡编号=${nextRuntime.stage.id} 节点编号=${node?.id ?: "无"} 事件编号=${nextEvent?.eventId ?: "无"} 强制事件编号=${forcedEventId ?: "无"}"
         )
 
+        val completionUpdate = computeCompletionUpdate(current.completedChapters, previousRuntime, nextRuntime)
+
         _state.update { state ->
             val enemyPreview = buildEnemyPreview(nextEvent, state.player)
             state.copy(
                 turn = nextTurn,
                 chapter = chapter,
+                completedChapters = completionUpdate.first,
                 stage = nextRuntime.toUiState(node),
                 currentEvent = nextEvent,
                 enemyPreview = enemyPreview,
                 battle = null,
                 choices = nextChoices,
-                log = state.log + listOf(stageLog) + listOfNotNull(commandLog, guardianLog, nextEvent?.introText)
+                log = state.log + listOf(stageLog) +
+                    listOfNotNull(commandLog, guardianLog, nextEvent?.introText) +
+                    completionUpdate.second
             )
         }
         if (nextEvent != null && isBattleEvent(nextEvent)) {
@@ -559,10 +658,15 @@ class GameViewModel(
         stageRuntime = assignedRuntime
 
         val node = stageEngine.currentNode(assignedRuntime)
-        val event = saveGame.currentEventId?.let { id ->
-            engine.eventById(id)
-        } ?: resolveEventForNode(assignedRuntime, node, saveGame.chapter)
-        if (saveGame.currentEventId != null && event == null) {
+        val event = if (monsterOnlyMode) {
+            GameLogger.info("存档系统", "纯怪物模式开启，忽略存档事件编号=${saveGame.currentEventId ?: "无"}")
+            resolveEventForNode(assignedRuntime, node, saveGame.chapter)
+        } else {
+            saveGame.currentEventId?.let { id ->
+                engine.eventById(id)
+            } ?: resolveEventForNode(assignedRuntime, node, saveGame.chapter)
+        }
+        if (!monsterOnlyMode && saveGame.currentEventId != null && event == null) {
             GameLogger.warn("存档系统", "存档事件未找到：事件编号=${saveGame.currentEventId}")
         }
 
@@ -583,8 +687,11 @@ class GameViewModel(
             current.copy(
                 turn = saveGame.turn,
                 chapter = saveGame.chapter,
+                selectedChapter = saveGame.chapter,
                 stage = assignedRuntime.toUiState(runtimeNode),
                 selectedRoleId = validRoleId,
+                selectedDifficulty = saveGame.selectedDifficulty.coerceIn(1, 5),
+                completedChapters = saveGame.completedChapters.distinct().sorted(),
                 player = normalizedPlayer,
                 currentEvent = event,
                 enemyPreview = enemyPreview,
@@ -608,7 +715,17 @@ class GameViewModel(
             return
         }
         val chapter = chapterForTurn(turn)
-        val runtime = assignGuardian(stageEngine.startStageForChapter(chapter, rng))
+        val difficulty = _state.value.selectedDifficulty.coerceIn(1, 5)
+        startStageForSelection(turn, chapter, difficulty, reason)
+    }
+
+    private fun startStageForSelection(
+        turn: Int,
+        chapter: Int,
+        difficulty: Int,
+        reason: String
+    ) {
+        val runtime = assignGuardian(stageEngine.startStageForChapter(chapter, rng, difficulty))
         stageRuntime = runtime
         val node = stageEngine.currentNode(runtime)
         val event = resolveEventForNode(runtime, node, chapter)
@@ -626,13 +743,15 @@ class GameViewModel(
         }
         GameLogger.info(
             logTag,
-            "初始化关卡：回合=$turn 章节=$chapter 关卡编号=${runtime.stage.id} 节点编号=${node?.id ?: "无"} 随机种子=$rngSeed"
+            "初始化关卡：回合=$turn 章节=$chapter 难度=$difficulty 关卡编号=${runtime.stage.id} 节点编号=${node?.id ?: "无"} 随机种子=$rngSeed"
         )
         _state.update { current ->
             val enemyPreview = buildEnemyPreview(event, current.player)
             current.copy(
                 turn = turn,
                 chapter = chapter,
+                selectedDifficulty = difficulty,
+                selectedChapter = chapter,
                 stage = runtime.toUiState(node),
                 currentEvent = event,
                 enemyPreview = enemyPreview,
@@ -649,6 +768,41 @@ class GameViewModel(
     private fun chapterForTurn(turn: Int): Int {
         val raw = ((turn - 1) / 3) + 1
         return min(maxChapter, max(1, raw))
+    }
+
+    private fun chapterStartTurn(chapter: Int): Int {
+        val normalized = chapter.coerceIn(1, maxChapter)
+        return ((normalized - 1) * 3) + 1
+    }
+
+    private fun isChapterUnlocked(chapter: Int, completedChapters: List<Int>): Boolean {
+        if (chapter <= 1) return true
+        return completedChapters.contains(chapter) || completedChapters.contains(chapter - 1)
+    }
+
+    private fun computeCompletionUpdate(
+        currentCompleted: List<Int>,
+        previousRuntime: StageRuntime?,
+        nextRuntime: StageRuntime?
+    ): Pair<List<Int>, List<String>> {
+        val updated = currentCompleted.toMutableSet()
+        val logs = mutableListOf<String>()
+        val previousChapter = previousRuntime?.stage?.chapter
+        if (previousRuntime?.completed == true && previousChapter != null) {
+            if (updated.add(previousChapter)) {
+                logs += "章节通关：第 $previousChapter 章"
+                GameLogger.info(logTag, "章节通关已记录：章节=$previousChapter")
+            }
+        }
+        val nextChapter = nextRuntime?.stage?.chapter
+        if (previousRuntime != null && nextRuntime != null) {
+            val justCompleted = !previousRuntime.completed && nextRuntime.completed && previousRuntime.stage.id == nextRuntime.stage.id
+            if (justCompleted && nextChapter != null && updated.add(nextChapter)) {
+                logs += "章节通关：第 $nextChapter 章"
+                GameLogger.info(logTag, "章节通关已记录：章节=$nextChapter")
+            }
+        }
+        return updated.toList().sorted() to logs
     }
 
     private fun applyRole(role: RoleProfile, reason: String) {
@@ -784,6 +938,11 @@ class GameViewModel(
                 logTag,
                 "角色升级：Lv$beforeLevel -> Lv$nextLevel 经验=${current.exp}/${current.expToNext} 原因=$reason"
             )
+            if (nextLevel % 3 == 0) {
+                val cardApplied = grantCard(current, nextLevel, reason)
+                current = cardApplied.player
+                logs += cardApplied.logs
+            }
         }
         return ResultApplication(current, logs)
     }
@@ -965,15 +1124,16 @@ class GameViewModel(
     private fun recalculatePlayerStats(player: PlayerStats, reason: String): PlayerStats {
         val base = player.baseStats
         val bonus = collectEquipmentStats(player.equipment)
-        val nextHpMax = (base.hpMax + (bonus[StatType.HP] ?: 0)).coerceAtLeast(1)
-        val nextAtk = (base.atk + (bonus[StatType.ATK] ?: 0)).coerceAtLeast(1)
-        val nextDef = (base.def + (bonus[StatType.DEF] ?: 0)).coerceAtLeast(0)
-        val nextSpeed = (base.speed + (bonus[StatType.SPEED] ?: 0)).coerceAtLeast(1)
+        val cardBonus = collectCardStats(player.cards)
+        val nextHpMax = (base.hpMax + (bonus[StatType.HP] ?: 0) + (cardBonus[StatType.HP] ?: 0)).coerceAtLeast(1)
+        val nextAtk = (base.atk + (bonus[StatType.ATK] ?: 0) + (cardBonus[StatType.ATK] ?: 0)).coerceAtLeast(1)
+        val nextDef = (base.def + (bonus[StatType.DEF] ?: 0) + (cardBonus[StatType.DEF] ?: 0)).coerceAtLeast(0)
+        val nextSpeed = (base.speed + (bonus[StatType.SPEED] ?: 0) + (cardBonus[StatType.SPEED] ?: 0)).coerceAtLeast(1)
         val nextHp = player.hp.coerceIn(0, nextHpMax)
-        val nextHitBonus = bonus[StatType.HIT] ?: 0
-        val nextEvaBonus = bonus[StatType.EVADE] ?: 0
-        val nextCritBonus = bonus[StatType.CRIT] ?: 0
-        val nextResistBonus = bonus[StatType.CRIT_RESIST] ?: 0
+        val nextHitBonus = (bonus[StatType.HIT] ?: 0) + (cardBonus[StatType.HIT] ?: 0)
+        val nextEvaBonus = (bonus[StatType.EVADE] ?: 0) + (cardBonus[StatType.EVADE] ?: 0)
+        val nextCritBonus = (bonus[StatType.CRIT] ?: 0) + (cardBonus[StatType.CRIT] ?: 0)
+        val nextResistBonus = (bonus[StatType.CRIT_RESIST] ?: 0) + (cardBonus[StatType.CRIT_RESIST] ?: 0)
         if (player.hpMax != nextHpMax || player.atk != nextAtk || player.def != nextDef || player.speed != nextSpeed) {
             GameLogger.info(
                 "装备系统",
@@ -991,6 +1151,77 @@ class GameViewModel(
             critBonus = nextCritBonus,
             resistBonus = nextResistBonus
         )
+    }
+
+    private fun collectCardStats(cards: List<CardInstance>): Map<StatType, Int> {
+        val totals = mutableMapOf<StatType, Int>()
+        cards.forEach { card ->
+            card.effects.forEach { effect ->
+                totals[effect.stat] = (totals[effect.stat] ?: 0) + effect.value
+            }
+        }
+        return totals
+    }
+
+    private fun grantCard(
+        player: PlayerStats,
+        level: Int,
+        reason: String
+    ): ResultApplication {
+        val definition = cardRepository.drawCard(rng)
+        val uid = "card_${player.cards.size + 1}_lv$level_${kotlin.math.abs(rng.nextInt())}"
+        val instance = CardInstance(
+            uid = uid,
+            name = definition.name,
+            quality = definition.quality,
+            description = definition.description,
+            effects = definition.effects,
+            isGood = definition.isGood
+        )
+        val nextPlayer = recalculatePlayerStats(
+            player.copy(cards = player.cards + instance),
+            "获得卡牌"
+        )
+        val qualityLabel = cardQualityLabel(definition.quality)
+        val goodLabel = if (definition.isGood) "厉害" else "垃圾"
+        val effectText = formatCardEffects(definition.effects)
+        val logLine = "获得卡牌：${definition.name}（$qualityLabel/$goodLabel）效果：$effectText"
+        GameLogger.info(
+            logTag,
+            "卡牌发放：等级=$level 品质=$qualityLabel 类型=$goodLabel 名称=${definition.name} 原因=$reason"
+        )
+        return ResultApplication(nextPlayer, listOf(logLine))
+    }
+
+    private fun cardQualityLabel(quality: CardQuality): String {
+        return when (quality) {
+            CardQuality.COMMON -> "普通"
+            CardQuality.UNCOMMON -> "优秀"
+            CardQuality.RARE -> "稀有"
+            CardQuality.EPIC -> "史诗"
+            CardQuality.LEGEND -> "传说"
+        }
+    }
+
+    private fun formatCardEffects(effects: List<CardEffect>): String {
+        if (effects.isEmpty()) return "无"
+        return effects.joinToString("，") { effect ->
+            val value = if (effect.value >= 0) "+${effect.value}" else effect.value.toString()
+            "${cardStatLabel(effect.stat)}$value"
+        }
+    }
+
+    private fun cardStatLabel(stat: StatType): String {
+        return when (stat) {
+            StatType.HP -> "生命"
+            StatType.ATK -> "攻击"
+            StatType.DEF -> "防御"
+            StatType.SPEED -> "速度"
+            StatType.HIT -> "命中"
+            StatType.EVADE -> "闪避"
+            StatType.CRIT -> "暴击"
+            StatType.CRIT_RESIST -> "抗暴"
+        }
     }
 
     private fun collectEquipmentStats(loadout: EquipmentLoadout): Map<StatType, Int> {
@@ -1614,6 +1845,8 @@ class GameViewModel(
             lastAction = snapshot.lastAction,
             activePanel = snapshot.activePanel,
             showSkillFormula = snapshot.showSkillFormula,
+            selectedDifficulty = snapshot.selectedDifficulty,
+            completedChapters = snapshot.completedChapters,
             currentEventId = snapshot.currentEvent?.eventId,
             stageId = runtime?.stage?.id,
             nodeId = runtime?.currentNodeId,
@@ -1711,11 +1944,79 @@ class GameViewModel(
     ): EventDefinition? {
         if (node == null) return null
         val isExitNode = node.id == runtime.stage.exit
+        if (monsterOnlyMode) {
+            return buildMonsterOnlyEvent(runtime, node, chapter, isExitNode)
+        }
         return if (isExitNode && runtime.guardianGroupId != null) {
             buildGuardianEvent(runtime, chapter)
         } else {
             stageEngine.eventForNode(runtime, chapter, rng)
         }
+    }
+
+    private fun buildMonsterOnlyEvent(
+        runtime: StageRuntime,
+        node: NodeDefinition,
+        chapter: Int,
+        isExitNode: Boolean
+    ): EventDefinition {
+        if (isExitNode && runtime.guardianGroupId != null) {
+            GameLogger.info(
+                logTag,
+                "纯怪物模式：出口节点使用守卫战：关卡=${runtime.stage.id} 节点=${node.id} 守卫=${runtime.guardianGroupId}"
+            )
+            return buildGuardianEvent(runtime, chapter)
+        }
+        val groupId = pickMonsterGroupId(runtime, node, chapter)
+        val enemyName = guardianNameForGroup(groupId)
+        val rewardGold = 4 + chapter * 3 + runtime.stage.difficulty * 2
+        val rewardExp = 4 + chapter * 4 + runtime.stage.difficulty * 2
+        GameLogger.info(
+            logTag,
+            "纯怪物模式：生成遭遇战 关卡=${runtime.stage.id} 节点=${node.id} 敌群=$groupId 敌人=$enemyName 章节=$chapter"
+        )
+        return EventDefinition(
+            eventId = "battle_only_${runtime.stage.id}_${node.id}_$groupId",
+            chapter = chapter,
+            title = "遭遇战 · $enemyName",
+            type = "battle_only",
+            difficulty = runtime.stage.difficulty,
+            weight = 1,
+            cooldown = 0,
+            introText = "你遇到了 $enemyName，战斗在所难免。",
+            successText = "敌人被击退，你可以继续前进。",
+            failText = "你被逼退，但仍可继续探索。",
+            logText = "遭遇战结束：$enemyName",
+            result = EventResult(
+                hpDelta = 0,
+                mpDelta = 0,
+                goldDelta = rewardGold,
+                expDelta = rewardExp
+            ),
+            enemyGroupId = groupId,
+            firstStrike = "speed"
+        )
+    }
+
+    private fun pickMonsterGroupId(
+        runtime: StageRuntime,
+        node: NodeDefinition,
+        chapter: Int
+    ): String {
+        val allGroups = enemyRepository.allGroups()
+        if (allGroups.isEmpty()) {
+            GameLogger.warn(logTag, "敌群配置为空，改用默认敌群")
+            return "eg_default"
+        }
+        val chapterKey = "ch$chapter"
+        val chapterGroups = allGroups.filter { it.id.contains(chapterKey, ignoreCase = true) }
+        val candidates = if (chapterGroups.isEmpty()) allGroups else chapterGroups
+        val selected = candidates[rng.nextInt(candidates.size)]
+        GameLogger.info(
+            logTag,
+            "纯怪物模式：抽取敌群 关卡=${runtime.stage.id} 节点=${node.id} 章节=$chapter 候选=${candidates.size} 选中=${selected.id}"
+        )
+        return selected.id
     }
 
     private fun buildGuardianEvent(runtime: StageRuntime, chapter: Int): EventDefinition {
@@ -1794,7 +2095,7 @@ class GameViewModel(
                     SaveSlotSummary(
                         slot = slot,
                         title = "槽位 $slot：第 ${saveGame.turn} 回合",
-                        detail = "角色 ${saveGame.player.name} | 章节 ${saveGame.chapter} | 关卡 $stageName",
+                        detail = "角色 ${saveGame.player.name} | 章节 ${saveGame.chapter} | 难度 ${saveGame.selectedDifficulty} | 关卡 $stageName",
                         hasData = true
                     )
                 }
