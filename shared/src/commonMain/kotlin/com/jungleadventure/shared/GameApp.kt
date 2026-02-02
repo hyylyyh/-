@@ -778,6 +778,7 @@ private fun SidePanel(
                     GamePanel.STATUS -> "角色状态"
                     GamePanel.EQUIPMENT -> "当前装备"
                     GamePanel.INVENTORY -> "背包物品"
+                    GamePanel.CARDS -> "卡牌收藏"
                 }, fontWeight = FontWeight.Bold)
                 Divider(modifier = Modifier.padding(vertical = 8.dp))
                 when (state.activePanel) {
@@ -962,17 +963,17 @@ private fun RoleActionPanel(
             Divider(modifier = Modifier.padding(vertical = 8.dp))
             if (choices.isEmpty()) {
                 PlaceholderPanel("暂无可用行动")
-                return
-            }
-            val listState = rememberLazyListState()
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.height(260.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(choices, key = { it.id }) { choice ->
-                    Button(onClick = { onChoice(choice.id) }, modifier = Modifier.fillMaxWidth()) {
-                        Text(choice.label)
+            } else {
+                val listState = rememberLazyListState()
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.height(260.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(choices, key = { it.id }) { choice ->
+                        Button(onClick = { onChoice(choice.id) }, modifier = Modifier.fillMaxWidth()) {
+                            Text(choice.label)
+                        }
                     }
                 }
             }

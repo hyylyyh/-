@@ -1169,7 +1169,7 @@ class GameViewModel(
         reason: String
     ): ResultApplication {
         val definition = cardRepository.drawCard(rng)
-        val uid = "card_${player.cards.size + 1}_lv$level_${kotlin.math.abs(rng.nextInt())}"
+        val uid = "card_${player.cards.size + 1}_lv${level}_${kotlin.math.abs(rng.nextInt())}"
         val instance = CardInstance(
             uid = uid,
             name = definition.name,
