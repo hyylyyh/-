@@ -72,6 +72,9 @@ fun GameApp(
                     onAdvance = viewModel::onAdvance,
                     onSelectRole = viewModel::onSelectRole,
                     onConfirmRole = viewModel::onConfirmRole,
+                    onSelectChapter = viewModel::onSelectChapter,
+                    onSelectDifficulty = viewModel::onSelectDifficulty,
+                    onConfirmChapterSelection = viewModel::onConfirmChapterSelection,
                     onCreateNewSave = viewModel::onCreateNewSave,
                     onLoadSave = viewModel::onLoad,
                     showSkillFormula = state.showSkillFormula,
@@ -83,11 +86,13 @@ fun GameApp(
                     onOpenStatus = viewModel::onOpenStatus,
                     onOpenEquipment = viewModel::onOpenEquipment,
                     onOpenInventory = viewModel::onOpenInventory,
+                    onOpenCards = viewModel::onOpenCards,
                     onEquipItem = viewModel::onEquipItem,
                     onUnequipSlot = viewModel::onUnequipSlot,
                     onSave = viewModel::onSave,
                     onLoad = viewModel::onLoad,
                     onReturnToMain = viewModel::onReturnToMain,
+                    onOpenChapterSelect = viewModel::onOpenChapterSelect,
                     showSkillFormula = state.showSkillFormula,
                     onToggleShowSkillFormula = viewModel::onToggleShowSkillFormula
                 )
@@ -141,6 +146,9 @@ private fun MainPanel(
     onAdvance: () -> Unit,
     onSelectRole: (String) -> Unit,
     onConfirmRole: () -> Unit,
+    onSelectChapter: (Int) -> Unit,
+    onSelectDifficulty: (Int) -> Unit,
+    onConfirmChapterSelection: () -> Unit,
     onCreateNewSave: (Int) -> Unit,
     onLoadSave: (Int) -> Unit,
     showSkillFormula: Boolean,
@@ -181,6 +189,14 @@ private fun MainPanel(
                     }
                 }
             }
+            GameScreen.CHAPTER_SELECT -> {
+                ChapterSelectPanel(
+                    state = state,
+                    onSelectChapter = onSelectChapter,
+                    onSelectDifficulty = onSelectDifficulty,
+                    onConfirmChapterSelection = onConfirmChapterSelection
+                )
+            }
             GameScreen.ADVENTURE -> {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(12.dp)) {
@@ -205,15 +221,6 @@ private fun MainPanel(
                                 Spacer(modifier = Modifier.height(6.dp))
                             }
                             Text(state.currentEvent.introText)
-                        }
-                    }
-                }
-                if (state.enemyPreview != null) {
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(text = "敌人情报", fontWeight = FontWeight.Bold)
-                            Divider(modifier = Modifier.padding(vertical = 4.dp))
-                            EnemyPreviewPanel(preview = state.enemyPreview)
                         }
                     }
                 }
@@ -354,6 +361,91 @@ private fun RoleSelectionPanel(
                     showSkillFormula = showSkillFormula,
                     onToggleShowSkillFormula = onToggleShowSkillFormula
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChapterSelectPanel(
+    state: GameUiState,
+    onSelectChapter: (Int) -> Unit,
+    onSelectDifficulty: (Int) -> Unit,
+    onConfirmChapterSelection: () -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(text = "关卡选择", fontWeight = FontWeight.Bold)
+            Divider(modifier = Modifier.padding(vertical = 6.dp))
+            Text(text = "选择章节与难度后进入冒险。未通关章节不可选择。", color = Color(0xFFB8B2A6))
+            val completedLabel = if (state.completedChapters.isEmpty()) {
+                "暂无通关记录"
+            } else {
+                "已通关：${state.completedChapters.joinToString("、") { "第 $it 章" }}"
+            }
+            Text(text = completedLabel, color = Color(0xFF8DB38B))
+            Divider(modifier = Modifier.padding(vertical = 6.dp))
+            Text(text = "选择章节", fontWeight = FontWeight.SemiBold)
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                (1..state.totalChapters).forEach { chapter ->
+                    val unlocked = chapter == 1 ||
+                        state.completedChapters.contains(chapter) ||
+                        state.completedChapters.contains(chapter - 1)
+                    val isSelected = chapter == state.selectedChapter
+                    val label = when {
+                        state.completedChapters.contains(chapter) -> "已通关"
+                        unlocked -> "可进入"
+                        else -> "未解锁"
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(text = "第 $chapter 章", fontWeight = FontWeight.SemiBold)
+                            Text(text = label, color = Color(0xFF7B756B))
+                        }
+                        if (isSelected) {
+                            Button(
+                                onClick = { onSelectChapter(chapter) },
+                                enabled = unlocked
+                            ) {
+                                Text("已选择")
+                            }
+                        } else {
+                            OutlinedButton(
+                                onClick = { onSelectChapter(chapter) },
+                                enabled = unlocked
+                            ) {
+                                Text("选择")
+                            }
+                        }
+                    }
+                    Divider(modifier = Modifier.padding(vertical = 4.dp))
+                }
+            }
+            Text(text = "选择难度", fontWeight = FontWeight.SemiBold)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                (1..5).forEach { difficulty ->
+                    val isSelected = difficulty == state.selectedDifficulty
+                    val label = "难度 $difficulty"
+                    if (isSelected) {
+                        Button(onClick = { onSelectDifficulty(difficulty) }) {
+                            Text(label)
+                        }
+                    } else {
+                        OutlinedButton(onClick = { onSelectDifficulty(difficulty) }) {
+                            Text(label)
+                        }
+                    }
+                }
+            }
+            Button(
+                onClick = onConfirmChapterSelection,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("确认进入第 ${state.selectedChapter} 章")
             }
         }
     }
@@ -617,11 +709,13 @@ private fun SidePanel(
     onOpenStatus: () -> Unit,
     onOpenEquipment: () -> Unit,
     onOpenInventory: () -> Unit,
+    onOpenCards: () -> Unit,
     onEquipItem: (String) -> Unit,
     onUnequipSlot: (EquipmentSlot) -> Unit,
     onSave: (Int) -> Unit,
     onLoad: (Int) -> Unit,
     onReturnToMain: () -> Unit,
+    onOpenChapterSelect: () -> Unit,
     showSkillFormula: Boolean,
     onToggleShowSkillFormula: (Boolean) -> Unit
 ) {
@@ -644,6 +738,11 @@ private fun SidePanel(
                 Button(onClick = onReturnToMain, modifier = Modifier.fillMaxWidth()) {
                     Text("返回主界面")
                 }
+                Spacer(modifier = Modifier.height(6.dp))
+                Text("需要切换章节时可进入关卡选择。", color = Color(0xFFB8B2A6))
+                Button(onClick = onOpenChapterSelect, modifier = Modifier.fillMaxWidth()) {
+                    Text("关卡选择")
+                }
             }
         }
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -654,6 +753,18 @@ private fun SidePanel(
                     Button(onClick = onOpenStatus) { Text("状态") }
                     Button(onClick = onOpenEquipment) { Text("装备") }
                     Button(onClick = onOpenInventory) { Text("背包") }
+                    Button(onClick = onOpenCards) { Text("卡牌") }
+                }
+            }
+        }
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(text = "敌人情报", fontWeight = FontWeight.Bold)
+                Divider(modifier = Modifier.padding(vertical = 4.dp))
+                if (state.enemyPreview == null) {
+                    PlaceholderPanel("暂无敌人情报")
+                } else {
+                    EnemyPreviewPanel(preview = state.enemyPreview)
                 }
             }
         }
@@ -679,6 +790,7 @@ private fun SidePanel(
                         player = state.player,
                         onEquipItem = onEquipItem
                     )
+                    GamePanel.CARDS -> CardPanel(player = state.player)
                 }
             }
         }
@@ -772,6 +884,37 @@ private fun InventoryPanel(
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(onClick = { onEquipItem(item.uid) }) { Text("装备") }
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CardPanel(player: PlayerStats) {
+    val cards = player.cards
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("已获得卡牌 ${cards.size}", color = Color(0xFFB8B2A6))
+        if (cards.isEmpty()) {
+            PlaceholderPanel("暂无卡牌")
+            return
+        }
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(220.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(cards, key = { it.uid }) { card ->
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(text = "${card.name}（${cardQualityLabel(card.quality)}）", fontWeight = FontWeight.SemiBold)
+                        Text(text = card.description, color = Color(0xFFB8B2A6))
+                        Text(
+                            text = "类型 ${if (card.isGood) "厉害" else "垃圾"} | 效果 ${formatCardEffects(card.effects)}",
+                            color = Color(0xFF8DB38B)
+                        )
                     }
                 }
             }
@@ -943,6 +1086,16 @@ private fun statLabel(stat: StatType): String {
     }
 }
 
+private fun cardQualityLabel(quality: CardQuality): String {
+    return when (quality) {
+        CardQuality.COMMON -> "普通"
+        CardQuality.UNCOMMON -> "优秀"
+        CardQuality.RARE -> "稀有"
+        CardQuality.EPIC -> "史诗"
+        CardQuality.LEGEND -> "传说"
+    }
+}
+
 private fun formatStats(stats: Map<StatType, Int>): String {
     if (stats.isEmpty()) return "无"
     return stats.entries.joinToString(" ") { "${statLabel(it.key)}+${it.value}" }
@@ -951,6 +1104,14 @@ private fun formatStats(stats: Map<StatType, Int>): String {
 private fun formatAffixes(affixes: List<EquipmentAffix>): String {
     if (affixes.isEmpty()) return "无"
     return affixes.joinToString(" ") { "${statLabel(it.type)}+${it.value}" }
+}
+
+private fun formatCardEffects(effects: List<CardEffect>): String {
+    if (effects.isEmpty()) return "无"
+    return effects.joinToString("，") { effect ->
+        val value = if (effect.value >= 0) "+${effect.value}" else effect.value.toString()
+        "${statLabel(effect.stat)}$value"
+    }
 }
 
 @Composable
