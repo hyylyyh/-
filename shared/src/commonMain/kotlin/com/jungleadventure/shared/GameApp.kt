@@ -240,23 +240,17 @@ private fun MainPanel(
                         }
                     }
                 }
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text(text = "可选行动", fontWeight = FontWeight.Bold)
-                        Divider(modifier = Modifier.padding(vertical = 8.dp))
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            state.choices.forEach { choice ->
-                                Button(onClick = { onChoice(choice.id) }, modifier = Modifier.fillMaxWidth()) {
-                                    Text(choice.label)
-                                }
-                            }
-                            if (state.battle == null) {
-                                Button(onClick = onAdvance, modifier = Modifier.fillMaxWidth()) {
-                                    Text("继续前进")
-                                }
-                            }
-                        }
-                    }
+                if (state.battle == null) {
+                    EventActionPanel(
+                        choices = state.choices,
+                        onChoice = onChoice,
+                        onAdvance = onAdvance
+                    )
+                } else {
+                    RoleActionPanel(
+                        choices = state.choices,
+                        onChoice = onChoice
+                    )
                 }
             }
         }
@@ -806,6 +800,64 @@ private fun InventoryPanel(
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(onClick = { onEquipItem(item.uid) }) { Text("装备") }
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EventActionPanel(
+    choices: List<GameChoice>,
+    onChoice: (String) -> Unit,
+    onAdvance: () -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(text = "事件选项", fontWeight = FontWeight.Bold)
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            if (choices.isEmpty()) {
+                PlaceholderPanel("暂无可选行动")
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    choices.forEach { choice ->
+                        Button(onClick = { onChoice(choice.id) }, modifier = Modifier.fillMaxWidth()) {
+                            Text(choice.label)
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(onClick = onAdvance, modifier = Modifier.fillMaxWidth()) {
+                Text("继续前进")
+            }
+        }
+    }
+}
+
+@Composable
+private fun RoleActionPanel(
+    choices: List<GameChoice>,
+    onChoice: (String) -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(text = "角色行动", fontWeight = FontWeight.Bold)
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            if (choices.isEmpty()) {
+                PlaceholderPanel("暂无可用行动")
+                return
+            }
+            val listState = rememberLazyListState()
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.height(260.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(choices, key = { it.id }) { choice ->
+                    Button(onClick = { onChoice(choice.id) }, modifier = Modifier.fillMaxWidth()) {
+                        Text(choice.label)
                     }
                 }
             }
