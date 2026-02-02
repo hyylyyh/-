@@ -216,7 +216,7 @@ private fun MainPanel(
                             Spacer(modifier = Modifier.height(6.dp))
                             state.battle?.let { battle ->
                                 Text("战斗回合 ${battle.round} | ${battle.enemyName}")
-                                Text("敌方生命 ${battle.enemyHp}  |  装备 ${battle.equipmentMode}")
+                                Text("敌方生命 ${battle.enemyHp}  能量 ${battle.enemyMp}  |  装备 ${battle.equipmentMode}")
                                 Text("我方生命 ${battle.playerHp}  能量 ${battle.playerMp}  技能冷却 ${battle.skillCooldown}")
                                 Spacer(modifier = Modifier.height(6.dp))
                             }
@@ -256,7 +256,8 @@ private fun MainPanel(
                 } else {
                     RoleActionPanel(
                         choices = state.choices,
-                        onChoice = onChoice
+                        onChoice = onChoice,
+                        player = state.player
                     )
                 }
             }
@@ -955,11 +956,16 @@ private fun EventActionPanel(
 @Composable
 private fun RoleActionPanel(
     choices: List<GameChoice>,
-    onChoice: (String) -> Unit
+    onChoice: (String) -> Unit,
+    player: PlayerStats
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(12.dp)) {
             Text(text = "角色行动", fontWeight = FontWeight.Bold)
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            Text(text = "角色状态", fontWeight = FontWeight.SemiBold)
+            Spacer(modifier = Modifier.height(4.dp))
+            StatusPanel(player)
             Divider(modifier = Modifier.padding(vertical = 8.dp))
             if (choices.isEmpty()) {
                 PlaceholderPanel("暂无可用行动")

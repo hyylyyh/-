@@ -32,6 +32,7 @@ data class BattleUiState(
     val playerHp: Int,
     val playerMp: Int,
     val enemyHp: Int,
+    val enemyMp: Int,
     val enemyName: String,
     val equipmentMode: String,
     val skillCooldown: Int

@@ -1498,6 +1498,7 @@ class GameViewModel(
             playerHp = session.player.hp,
             playerMp = session.player.mp,
             enemyHp = session.enemy.hp,
+            enemyMp = session.enemy.mp,
             enemyName = session.enemy.name,
             equipmentMode = equipmentModeLabel(session.equipmentMode),
             skillCooldown = session.skillCooldown
