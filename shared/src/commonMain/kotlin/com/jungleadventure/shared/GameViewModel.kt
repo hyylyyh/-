@@ -1092,6 +1092,17 @@ class GameViewModel(
         return if (parts.isEmpty()) "没有额外变化" else parts.joinToString("，")
     }
 
+    private fun battleRewardSummary(
+        before: PlayerStats,
+        after: PlayerStats,
+        expDelta: Int
+    ): String {
+        val goldGain = after.gold - before.gold
+        val equipGain = (after.inventory.items.size - before.inventory.items.size).coerceAtLeast(0)
+        val expGain = expDelta.coerceAtLeast(0)
+        return "本次战斗获得：金币${signed(goldGain)} 经验${signed(expGain)} 装备+$equipGain"
+    }
+
     private fun expRequiredFor(level: Int): Int {
         val safeLevel = level.coerceAtLeast(1)
         return expBase + (safeLevel - 1) * expGrowth
@@ -1456,6 +1467,19 @@ class GameViewModel(
 
     private fun startBattleSession(event: EventDefinition) {
         val context = battleSystem.buildBattleContext(_state.value.player, event)
+        if (context.player.hp <= 0) {
+            GameLogger.warn(logTag, "战斗前生命为0，直接判定失败并进行结算：事件编号=${event.eventId}")
+            val outcome = BattleOutcome(
+                victory = false,
+                escaped = false,
+                rounds = 0,
+                playerRemainingHp = context.player.hp,
+                enemyRemainingHp = context.enemy.hp,
+                logLines = listOf("生命为0，无法进入战斗，判定为失败")
+            )
+            finishBattle(event, outcome)
+            return
+        }
         val session = turnEngine.startSession(
             player = context.player,
             enemy = context.enemy,
@@ -1535,12 +1559,16 @@ class GameViewModel(
     }
 
     private fun finishBattle(event: EventDefinition, outcome: BattleOutcome) {
-        val escaped = outcome.escaped
-        val victory = outcome.victory
+        val defeated = outcome.playerRemainingHp <= 0
+        val escaped = outcome.escaped && !defeated
+        val victory = outcome.victory && !defeated && !escaped
         val outcomeText = when {
             escaped -> "成功撤离战斗"
             victory -> event.successText
             else -> event.failText
+        }
+        if (defeated) {
+            GameLogger.warn(logTag, "战斗结算判定失败：生命为0")
         }
         val safeHp = if (!victory && !escaped && outcome.playerRemainingHp <= 0) {
             GameLogger.warn(logTag, "战斗失败后生命为0，按失败惩罚规则保留1点生命以继续推进")
@@ -1558,6 +1586,8 @@ class GameViewModel(
             ResultApplication(basePlayer, emptyList())
         }
         val rewardPlayer = applied.player
+        val expDelta = if (victory) event.result?.expDelta ?: 0 else 0
+        val rewardSummaryLine = battleRewardSummary(basePlayer, rewardPlayer, expDelta)
         val resultSummary = if (victory) {
             event.result?.let { summarizeResult(it) } ?: "战斗无额外奖励"
         } else if (escaped) {
@@ -1578,7 +1608,7 @@ class GameViewModel(
                     outcomeText.ifBlank { null },
                     event.logText.ifBlank { null },
                     resultSummary
-                ) + applied.logs
+                ) + outcome.logLines + listOf(rewardSummaryLine) + applied.logs
             )
         }
 
@@ -1634,18 +1664,25 @@ class GameViewModel(
     private fun resolveBattleAndAdvance(event: EventDefinition) {
         GameLogger.info(logTag, "进入战斗：事件编号=${event.eventId} 标题=${event.title}")
         val current = _state.value
+        if (current.player.hp <= 0) {
+            GameLogger.warn(logTag, "战斗前生命为0，直接判定失败并结算：事件编号=${event.eventId}")
+        }
         val battle = battleSystem.resolveBattle(current.player, event)
-        val outcomeText = if (battle.victory) event.successText else event.failText
-        val safeHp = if (battle.victory) battle.playerRemainingHp else max(1, battle.playerRemainingHp)
+        val defeated = battle.playerRemainingHp <= 0 || current.player.hp <= 0
+        val victory = battle.victory && !defeated
+        val outcomeText = if (victory) event.successText else event.failText
+        val safeHp = if (victory) battle.playerRemainingHp else max(1, battle.playerRemainingHp)
         val postBattlePlayer = current.player.copy(hp = safeHp)
-        val applied = if (battle.victory) {
+        val applied = if (victory) {
             applyEventResult(postBattlePlayer, event.result, event, "战斗奖励")
         } else {
             ResultApplication(postBattlePlayer, emptyList())
         }
         val rewardPlayer = applied.player
+        val expDelta = if (victory) event.result?.expDelta ?: 0 else 0
+        val rewardSummaryLine = battleRewardSummary(postBattlePlayer, rewardPlayer, expDelta)
 
-        val resultSummary = if (battle.victory) {
+        val resultSummary = if (victory) {
             event.result?.let { summarizeResult(it) } ?: "战斗无额外奖励"
         } else {
             "战斗失败，保留部分资源后继续"
@@ -1659,16 +1696,16 @@ class GameViewModel(
                     outcomeText.ifBlank { null },
                     event.logText.ifBlank { null },
                     resultSummary
-                ) + applied.logs
+                ) + listOf(rewardSummaryLine) + applied.logs
             )
         }
 
-        val nextEventId = if (battle.victory) {
+        val nextEventId = if (victory) {
             event.result?.nextEventId ?: event.nextEventId
         } else {
             event.failEventId
         }
-        val nextNodeId = if (battle.victory) event.result?.nextNodeId else null
+        val nextNodeId = if (victory) event.result?.nextNodeId else null
         advanceToNextNode(
             incrementTurn = true,
             forcedEventId = nextEventId,
