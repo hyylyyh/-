@@ -87,6 +87,7 @@ fun GameApp(
                     onUnequipSlot = viewModel::onUnequipSlot,
                     onSave = viewModel::onSave,
                     onLoad = viewModel::onLoad,
+                    onReturnToMain = viewModel::onReturnToMain,
                     showSkillFormula = state.showSkillFormula,
                     onToggleShowSkillFormula = viewModel::onToggleShowSkillFormula
                 )
@@ -626,6 +627,7 @@ private fun SidePanel(
     onUnequipSlot: (EquipmentSlot) -> Unit,
     onSave: (Int) -> Unit,
     onLoad: (Int) -> Unit,
+    onReturnToMain: () -> Unit,
     showSkillFormula: Boolean,
     onToggleShowSkillFormula: (Boolean) -> Unit
 ) {
@@ -639,6 +641,16 @@ private fun SidePanel(
                 }
             }
             return
+        }
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(text = "主界面", fontWeight = FontWeight.Bold)
+                Divider(modifier = Modifier.padding(vertical = 6.dp))
+                Text("返回主界面可以重新选择存档与角色。", color = Color(0xFFB8B2A6))
+                Button(onClick = onReturnToMain, modifier = Modifier.fillMaxWidth()) {
+                    Text("返回主界面")
+                }
+            }
         }
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(12.dp)) {

@@ -436,6 +436,33 @@ class GameViewModel(
         }
     }
 
+    fun onReturnToMain() {
+        GameLogger.info(logTag, "返回主界面并重新选择角色")
+        battleSession = null
+        battleEventId = null
+        stageRuntime = null
+        pendingNewSaveSlot = null
+        val initialRole = roles.firstOrNull { it.unlocked }
+        _state.update { current ->
+            current.copy(
+                screen = GameScreen.SAVE_SELECT,
+                selectedSaveSlot = null,
+                selectedRoleId = initialRole?.id ?: "",
+                turn = 1,
+                chapter = 1,
+                stage = StageUiState(),
+                player = PlayerStats(),
+                currentEvent = null,
+                enemyPreview = null,
+                battle = null,
+                choices = emptyList(),
+                lastAction = "已返回主界面",
+                log = current.log + "返回主界面，重新选择存档与角色"
+            )
+        }
+        refreshSaveSlots()
+    }
+
     private fun advanceToNextNode(
         incrementTurn: Boolean,
         forcedEventId: String? = null,
