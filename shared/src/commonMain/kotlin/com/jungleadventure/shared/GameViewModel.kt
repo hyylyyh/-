@@ -1113,8 +1113,15 @@ class GameViewModel(
         } else {
             player.expToNext
         }
+        val safeHp = if (player.hp <= 0) {
+            GameLogger.warn(logTag, "读取角色状态时生命为0，已自动修正为1，原因=$reason")
+            1
+        } else {
+            player.hp
+        }
         val normalized = player.copy(
             baseStats = base,
+            hp = safeHp,
             exp = player.exp.coerceAtLeast(0),
             expToNext = expToNext
         )
@@ -1534,8 +1541,14 @@ class GameViewModel(
             victory -> event.successText
             else -> event.failText
         }
+        val safeHp = if (!victory && !escaped && outcome.playerRemainingHp <= 0) {
+            GameLogger.warn(logTag, "战斗失败后生命为0，按失败惩罚规则保留1点生命以继续推进")
+            1
+        } else {
+            outcome.playerRemainingHp.coerceAtLeast(0)
+        }
         val basePlayer = _state.value.player.copy(
-            hp = outcome.playerRemainingHp.coerceAtLeast(0),
+            hp = safeHp,
             mp = battleSession?.player?.mp ?: _state.value.player.mp
         )
         val applied = if (victory) {
