@@ -70,7 +70,13 @@ class TurnBasedCombatEngine(private val rng: Random) {
         logs += actionResult.logs
         player = actionResult.player
         var enemy = actionResult.enemy
-        var cooldown = actionResult.cooldown
+        val previousCooldown = current.skillCooldown
+        var cooldown = actionResult.cooldown ?: previousCooldown
+        if (cooldown != previousCooldown) {
+            GameLogger.info("战斗", "技能冷却变更：$previousCooldown -> $cooldown（玩家行动=${action.type}）")
+        } else {
+            GameLogger.info("战斗", "技能冷却保持：$cooldown（玩家行动=${action.type}）")
+        }
         val mode = actionResult.mode ?: current.equipmentMode
         val escaped = actionResult.escaped
 
@@ -133,6 +139,11 @@ class TurnBasedCombatEngine(private val rng: Random) {
             (session.skillCooldown - 1).coerceAtLeast(0)
         } else {
             session.skillCooldown
+        }
+        if (advanceRound) {
+            GameLogger.info("战斗", "回合推进，技能冷却减少：${session.skillCooldown} -> $nextCooldown")
+        } else {
+            GameLogger.info("战斗", "不推进回合，技能冷却保持：${session.skillCooldown}")
         }
         val updatedSession = session.copy(
             player = player,
@@ -507,7 +518,7 @@ class TurnBasedCombatEngine(private val rng: Random) {
         val player: CombatActor,
         val enemy: CombatActor,
         val logs: List<String>,
-        val cooldown: Int = 0,
+        val cooldown: Int? = null,
         val mode: EquipmentMode? = null,
         val escaped: Boolean = false
     )
