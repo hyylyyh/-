@@ -1,4 +1,4 @@
-﻿{
+{
   "groups": [
     { "id": "eg_ch1_grass_cat_1", "enemyId": "e_grass_cat", "count": 1, "note": "草丛猫" },
     { "id": "eg_ch2_elite_1", "enemyId": "e_elite_badge", "count": 1, "note": "精英怪" },
