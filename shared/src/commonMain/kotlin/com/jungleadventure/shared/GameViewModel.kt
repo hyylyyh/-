@@ -549,10 +549,19 @@ class GameViewModel(
                 battle = null,
                 choices = emptyList(),
                 lastAction = "已返回主界面",
-                log = current.log + "返回主界面，重新选择存档与角色"
+                log = current.log + "返回主界面，重新选择存档与角色",
+                showDialog = false,
+                dialogTitle = "",
+                dialogMessage = ""
             )
         }
         refreshSaveSlots()
+    }
+
+    fun onDismissDialog() {
+        _state.update { current ->
+            if (!current.showDialog) current else current.copy(showDialog = false, dialogTitle = "", dialogMessage = "")
+        }
     }
 
     private fun advanceToNextNode(
@@ -1610,6 +1619,31 @@ class GameViewModel(
                     resultSummary
                 ) + outcome.logLines + listOf(rewardSummaryLine) + applied.logs
             )
+        }
+
+        if (!victory && !escaped) {
+            val chapter = _state.value.selectedChapter.coerceIn(1, totalChapters)
+            val difficulty = _state.value.selectedDifficulty.coerceIn(1, 5)
+            val turn = chapterStartTurn(chapter)
+            val dialogMessage = buildString {
+                append("战斗失败，已返回章节起点。\n")
+                append(resultSummary)
+                append("\n")
+                append(rewardSummaryLine)
+            }
+            GameLogger.warn(logTag, "战斗失败回退：章节=$chapter 难度=$difficulty 回合=$turn")
+            startStageForSelection(turn, chapter, difficulty, reason = "战斗失败回退")
+            _state.update { state ->
+                state.copy(
+                    screen = GameScreen.ADVENTURE,
+                    showDialog = true,
+                    dialogTitle = "战斗失败",
+                    dialogMessage = dialogMessage,
+                    lastAction = "战斗失败，已返回章节起点",
+                    log = state.log + "战斗失败，已返回章节起点"
+                )
+            }
+            return
         }
 
         if (escaped) {

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
@@ -22,6 +23,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -101,6 +103,18 @@ fun GameApp(
                     onToggleShowSkillFormula = viewModel::onToggleShowSkillFormula
                 )
             }
+        }
+        if (state.showDialog) {
+            AlertDialog(
+                onDismissRequest = viewModel::onDismissDialog,
+                title = { Text(state.dialogTitle.ifBlank { "提示" }) },
+                text = { Text(state.dialogMessage) },
+                confirmButton = {
+                    Button(onClick = viewModel::onDismissDialog) {
+                        Text("知道了")
+                    }
+                }
+            )
         }
     }
 }
@@ -1011,7 +1025,6 @@ private fun RoleActionPanel(
                     enabled = choiceMap.containsKey("battle_flee"),
                     onClick = { onChoice("battle_flee") }
                 )
-                Spacer(modifier = Modifier.weight(1f))
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
@@ -1032,7 +1045,7 @@ private fun RoleActionPanel(
 }
 
 @Composable
-private fun CompactActionButton(
+private fun RowScope.CompactActionButton(
     label: String,
     enabled: Boolean,
     onClick: () -> Unit
