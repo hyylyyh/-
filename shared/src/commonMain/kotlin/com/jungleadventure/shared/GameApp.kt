@@ -77,6 +77,10 @@ fun GameApp(
                     onConfirmChapterSelection = viewModel::onConfirmChapterSelection,
                     onCreateNewSave = viewModel::onCreateNewSave,
                     onLoadSave = viewModel::onLoad,
+                    onOpenStatus = viewModel::onOpenStatus,
+                    onOpenEquipment = viewModel::onOpenEquipment,
+                    onOpenInventory = viewModel::onOpenInventory,
+                    onOpenCards = viewModel::onOpenCards,
                     showSkillFormula = state.showSkillFormula,
                     onToggleShowSkillFormula = viewModel::onToggleShowSkillFormula
                 )
@@ -151,6 +155,10 @@ private fun MainPanel(
     onConfirmChapterSelection: () -> Unit,
     onCreateNewSave: (Int) -> Unit,
     onLoadSave: (Int) -> Unit,
+    onOpenStatus: () -> Unit,
+    onOpenEquipment: () -> Unit,
+    onOpenInventory: () -> Unit,
+    onOpenCards: () -> Unit,
     showSkillFormula: Boolean,
     onToggleShowSkillFormula: (Boolean) -> Unit
 ) {
@@ -257,7 +265,11 @@ private fun MainPanel(
                     RoleActionPanel(
                         choices = state.choices,
                         onChoice = onChoice,
-                        player = state.player
+                        player = state.player,
+                        onOpenStatus = onOpenStatus,
+                        onOpenEquipment = onOpenEquipment,
+                        onOpenInventory = onOpenInventory,
+                        onOpenCards = onOpenCards
                     )
                 }
             }
@@ -957,33 +969,80 @@ private fun EventActionPanel(
 private fun RoleActionPanel(
     choices: List<GameChoice>,
     onChoice: (String) -> Unit,
-    player: PlayerStats
+    player: PlayerStats,
+    onOpenStatus: () -> Unit,
+    onOpenEquipment: () -> Unit,
+    onOpenInventory: () -> Unit,
+    onOpenCards: () -> Unit
 ) {
+    val choiceMap = choices.associateBy { it.id }
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(12.dp)) {
             Text(text = "角色行动", fontWeight = FontWeight.Bold)
             Divider(modifier = Modifier.padding(vertical = 8.dp))
-            Text(text = "角色状态", fontWeight = FontWeight.SemiBold)
-            Spacer(modifier = Modifier.height(4.dp))
-            StatusPanel(player)
+            Text(text = "战斗操作", fontWeight = FontWeight.SemiBold)
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                CompactActionButton(
+                    label = "攻",
+                    enabled = choiceMap.containsKey("battle_attack"),
+                    onClick = { onChoice("battle_attack") }
+                )
+                CompactActionButton(
+                    label = "技",
+                    enabled = choiceMap.containsKey("battle_skill"),
+                    onClick = { onChoice("battle_skill") }
+                )
+                CompactActionButton(
+                    label = "药",
+                    enabled = choiceMap.containsKey("battle_item"),
+                    onClick = { onChoice("battle_item") }
+                )
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                CompactActionButton(
+                    label = "换",
+                    enabled = choiceMap.containsKey("battle_equip"),
+                    onClick = { onChoice("battle_equip") }
+                )
+                CompactActionButton(
+                    label = "撤",
+                    enabled = choiceMap.containsKey("battle_flee"),
+                    onClick = { onChoice("battle_flee") }
+                )
+                Spacer(modifier = Modifier.weight(1f))
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "我方 生命 ${player.hp}/${player.hpMax}  能量 ${player.mp}/${player.mpMax}  攻击 ${player.atk}  防御 ${player.def}",
+                color = Color(0xFFB8B2A6)
+            )
             Divider(modifier = Modifier.padding(vertical = 8.dp))
-            if (choices.isEmpty()) {
-                PlaceholderPanel("暂无可用行动")
-            } else {
-                val listState = rememberLazyListState()
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.height(260.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(choices, key = { it.id }) { choice ->
-                        Button(onClick = { onChoice(choice.id) }, modifier = Modifier.fillMaxWidth()) {
-                            Text(choice.label)
-                        }
-                    }
-                }
+            Text(text = "快捷面板", fontWeight = FontWeight.SemiBold)
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                CompactActionButton(label = "状", enabled = true, onClick = onOpenStatus)
+                CompactActionButton(label = "装", enabled = true, onClick = onOpenEquipment)
+                CompactActionButton(label = "包", enabled = true, onClick = onOpenInventory)
+                CompactActionButton(label = "卡", enabled = true, onClick = onOpenCards)
             }
         }
+    }
+}
+
+@Composable
+private fun CompactActionButton(
+    label: String,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.weight(1f)
+    ) {
+        Text(label)
     }
 }
 
