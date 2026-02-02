@@ -14,6 +14,7 @@ class TurnBasedCombatEngine(private val rng: Random) {
         val logs = mutableListOf<String>()
         logs += "战斗开始：${player.name} 对 ${enemy.name}"
         GameLogger.info("战斗", "初始化战斗会话：玩家生命=${player.hp}/${player.stats.hpMax} 敌人生命=${enemy.hp}/${enemy.stats.hpMax}")
+        val enemyCooldowns = buildEnemySkillCooldowns(enemy)
         return BattleSession(
             player = player,
             enemy = enemy,
@@ -22,6 +23,7 @@ class TurnBasedCombatEngine(private val rng: Random) {
             enemyDamageMultiplier = enemyDamageMultiplier,
             logLines = logs,
             skillCooldown = initialCooldown,
+            enemySkillCooldowns = enemyCooldowns,
             equipmentMode = EquipmentMode.NORMAL,
             basePlayerStats = player.stats
         )
@@ -86,6 +88,7 @@ class TurnBasedCombatEngine(private val rng: Random) {
                     player = player,
                     enemy = enemy,
                     skillCooldown = cooldown,
+                    enemySkillCooldowns = current.enemySkillCooldowns,
                     equipmentMode = mode,
                     basePlayerStats = current.basePlayerStats,
                     logLines = current.logLines + logs,
@@ -100,6 +103,7 @@ class TurnBasedCombatEngine(private val rng: Random) {
                 player = player,
                 enemy = enemy,
                 skillCooldown = cooldown,
+                enemySkillCooldowns = current.enemySkillCooldowns,
                 equipmentMode = mode,
                 basePlayerStats = current.basePlayerStats,
                 logLines = current.logLines + logs,
@@ -113,18 +117,34 @@ class TurnBasedCombatEngine(private val rng: Random) {
         val logs = mutableListOf<String>()
         var player = session.player
         var enemy = session.enemy
+        val cooldowns = session.enemySkillCooldowns.toMutableMap()
         val start = applyStartOfTurn(enemy)
         enemy = start.actor
         logs += start.logs
         if (!start.skipTurn) {
-            val attack = resolveAttack(
-                attacker = enemy,
-                target = player,
-                damageMultiplier = session.enemyDamageMultiplier
-            )
-            player = attack.player
-            enemy = attack.enemy
-            logs += attack.logs
+            val enemySkill = pickEnemySkill(enemy, cooldowns)
+            if (enemySkill == null) {
+                val attack = resolveAttack(
+                    attacker = enemy,
+                    target = player,
+                    damageMultiplier = session.enemyDamageMultiplier
+                )
+                player = attack.player
+                enemy = attack.enemy
+                logs += attack.logs
+            } else {
+                val result = resolveEnemySkill(
+                    attacker = enemy,
+                    target = player,
+                    skill = enemySkill,
+                    damageMultiplier = session.enemyDamageMultiplier
+                )
+                player = result.player
+                enemy = result.enemy
+                logs += result.logs
+                cooldowns[enemySkill.id] = enemySkill.cooldown.coerceAtLeast(1)
+                GameLogger.info("战斗", "敌人技能冷却启动：${enemySkill.name} -> ${cooldowns[enemySkill.id]}")
+            }
         }
 
         val endEnemy = applyEndOfTurn(enemy)
@@ -135,6 +155,11 @@ class TurnBasedCombatEngine(private val rng: Random) {
         logs += endPlayer.logs
 
         val nextRound = if (advanceRound) session.round + 1 else session.round
+        val nextEnemyCooldowns = if (advanceRound) {
+            cooldowns.mapValues { (_, value) -> (value - 1).coerceAtLeast(0) }
+        } else {
+            cooldowns
+        }
         val nextCooldown = if (advanceRound) {
             (session.skillCooldown - 1).coerceAtLeast(0)
         } else {
@@ -150,6 +175,7 @@ class TurnBasedCombatEngine(private val rng: Random) {
             enemy = enemy,
             round = nextRound,
             skillCooldown = nextCooldown,
+            enemySkillCooldowns = nextEnemyCooldowns,
             basePlayerStats = session.basePlayerStats,
             logLines = session.logLines + logs
         )
@@ -278,6 +304,116 @@ class TurnBasedCombatEngine(private val rng: Random) {
             enemy = if (attacker.type == CombatActorType.ENEMY) attacker else nextTarget,
             logs = logs
         )
+    }
+
+    private fun buildEnemySkillCooldowns(enemy: CombatActor): Map<String, Int> {
+        if (enemy.skills.isEmpty()) return emptyMap()
+        return enemy.skills.associate { it.id to 0 }
+    }
+
+    private fun pickEnemySkill(
+        enemy: CombatActor,
+        cooldowns: Map<String, Int>
+    ): EnemySkillDefinition? {
+        if (enemy.skills.isEmpty()) return null
+        val available = enemy.skills.filter { skill ->
+            (cooldowns[skill.id] ?: 0) <= 0
+        }
+        if (available.isEmpty()) return null
+        val totalChance = available.sumOf { it.chance.coerceIn(0.0, 1.0) }.coerceAtMost(1.0)
+        val roll = rng.nextDouble()
+        if (roll > totalChance) {
+            GameLogger.info("战斗", "敌人未触发技能使用：判定=${"%.2f".format(roll)} 阈值=${"%.2f".format(totalChance)}")
+            return null
+        }
+        val weightedTotal = available.sumOf { it.chance.coerceAtLeast(0.0) }
+        if (weightedTotal <= 0.0) return null
+        var cursor = rng.nextDouble() * weightedTotal
+        for (skill in available) {
+            cursor -= skill.chance.coerceAtLeast(0.0)
+            if (cursor <= 0.0) return skill
+        }
+        return available.last()
+    }
+
+    private fun resolveEnemySkill(
+        attacker: CombatActor,
+        target: CombatActor,
+        skill: EnemySkillDefinition,
+        damageMultiplier: Double
+    ): ActionResult {
+        var nextEnemy = attacker
+        var nextPlayer = target
+        val logs = mutableListOf<String>()
+        logs += "${attacker.name} 释放技能：${skill.name}"
+        GameLogger.info("战斗", "敌人释放技能：${skill.name} 备注=${skill.note.ifBlank { "无" }}")
+
+        val skillDamageMultiplier = skill.damageMultiplier ?: 0.0
+        if (skillDamageMultiplier > 0.0) {
+            val result = resolveAttack(nextEnemy, nextPlayer, damageMultiplier * skillDamageMultiplier)
+            nextEnemy = result.enemy
+            nextPlayer = result.player
+            logs += result.logs
+        }
+
+        if (skill.healRate > 0.0) {
+            val amount = max(1, (nextEnemy.stats.hpMax * skill.healRate).toInt())
+            val nextHp = (nextEnemy.hp + amount).coerceAtMost(nextEnemy.stats.hpMax)
+            nextEnemy = nextEnemy.withHp(nextHp)
+            val log = "${nextEnemy.name} 恢复生命 $amount，生命 ${nextHp}/${nextEnemy.stats.hpMax}"
+            logs += log
+            GameLogger.info("战斗", log)
+        }
+
+        if (!skill.statusType.isNullOrBlank() && skill.statusTurns > 0) {
+            val status = statusFromSkill(skill, attacker.id)
+            if (status != null) {
+                val targetIsSelf = isSelfBuffStatus(skill.statusType)
+                if (targetIsSelf) {
+                    nextEnemy = addStatus(nextEnemy, status)
+                    val log = "${nextEnemy.name} 获得状态 ${status.type}（${status.remainingTurns}回合）"
+                    logs += log
+                    GameLogger.info("战斗", log)
+                } else {
+                    nextPlayer = addStatus(nextPlayer, status)
+                    val log = "${nextPlayer.name} 被施加状态 ${status.type}（${status.remainingTurns}回合）"
+                    logs += log
+                    GameLogger.info("战斗", log)
+                }
+            }
+        }
+
+        return ActionResult(
+            player = nextPlayer,
+            enemy = nextEnemy,
+            logs = logs
+        )
+    }
+
+    private fun statusFromSkill(skill: EnemySkillDefinition, sourceId: String): StatusInstance? {
+        val type = when (skill.statusType?.uppercase()) {
+            "POISON" -> StatusType.POISON
+            "BLEED" -> StatusType.BLEED
+            "STUN" -> StatusType.STUN
+            "SHIELD" -> StatusType.SHIELD
+            "HASTE" -> StatusType.HASTE
+            "SLOW" -> StatusType.SLOW
+            else -> null
+        } ?: return null
+        return StatusInstance(
+            type = type,
+            remainingTurns = skill.statusTurns.coerceAtLeast(1),
+            stacks = skill.statusStacks.coerceAtLeast(1),
+            potency = skill.statusPotency.coerceAtLeast(0.0),
+            sourceId = sourceId
+        )
+    }
+
+    private fun isSelfBuffStatus(raw: String?): Boolean {
+        return when (raw?.uppercase()) {
+            "SHIELD", "HASTE" -> true
+            else -> false
+        }
     }
 
     private fun resolveSkillAction(

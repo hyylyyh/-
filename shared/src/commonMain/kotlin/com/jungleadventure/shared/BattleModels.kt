@@ -8,6 +8,7 @@ data class BattleSession(
     val enemyDamageMultiplier: Double,
     val logLines: List<String>,
     val skillCooldown: Int,
+    val enemySkillCooldowns: Map<String, Int>,
     val equipmentMode: EquipmentMode,
     val basePlayerStats: CombatStats,
     val escaped: Boolean = false

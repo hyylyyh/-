@@ -1,65 +1,17 @@
-{
+﻿{
   "schema": "stages.v1",
   "stages": [
     {
       "id": "stage_1",
-      "name": "雨林入口",
+      "name": "第一章：丛林试炼",
       "chapter": 1,
       "difficulty": 1,
       "floors": 1,
-      "nodes": ["st1_n1", "st1_n2", "st1_n3", "st1_branch", "st1_hidden", "st1_n4", "st1_exit"],
-      "entry": "st1_n1",
-      "exit": "st1_exit",
-      "command": "MOSS-01",
-      "guardianPool": ["eg_stage1_guardian_a", "eg_stage1_guardian_b"]
-    },
-    {
-      "id": "stage_2",
-      "name": "节目任务单",
-      "chapter": 2,
-      "difficulty": 2,
-      "floors": 1,
-      "nodes": ["st2_n1", "st2_n2", "st2_n3", "st2_branch", "st2_hidden", "st2_n4", "st2_exit"],
-      "entry": "st2_n1",
-      "exit": "st2_exit",
-      "command": "BADGE-02",
-      "guardianPool": ["eg_stage2_guardian_a", "eg_stage2_guardian_b"]
-    },
-    {
-      "id": "stage_3",
-      "name": "打工人吐槽会",
-      "chapter": 3,
-      "difficulty": 3,
-      "floors": 1,
-      "nodes": ["st3_n1", "st3_hidden", "st3_n2", "st3_n3", "st3_n4", "st3_exit"],
-      "entry": "st3_n1",
-      "exit": "st3_exit",
-      "command": "UNION-03",
-      "guardianPool": ["eg_stage3_guardian_a", "eg_stage3_guardian_b"]
-    },
-    {
-      "id": "stage_4",
-      "name": "出口反转铺垫",
-      "chapter": 4,
-      "difficulty": 4,
-      "floors": 1,
-      "nodes": ["st4_n1", "st4_n2", "st4_branch", "st4_n3", "st4_n4", "st4_exit"],
-      "entry": "st4_n1",
-      "exit": "st4_exit",
-      "command": "MIRROR-04",
-      "guardianPool": ["eg_stage4_guardian_a", "eg_stage4_guardian_b"]
-    },
-    {
-      "id": "stage_5",
-      "name": "最后一步",
-      "chapter": 5,
-      "difficulty": 5,
-      "floors": 1,
-      "nodes": ["st5_n1", "st5_branch", "st5_n2", "st5_n3", "st5_n4", "st5_exit"],
-      "entry": "st5_n1",
-      "exit": "st5_exit",
-      "command": "STAMP-05",
-      "guardianPool": ["eg_stage5_guardian_a", "eg_stage5_guardian_b"]
+      "nodes": ["1-1", "1-2", "1-3", "1-4", "1-5", "1-6", "1-7", "1-8", "1-9", "1-10"],
+      "entry": "1-1",
+      "exit": "1-10",
+      "command": "JUNGLE-01",
+      "guardianPool": []
     }
   ]
 }

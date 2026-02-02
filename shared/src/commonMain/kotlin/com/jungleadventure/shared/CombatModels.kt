@@ -12,6 +12,7 @@ data class CombatActor(
     val stats: CombatStats,
     val hp: Int,
     val mp: Int,
+    val skills: List<EnemySkillDefinition> = emptyList(),
     val statuses: List<StatusInstance> = emptyList()
 ) {
     fun withHp(nextHp: Int): CombatActor {

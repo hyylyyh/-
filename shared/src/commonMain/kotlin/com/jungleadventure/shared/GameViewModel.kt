@@ -780,6 +780,9 @@ class GameViewModel(
     }
 
     private fun chapterForTurn(turn: Int): Int {
+        if (monsterOnlyMode) {
+            return _state.value.selectedChapter.coerceIn(1, maxChapter)
+        }
         val raw = ((turn - 1) / 3) + 1
         return min(maxChapter, max(1, raw))
     }
@@ -986,13 +989,53 @@ class GameViewModel(
             LootSourceType.EVENT
         }
         val pity = player.pityCounters.toMutableMap()
-        val outcome = lootRepository.generateLoot(sourceType, tier, rng, pity)
+        val bonusChance = bonusLootChance(event)
+        val bonusRoll = rng.nextDouble() < bonusChance
+        val totalRolls = if (bonusRoll) 2 else 1
+        if (bonusRoll) {
+            GameLogger.info(
+                "掉落系统",
+                "触发额外掉落判定：来源=$sourceType 层级=$tier 掉落表=$dropTableId 额外概率=${"%.2f".format(bonusChance)} 原因=$reason"
+            )
+        }
+        var updatedPlayer = player.copy(pityCounters = pity)
+        val logs = mutableListOf<String>()
+        repeat(totalRolls) { rollIndex ->
+            val outcome = lootRepository.generateLoot(sourceType, tier, rng, pity)
+            GameLogger.info(
+                "掉落系统",
+                "生成掉落：来源=$sourceType 层级=$tier 掉落表=$dropTableId 结果=$outcome 轮次=${rollIndex + 1}/$totalRolls 原因=$reason"
+            )
+            if (rollIndex > 0) {
+                logs += "高难度追加掉落触发"
+            }
+            val applied = applyLootOutcome(updatedPlayer, outcome, dropTableId)
+            updatedPlayer = applied.player
+            logs += applied.logs
+        }
+        return LootApplication(updatedPlayer, logs)
+    }
+
+    private fun bonusLootChance(event: EventDefinition?): Double {
+        if (event == null) return 0.0
+        val difficulty = event.difficulty.coerceIn(1, 5)
+        val base = when {
+            difficulty >= 5 -> 0.35
+            difficulty >= 4 -> 0.25
+            difficulty >= 3 -> 0.15
+            else -> 0.0
+        }
+        val tagBonus = when {
+            event.type.contains("boss", ignoreCase = true) -> 0.15
+            event.type.contains("elite", ignoreCase = true) -> 0.1
+            else -> 0.0
+        }
+        val chance = (base + tagBonus).coerceIn(0.0, 0.6)
         GameLogger.info(
             "掉落系统",
-            "生成掉落：来源=$sourceType 层级=$tier 掉落表=$dropTableId 结果=$outcome 原因=$reason"
+            "额外掉落概率计算：难度=$difficulty 类型=${event.type} 概率=${"%.2f".format(chance)}"
         )
-        val updatedPlayer = player.copy(pityCounters = pity)
-        return applyLootOutcome(updatedPlayer, outcome, dropTableId)
+        return chance
     }
 
     private fun applyLootOutcome(
@@ -1091,12 +1134,22 @@ class GameViewModel(
             dropTableId.contains("ch5") -> 3
             else -> difficulty
         }
+        val difficultyBonus = when {
+            difficulty >= 5 -> 2
+            difficulty >= 4 -> 1
+            else -> 0
+        }
         val bonus = when {
             dropTableId.contains("boss") -> 2
             dropTableId.contains("elite") -> 1
             else -> 0
         }
-        return (chapterTier + bonus).coerceIn(1, 3)
+        val tier = (chapterTier + bonus + difficultyBonus).coerceIn(1, 3)
+        GameLogger.info(
+            "掉落系统",
+            "掉落层级计算：掉落表=$dropTableId 难度=$difficulty 基准=$chapterTier 奖励=$bonus 难度加成=$difficultyBonus -> $tier"
+        )
+        return tier
     }
 
     private fun summarizeResult(result: EventResult): String {
@@ -1788,20 +1841,25 @@ class GameViewModel(
         }
 
         val count = group.count.coerceAtLeast(1)
-        val hpMultiplier = event.battleModifiers?.enemyHpMultiplier ?: 1.0
-        val damageMultiplier = event.battleModifiers?.enemyDamageMultiplier ?: 1.0
+        val modifiers = event.battleModifiers ?: BattleModifiers()
+        val hpMultiplier = modifiers.enemyHpMultiplier
+        val damageMultiplier = modifiers.enemyDamageMultiplier
+        val atkMultiplier = modifiers.enemyAtkMultiplier
+        val defMultiplier = modifiers.enemyDefMultiplier
+        val spdMultiplier = modifiers.enemySpdMultiplier
         val groupHpMultiplier = if (count <= 1) 1.0 else 1.0 + 0.35 * (count - 1)
         val groupAtkMultiplier = if (count <= 1) 1.0 else 1.0 + 0.2 * (count - 1)
         val groupDefMultiplier = if (count <= 1) 1.0 else 1.0 + 0.15 * (count - 1)
         val groupSpdMultiplier = if (count <= 1) 1.0 else 1.0 + 0.05 * (count - 1)
 
         val scaledHp = (enemyDef.stats.hp * groupHpMultiplier * hpMultiplier).toInt().coerceAtLeast(1)
-        val scaledAtk = (enemyDef.stats.atk * groupAtkMultiplier * damageMultiplier).toInt().coerceAtLeast(1)
-        val scaledDef = (enemyDef.stats.def * groupDefMultiplier).toInt().coerceAtLeast(1)
-        val scaledSpd = (enemyDef.stats.spd * groupSpdMultiplier).toInt().coerceAtLeast(1)
+        val scaledAtk = (enemyDef.stats.atk * groupAtkMultiplier * atkMultiplier).toInt().coerceAtLeast(1)
+        val scaledDef = (enemyDef.stats.def * groupDefMultiplier * defMultiplier).toInt().coerceAtLeast(1)
+        val scaledSpd = (enemyDef.stats.spd * groupSpdMultiplier * spdMultiplier).toInt().coerceAtLeast(1)
 
         val playerScore = player.hp + player.atk * 2.0 + player.def * 1.5 + player.speed * 0.8
-        val enemyScore = scaledHp + scaledAtk * 2.0 + scaledDef * 1.5 + scaledSpd * 0.8
+        val effectiveAtk = scaledAtk * damageMultiplier
+        val enemyScore = scaledHp + effectiveAtk * 2.0 + scaledDef * 1.5 + scaledSpd * 0.8
         var ratio = if (enemyScore <= 0.0) 1.0 else playerScore / enemyScore
 
         when (event.firstStrike) {
@@ -2072,33 +2130,51 @@ class GameViewModel(
             )
             return buildGuardianEvent(runtime, chapter)
         }
-        val groupId = pickMonsterGroupId(runtime, node, chapter)
+        val difficulty = _state.value.selectedDifficulty.coerceIn(1, 5)
+        val nodeIndex = parseNodeIndex(node.id)
+        val isElite = nodeIndex == 5
+        val isBoss = nodeIndex == 10 || isExitNode
+        val groupId = pickMonsterGroupId(runtime, node, chapter, nodeIndex)
         val enemyName = guardianNameForGroup(groupId)
-        val rewardGold = 4 + chapter * 3 + runtime.stage.difficulty * 2
-        val rewardExp = 4 + chapter * 4 + runtime.stage.difficulty * 2
+        val rewardGold = 4 + chapter * 3 + difficulty * 2 + if (isElite) 6 else 0 + if (isBoss) 14 else 0
+        val rewardExp = 4 + chapter * 4 + difficulty * 2 + if (isElite) 8 else 0 + if (isBoss) 18 else 0
+        val dropTableId = dropTableIdForMonster(difficulty, isElite, isBoss)
+        val battleModifiers = battleModifiersForDifficulty(difficulty, isElite, isBoss)
+        val typeLabel = when {
+            isBoss -> "battle_boss"
+            isElite -> "battle_elite"
+            else -> "battle_normal"
+        }
+        val titlePrefix = when {
+            isBoss -> "首领战"
+            isElite -> "精英战"
+            else -> "遭遇战"
+        }
         GameLogger.info(
             logTag,
-            "纯怪物模式：生成遭遇战 关卡=${runtime.stage.id} 节点=${node.id} 敌群=$groupId 敌人=$enemyName 章节=$chapter"
+            "纯怪物模式：生成战斗 关卡=${runtime.stage.id} 节点=${node.id} 敌群=$groupId 敌人=$enemyName 章节=$chapter 难度=$difficulty 精英=$isElite 首领=$isBoss 掉落表=$dropTableId"
         )
         return EventDefinition(
             eventId = "battle_only_${runtime.stage.id}_${node.id}_$groupId",
             chapter = chapter,
-            title = "遭遇战 · $enemyName",
-            type = "battle_only",
-            difficulty = runtime.stage.difficulty,
+            title = "$titlePrefix · $enemyName",
+            type = typeLabel,
+            difficulty = difficulty,
             weight = 1,
             cooldown = 0,
-            introText = "你遇到了 $enemyName，战斗在所难免。",
+            introText = "你在 ${node.id} 遇到了 $enemyName，战斗在所难免。",
             successText = "敌人被击退，你可以继续前进。",
             failText = "你被逼退，但仍可继续探索。",
-            logText = "遭遇战结束：$enemyName",
+            logText = "战斗结束：$enemyName",
             result = EventResult(
                 hpDelta = 0,
                 mpDelta = 0,
                 goldDelta = rewardGold,
-                expDelta = rewardExp
+                expDelta = rewardExp,
+                dropTableId = dropTableId
             ),
             enemyGroupId = groupId,
+            battleModifiers = battleModifiers,
             firstStrike = "speed"
         )
     }
@@ -2106,15 +2182,27 @@ class GameViewModel(
     private fun pickMonsterGroupId(
         runtime: StageRuntime,
         node: NodeDefinition,
-        chapter: Int
+        chapter: Int,
+        nodeIndex: Int?
     ): String {
         val allGroups = enemyRepository.allGroups()
         if (allGroups.isEmpty()) {
             GameLogger.warn(logTag, "敌群配置为空，改用默认敌群")
             return "eg_default"
         }
-        val chapterKey = "ch$chapter"
-        val chapterGroups = allGroups.filter { it.id.contains(chapterKey, ignoreCase = true) }
+        val preferred = nodeIndex?.let { index ->
+            val id = "eg_${chapter}_$index"
+            allGroups.firstOrNull { it.id == id }
+        }
+        if (preferred != null) {
+            GameLogger.info(
+                logTag,
+                "纯怪物模式：节点直取敌群 关卡=${runtime.stage.id} 节点=${node.id} 章节=$chapter 选中=${preferred.id}"
+            )
+            return preferred.id
+        }
+        val chapterKey = "${chapter}_"
+        val chapterGroups = allGroups.filter { it.id.startsWith("eg_${chapterKey}") }
         val candidates = if (chapterGroups.isEmpty()) allGroups else chapterGroups
         val selected = candidates[rng.nextInt(candidates.size)]
         GameLogger.info(
@@ -2122,6 +2210,64 @@ class GameViewModel(
             "纯怪物模式：抽取敌群 关卡=${runtime.stage.id} 节点=${node.id} 章节=$chapter 候选=${candidates.size} 选中=${selected.id}"
         )
         return selected.id
+    }
+
+    private fun parseNodeIndex(nodeId: String): Int? {
+        val parts = nodeId.split("-")
+        if (parts.size != 2) return null
+        val index = parts[1].toIntOrNull()
+        if (index == null) {
+            GameLogger.warn(logTag, "节点编号解析失败：$nodeId")
+        }
+        return index
+    }
+
+    private fun battleModifiersForDifficulty(
+        difficulty: Int,
+        isElite: Boolean,
+        isBoss: Boolean
+    ): BattleModifiers {
+        val baseHp = 1.0 + (difficulty - 1) * 0.08
+        val baseAtk = 1.0 + (difficulty - 1) * 0.07
+        val baseDef = 1.0 + (difficulty - 1) * 0.06
+        val baseSpd = 1.0 + (difficulty - 1) * 0.03
+        val eliteBonus = if (isElite) 0.12 else 0.0
+        val bossBonus = if (isBoss) 0.22 else 0.0
+        val hpMultiplier = baseHp + eliteBonus + bossBonus
+        val atkMultiplier = baseAtk + eliteBonus + bossBonus
+        val defMultiplier = baseDef + eliteBonus * 0.7 + bossBonus * 0.8
+        val spdMultiplier = baseSpd + eliteBonus * 0.4 + bossBonus * 0.5
+        val damageMultiplier = 1.0 + (difficulty - 1) * 0.05 + if (isBoss) 0.08 else 0.0
+        GameLogger.info(
+            logTag,
+            "难度倍率：难度=$difficulty 精英=$isElite 首领=$isBoss 生命=$hpMultiplier 攻击=$atkMultiplier 防御=$defMultiplier 速度=$spdMultiplier 伤害=$damageMultiplier"
+        )
+        return BattleModifiers(
+            enemyHpMultiplier = hpMultiplier,
+            enemyDamageMultiplier = damageMultiplier,
+            enemyAtkMultiplier = atkMultiplier,
+            enemyDefMultiplier = defMultiplier,
+            enemySpdMultiplier = spdMultiplier
+        )
+    }
+
+    private fun dropTableIdForMonster(
+        difficulty: Int,
+        isElite: Boolean,
+        isBoss: Boolean
+    ): String {
+        val baseTier = when {
+            difficulty >= 5 -> 3
+            difficulty >= 3 -> 2
+            else -> 1
+        }
+        val bonus = when {
+            isBoss -> 1
+            isElite -> 1
+            else -> 0
+        }
+        val tier = (baseTier + bonus).coerceIn(1, 3)
+        return "enemy_tier_$tier"
     }
 
     private fun buildGuardianEvent(runtime: StageRuntime, chapter: Int): EventDefinition {

@@ -53,5 +53,8 @@ data class EventResult(
 @Serializable
 data class BattleModifiers(
     val enemyHpMultiplier: Double = 1.0,
-    val enemyDamageMultiplier: Double = 1.0
+    val enemyDamageMultiplier: Double = 1.0,
+    val enemyAtkMultiplier: Double = 1.0,
+    val enemyDefMultiplier: Double = 1.0,
+    val enemySpdMultiplier: Double = 1.0
 )

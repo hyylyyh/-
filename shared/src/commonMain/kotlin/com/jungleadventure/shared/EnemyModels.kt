@@ -19,6 +19,7 @@ data class EnemyDefinition(
     val type: String,
     val level: Int,
     val stats: EnemyStats,
+    val skills: List<EnemySkillDefinition> = emptyList(),
     val notes: String = ""
 )
 
@@ -33,6 +34,21 @@ data class EnemyStats(
     val crit: Int = 8,
     val critDmg: Double = 1.5,
     val resist: Int = 0
+)
+
+@Serializable
+data class EnemySkillDefinition(
+    val id: String,
+    val name: String,
+    val cooldown: Int = 2,
+    val chance: Double = 0.35,
+    val damageMultiplier: Double? = null,
+    val healRate: Double = 0.0,
+    val statusType: String? = null,
+    val statusTurns: Int = 0,
+    val statusStacks: Int = 1,
+    val statusPotency: Double = 0.0,
+    val note: String = ""
 )
 
 @Serializable
@@ -70,68 +86,110 @@ fun defaultEnemyFile(): EnemyFile {
     return EnemyFile(
         enemies = listOf(
             EnemyDefinition(
-                id = "e_grass_cat",
-                name = "草丛猫",
+                id = "e_jungle_scout",
+                name = "丛林斥候",
                 type = "普通",
                 level = 1,
-                stats = EnemyStats(hp = 30, atk = 8, def = 2, spd = 9, hit = 78, eva = 10, crit = 8, critDmg = 1.5, resist = 2),
-                notes = "爱摸鱼的草丛猫。"
+                stats = EnemyStats(hp = 36, atk = 9, def = 3, spd = 10, hit = 78, eva = 10, crit = 8, critDmg = 1.5, resist = 2),
+                skills = listOf(
+                    EnemySkillDefinition(
+                        id = "es_quick_claw",
+                        name = "迅爪",
+                        cooldown = 2,
+                        chance = 0.35,
+                        damageMultiplier = 1.1,
+                        note = "小幅提升伤害"
+                    )
+                ),
+                notes = "行动灵活的小怪。"
             ),
             EnemyDefinition(
-                id = "e_elite_badge",
-                name = "徽章精英",
-                type = "精英",
-                level = 2,
-                stats = EnemyStats(hp = 55, atk = 14, def = 6, spd = 10, hit = 80, eva = 12, crit = 10, critDmg = 1.6, resist = 4),
-                notes = "背着考勤机的精英怪。"
-            ),
-            EnemyDefinition(
-                id = "e_temp_worker",
-                name = "临时工怪物",
+                id = "e_jungle_viper",
+                name = "剧毒蜥蜴",
                 type = "普通",
+                level = 1,
+                stats = EnemyStats(hp = 34, atk = 8, def = 4, spd = 9, hit = 76, eva = 12, crit = 7, critDmg = 1.5, resist = 2),
+                skills = listOf(
+                    EnemySkillDefinition(
+                        id = "es_venom_bite",
+                        name = "毒咬",
+                        cooldown = 3,
+                        chance = 0.3,
+                        damageMultiplier = 0.9,
+                        statusType = "POISON",
+                        statusTurns = 2,
+                        statusPotency = 0.03,
+                        note = "附带中毒"
+                    )
+                ),
+                notes = "带毒的小型爬行怪。"
+            ),
+            EnemyDefinition(
+                id = "e_jungle_elite",
+                name = "丛林精英",
+                type = "精英",
                 level = 2,
-                stats = EnemyStats(hp = 42, atk = 12, def = 5, spd = 9, hit = 78, eva = 10, crit = 9, critDmg = 1.5, resist = 3),
-                notes = "一边吐槽一边出手。"
+                stats = EnemyStats(hp = 70, atk = 16, def = 7, spd = 11, hit = 82, eva = 12, crit = 10, critDmg = 1.6, resist = 4),
+                skills = listOf(
+                    EnemySkillDefinition(
+                        id = "es_heavy_strike",
+                        name = "重击",
+                        cooldown = 3,
+                        chance = 0.4,
+                        damageMultiplier = 1.35,
+                        note = "高伤害重击"
+                    ),
+                    EnemySkillDefinition(
+                        id = "es_stun_smash",
+                        name = "震慑",
+                        cooldown = 4,
+                        chance = 0.25,
+                        damageMultiplier = 0.9,
+                        statusType = "STUN",
+                        statusTurns = 1,
+                        note = "附带眩晕"
+                    )
+                ),
+                notes = "比普通怪更强的精英单位。"
             ),
             EnemyDefinition(
-                id = "e_overtime_pack",
-                name = "加班怪小队",
-                type = "精英",
-                level = 3,
-                stats = EnemyStats(hp = 65, atk = 16, def = 7, spd = 11, hit = 82, eva = 13, crit = 12, critDmg = 1.6, resist = 4),
-                notes = "三人小队，输出密集。"
-            ),
-            EnemyDefinition(
-                id = "e_mini_boss",
-                name = "小首领",
-                type = "精英",
-                level = 3,
-                stats = EnemyStats(hp = 80, atk = 18, def = 8, spd = 12, hit = 83, eva = 13, crit = 12, critDmg = 1.7, resist = 5),
-                notes = "章节小首领。"
-            ),
-            EnemyDefinition(
-                id = "e_sponsor_gladiator",
-                name = "赞助商挑战者",
-                type = "精英",
-                level = 4,
-                stats = EnemyStats(hp = 95, atk = 22, def = 10, spd = 12, hit = 85, eva = 14, crit = 14, critDmg = 1.7, resist = 6),
-                notes = "限定回合的强敌。"
-            ),
-            EnemyDefinition(
-                id = "e_outpost_guard",
-                name = "前哨守卫",
-                type = "精英",
-                level = 4,
-                stats = EnemyStats(hp = 110, atk = 24, def = 11, spd = 12, hit = 86, eva = 14, crit = 14, critDmg = 1.7, resist = 6),
-                notes = "负责守门的强力精英。"
-            ),
-            EnemyDefinition(
-                id = "e_final_boss",
-                name = "终极首领",
+                id = "e_jungle_boss",
+                name = "丛林巨兽",
                 type = "首领",
-                level = 5,
-                stats = EnemyStats(hp = 150, atk = 30, def = 14, spd = 13, hit = 88, eva = 15, crit = 16, critDmg = 1.8, resist = 8),
-                notes = "最终关卡首领。"
+                level = 3,
+                stats = EnemyStats(hp = 130, atk = 24, def = 12, spd = 12, hit = 86, eva = 12, crit = 14, critDmg = 1.8, resist = 6),
+                skills = listOf(
+                    EnemySkillDefinition(
+                        id = "es_frenzy_rend",
+                        name = "狂暴撕裂",
+                        cooldown = 4,
+                        chance = 0.35,
+                        damageMultiplier = 1.45,
+                        statusType = "BLEED",
+                        statusTurns = 2,
+                        statusPotency = 0.04,
+                        note = "高伤害并造成流血"
+                    ),
+                    EnemySkillDefinition(
+                        id = "es_boss_guard",
+                        name = "护体",
+                        cooldown = 5,
+                        chance = 0.25,
+                        statusType = "SHIELD",
+                        statusTurns = 2,
+                        statusStacks = 1,
+                        note = "获得护盾"
+                    ),
+                    EnemySkillDefinition(
+                        id = "es_boss_recover",
+                        name = "自愈",
+                        cooldown = 5,
+                        chance = 0.2,
+                        healRate = 0.15,
+                        note = "恢复生命"
+                    )
+                ),
+                notes = "关卡最终首领。"
             )
         )
     )
@@ -140,15 +198,17 @@ fun defaultEnemyFile(): EnemyFile {
 fun defaultEnemyGroupFile(): EnemyGroupFile {
     return EnemyGroupFile(
         groups = listOf(
-            EnemyGroupDefinition(id = "eg_ch1_grass_cat_1", enemyId = "e_grass_cat", count = 1, note = "草丛猫"),
-            EnemyGroupDefinition(id = "eg_ch2_elite_1", enemyId = "e_elite_badge", count = 1, note = "精英怪"),
-            EnemyGroupDefinition(id = "eg_ch2_temp_worker", enemyId = "e_temp_worker", count = 1, note = "临时工怪物"),
-            EnemyGroupDefinition(id = "eg_ch3_group_1", enemyId = "e_overtime_pack", count = 3, note = "群怪战"),
-            EnemyGroupDefinition(id = "eg_ch3_mini_boss", enemyId = "e_mini_boss", count = 1, note = "小首领"),
-            EnemyGroupDefinition(id = "eg_ch4_sponsor_1", enemyId = "e_sponsor_gladiator", count = 1, note = "赞助商挑战"),
-            EnemyGroupDefinition(id = "eg_ch4_outpost", enemyId = "e_outpost_guard", count = 1, note = "首领前哨"),
-            EnemyGroupDefinition(id = "eg_ch5_final_boss", enemyId = "e_final_boss", count = 1, note = "最终首领"),
-            EnemyGroupDefinition(id = "eg_default", enemyId = "e_grass_cat", count = 1, note = "默认敌人")
+            EnemyGroupDefinition(id = "eg_1_1", enemyId = "e_jungle_scout", count = 1, note = "1-1"),
+            EnemyGroupDefinition(id = "eg_1_2", enemyId = "e_jungle_viper", count = 1, note = "1-2"),
+            EnemyGroupDefinition(id = "eg_1_3", enemyId = "e_jungle_scout", count = 1, note = "1-3"),
+            EnemyGroupDefinition(id = "eg_1_4", enemyId = "e_jungle_viper", count = 1, note = "1-4"),
+            EnemyGroupDefinition(id = "eg_1_5", enemyId = "e_jungle_elite", count = 1, note = "1-5 精英"),
+            EnemyGroupDefinition(id = "eg_1_6", enemyId = "e_jungle_scout", count = 2, note = "1-6"),
+            EnemyGroupDefinition(id = "eg_1_7", enemyId = "e_jungle_viper", count = 2, note = "1-7"),
+            EnemyGroupDefinition(id = "eg_1_8", enemyId = "e_jungle_scout", count = 1, note = "1-8"),
+            EnemyGroupDefinition(id = "eg_1_9", enemyId = "e_jungle_viper", count = 1, note = "1-9"),
+            EnemyGroupDefinition(id = "eg_1_10", enemyId = "e_jungle_boss", count = 1, note = "1-10 首领"),
+            EnemyGroupDefinition(id = "eg_default", enemyId = "e_jungle_scout", count = 1, note = "默认敌人")
         )
     )
 }

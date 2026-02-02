@@ -1,328 +1,150 @@
-{
+﻿{
   "enemies": [
     {
-      "id": "e_grass_cat",
-      "name": "草丛猫",
-      "type": "??",
+      "id": "e_jungle_scout",
+      "name": "丛林斥候",
+      "type": "普通",
       "level": 1,
       "stats": {
-        "hp": 30,
-        "atk": 8,
-        "def": 2,
-        "spd": 9,
+        "hp": 36,
+        "atk": 9,
+        "def": 3,
+        "spd": 10,
         "hit": 78,
         "eva": 10,
         "crit": 8,
         "critDmg": 1.5,
         "resist": 2
       },
-      "notes": "爱摸鱼的草丛猫。"
+      "skills": [
+        {
+          "id": "es_quick_claw",
+          "name": "迅爪",
+          "cooldown": 2,
+          "chance": 0.35,
+          "damageMultiplier": 1.1,
+          "note": "小幅提升伤害"
+        }
+      ],
+      "notes": "行动灵活的小怪。"
     },
     {
-      "id": "e_elite_badge",
-      "name": "徽章精英",
-      "type": "??",
-      "level": 2,
+      "id": "e_jungle_viper",
+      "name": "剧毒蜥蜴",
+      "type": "普通",
+      "level": 1,
       "stats": {
-        "hp": 55,
-        "atk": 14,
-        "def": 6,
-        "spd": 10,
-        "hit": 80,
-        "eva": 12,
-        "crit": 10,
-        "critDmg": 1.6,
-        "resist": 4
-      },
-      "notes": "背着考勤机的精英怪。"
-    },
-    {
-      "id": "e_temp_worker",
-      "name": "临时工怪物",
-      "type": "??",
-      "level": 2,
-      "stats": {
-        "hp": 42,
-        "atk": 12,
-        "def": 5,
+        "hp": 34,
+        "atk": 8,
+        "def": 4,
         "spd": 9,
-        "hit": 78,
-        "eva": 10,
-        "crit": 9,
+        "hit": 76,
+        "eva": 12,
+        "crit": 7,
         "critDmg": 1.5,
-        "resist": 3
+        "resist": 2
       },
-      "notes": "一边吐槽一边出手。"
+      "skills": [
+        {
+          "id": "es_venom_bite",
+          "name": "毒咬",
+          "cooldown": 3,
+          "chance": 0.3,
+          "damageMultiplier": 0.9,
+          "statusType": "POISON",
+          "statusTurns": 2,
+          "statusPotency": 0.03,
+          "note": "附带中毒"
+        }
+      ],
+      "notes": "带毒的小型爬行怪。"
     },
     {
-      "id": "e_overtime_pack",
-      "name": "加班怪小队",
-      "type": "??",
-      "level": 3,
+      "id": "e_jungle_elite",
+      "name": "丛林精英",
+      "type": "精英",
+      "level": 2,
       "stats": {
-        "hp": 65,
+        "hp": 70,
         "atk": 16,
         "def": 7,
         "spd": 11,
         "hit": 82,
-        "eva": 13,
-        "crit": 12,
-        "critDmg": 1.6,
-        "resist": 4
-      },
-      "notes": "三人小队，输出密集。"
-    },
-    {
-      "id": "e_mini_boss",
-      "name": "小首领",
-      "type": "??",
-      "level": 3,
-      "stats": {
-        "hp": 80,
-        "atk": 18,
-        "def": 8,
-        "spd": 12,
-        "hit": 83,
-        "eva": 13,
-        "crit": 12,
-        "critDmg": 1.7,
-        "resist": 5
-      },
-      "notes": "章节小Boss。"
-    },
-    {
-      "id": "e_sponsor_gladiator",
-      "name": "赞助商挑战者",
-      "type": "??",
-      "level": 4,
-      "stats": {
-        "hp": 95,
-        "atk": 22,
-        "def": 10,
-        "spd": 12,
-        "hit": 85,
-        "eva": 14,
-        "crit": 14,
-        "critDmg": 1.7,
-        "resist": 6
-      },
-      "notes": "限定回合的强敌。"
-    },
-    {
-      "id": "e_outpost_guard",
-      "name": "前哨守卫",
-      "type": "??",
-      "level": 4,
-      "stats": {
-        "hp": 110,
-        "atk": 24,
-        "def": 11,
-        "spd": 12,
-        "hit": 86,
-        "eva": 14,
-        "crit": 14,
-        "critDmg": 1.7,
-        "resist": 6
-      },
-      "notes": "负责守门的强力精英。"
-    },
-    {
-      "id": "e_final_boss",
-      "name": "终极首领",
-      "type": "??",
-      "level": 5,
-      "stats": {
-        "hp": 150,
-        "atk": 30,
-        "def": 14,
-        "spd": 13,
-        "hit": 88,
-        "eva": 15,
-        "crit": 16,
-        "critDmg": 1.8,
-        "resist": 8
-      },
-      "notes": "最终关卡Boss。"
-    },
-    {
-      "id": "e_guardian_moss",
-      "name": "苔纹守卫",
-      "type": "??",
-      "level": 1,
-      "stats": {
-        "hp": 40,
-        "atk": 9,
-        "def": 4,
-        "spd": 8,
-        "hit": 80,
-        "eva": 10,
-        "crit": 8,
-        "critDmg": 1.5,
-        "resist": 3
-      },
-      "notes": "雨林入口的苔纹石像。"
-    },
-    {
-      "id": "e_guardian_vine",
-      "name": "藤蔓守卫",
-      "type": "??",
-      "level": 1,
-      "stats": {
-        "hp": 36,
-        "atk": 10,
-        "def": 3,
-        "spd": 10,
-        "hit": 81,
-        "eva": 12,
-        "crit": 9,
-        "critDmg": 1.5,
-        "resist": 2
-      },
-      "notes": "会捆人的藤蔓卫兵。"
-    },
-    {
-      "id": "e_guardian_badge",
-      "name": "考勤守卫",
-      "type": "??",
-      "level": 2,
-      "stats": {
-        "hp": 62,
-        "atk": 14,
-        "def": 6,
-        "spd": 10,
-        "hit": 82,
         "eva": 12,
         "crit": 10,
         "critDmg": 1.6,
         "resist": 4
       },
-      "notes": "胸前挂满工牌。"
+      "skills": [
+        {
+          "id": "es_heavy_strike",
+          "name": "重击",
+          "cooldown": 3,
+          "chance": 0.4,
+          "damageMultiplier": 1.35,
+          "note": "高伤害重击"
+        },
+        {
+          "id": "es_stun_smash",
+          "name": "震慑",
+          "cooldown": 4,
+          "chance": 0.25,
+          "damageMultiplier": 0.9,
+          "statusType": "STUN",
+          "statusTurns": 1,
+          "note": "附带眩晕"
+        }
+      ],
+      "notes": "比普通怪更强的精英单位。"
     },
     {
-      "id": "e_guardian_clipboard",
-      "name": "清单守卫",
-      "type": "??",
-      "level": 2,
-      "stats": {
-        "hp": 58,
-        "atk": 15,
-        "def": 5,
-        "spd": 11,
-        "hit": 82,
-        "eva": 13,
-        "crit": 10,
-        "critDmg": 1.6,
-        "resist": 4
-      },
-      "notes": "拿着任务清单盯你。"
-    },
-    {
-      "id": "e_guardian_union",
-      "name": "罢工守卫",
-      "type": "??",
+      "id": "e_jungle_boss",
+      "name": "丛林巨兽",
+      "type": "首领",
       "level": 3,
       "stats": {
-        "hp": 85,
-        "atk": 18,
-        "def": 8,
-        "spd": 12,
-        "hit": 84,
-        "eva": 13,
-        "crit": 12,
-        "critDmg": 1.7,
-        "resist": 5
-      },
-      "notes": "带着喇叭的守卫。"
-    },
-    {
-      "id": "e_guardian_overtime",
-      "name": "加班守卫",
-      "type": "??",
-      "level": 3,
-      "stats": {
-        "hp": 78,
-        "atk": 20,
-        "def": 7,
-        "spd": 13,
-        "hit": 84,
-        "eva": 14,
-        "crit": 13,
-        "critDmg": 1.7,
-        "resist": 5
-      },
-      "notes": "疲惫但很凶。"
-    },
-    {
-      "id": "e_guardian_mirror",
-      "name": "镜像守卫",
-      "type": "??",
-      "level": 4,
-      "stats": {
-        "hp": 110,
-        "atk": 23,
-        "def": 11,
-        "spd": 12,
-        "hit": 86,
-        "eva": 14,
-        "crit": 14,
-        "critDmg": 1.7,
-        "resist": 6
-      },
-      "notes": "招式像你一样。"
-    },
-    {
-      "id": "e_guardian_fake_exit",
-      "name": "假出口守卫",
-      "type": "??",
-      "level": 4,
-      "stats": {
-        "hp": 105,
+        "hp": 130,
         "atk": 24,
-        "def": 10,
-        "spd": 13,
+        "def": 12,
+        "spd": 12,
         "hit": 86,
-        "eva": 14,
+        "eva": 12,
         "crit": 14,
-        "critDmg": 1.7,
+        "critDmg": 1.8,
         "resist": 6
       },
-      "notes": "专门把人骗回去。"
-    },
-    {
-      "id": "e_guardian_stamp",
-      "name": "盖章守卫",
-      "type": "??",
-      "level": 5,
-      "stats": {
-        "hp": 155,
-        "atk": 29,
-        "def": 14,
-        "spd": 13,
-        "hit": 88,
-        "eva": 15,
-        "crit": 16,
-        "critDmg": 1.8,
-        "resist": 8
-      },
-      "notes": "只认通关凭证。"
-    },
-    {
-      "id": "e_guardian_gate",
-      "name": "关门守卫",
-      "type": "??",
-      "level": 5,
-      "stats": {
-        "hp": 160,
-        "atk": 30,
-        "def": 15,
-        "spd": 12,
-        "hit": 88,
-        "eva": 14,
-        "crit": 15,
-        "critDmg": 1.8,
-        "resist": 8
-      },
-      "notes": "守着最后一步的大门。"
+      "skills": [
+        {
+          "id": "es_frenzy_rend",
+          "name": "狂暴撕裂",
+          "cooldown": 4,
+          "chance": 0.35,
+          "damageMultiplier": 1.45,
+          "statusType": "BLEED",
+          "statusTurns": 2,
+          "statusPotency": 0.04,
+          "note": "高伤害并造成流血"
+        },
+        {
+          "id": "es_boss_guard",
+          "name": "护体",
+          "cooldown": 5,
+          "chance": 0.25,
+          "statusType": "SHIELD",
+          "statusTurns": 2,
+          "statusStacks": 1,
+          "note": "获得护盾"
+        },
+        {
+          "id": "es_boss_recover",
+          "name": "自愈",
+          "cooldown": 5,
+          "chance": 0.2,
+          "healRate": 0.15,
+          "note": "恢复生命"
+        }
+      ],
+      "notes": "关卡最终首领。"
     }
   ]
 }
