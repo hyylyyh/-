@@ -89,6 +89,7 @@ fun GameApp(
                 SidePanel(
                     modifier = Modifier.weight(0.8f),
                     state = state,
+                    onChoice = viewModel::onSelectChoice,
                     onOpenStatus = viewModel::onOpenStatus,
                     onOpenEquipment = viewModel::onOpenEquipment,
                     onOpenInventory = viewModel::onOpenInventory,
@@ -220,6 +221,13 @@ private fun MainPanel(
                 )
             }
             GameScreen.ADVENTURE -> {
+                if (state.battle != null) {
+                    BattleInfoPanel(
+                        player = state.player,
+                        battle = state.battle,
+                        enemyPreview = state.enemyPreview
+                    )
+                }
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(text = "当前事件", fontWeight = FontWeight.Bold)
@@ -274,16 +282,6 @@ private fun MainPanel(
                         choices = state.choices,
                         onChoice = onChoice,
                         onAdvance = onAdvance
-                    )
-                } else {
-                    RoleActionPanel(
-                        choices = state.choices,
-                        onChoice = onChoice,
-                        player = state.player,
-                        onOpenStatus = onOpenStatus,
-                        onOpenEquipment = onOpenEquipment,
-                        onOpenInventory = onOpenInventory,
-                        onOpenCards = onOpenCards
                     )
                 }
             }
@@ -733,6 +731,7 @@ private fun RoleAvatar(name: String, size: Dp, background: Color, textColor: Col
 private fun SidePanel(
     modifier: Modifier,
     state: GameUiState,
+    onChoice: (String) -> Unit,
     onOpenStatus: () -> Unit,
     onOpenEquipment: () -> Unit,
     onOpenInventory: () -> Unit,
@@ -786,12 +785,23 @@ private fun SidePanel(
         }
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(text = "敌人情报", fontWeight = FontWeight.Bold)
-                Divider(modifier = Modifier.padding(vertical = 4.dp))
-                if (state.enemyPreview == null) {
-                    PlaceholderPanel("暂无敌人情报")
+                if (state.battle == null) {
+                    Text(text = "敌人情报", fontWeight = FontWeight.Bold)
+                    Divider(modifier = Modifier.padding(vertical = 4.dp))
+                    if (state.enemyPreview == null) {
+                        PlaceholderPanel("暂无敌人情报")
+                    } else {
+                        EnemyPreviewPanel(preview = state.enemyPreview)
+                    }
                 } else {
-                    EnemyPreviewPanel(preview = state.enemyPreview)
+                    BattleOperationPanel(
+                        choices = state.choices,
+                        onChoice = onChoice,
+                        onOpenStatus = onOpenStatus,
+                        onOpenEquipment = onOpenEquipment,
+                        onOpenInventory = onOpenInventory,
+                        onOpenCards = onOpenCards
+                    )
                 }
             }
         }
@@ -980,10 +990,41 @@ private fun EventActionPanel(
 }
 
 @Composable
-private fun RoleActionPanel(
+private fun BattleInfoPanel(
+    player: PlayerStats,
+    battle: BattleUiState?,
+    enemyPreview: EnemyPreviewUiState?
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(text = "战斗面板", fontWeight = FontWeight.Bold)
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                InfoBlock(
+                    title = "我方情报",
+                    lines = listOf(
+                        "${player.name}  等级 ${player.level}",
+                        "生命 ${player.hp}/${player.hpMax}  能量 ${player.mp}/${player.mpMax}",
+                        "攻击 ${player.atk}  防御 ${player.def}  速度 ${player.speed}"
+                    )
+                )
+                val enemyLines = buildEnemyInfoLines(battle, enemyPreview)
+                InfoBlock(
+                    title = "敌人情报",
+                    lines = enemyLines
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BattleOperationPanel(
     choices: List<GameChoice>,
     onChoice: (String) -> Unit,
-    player: PlayerStats,
     onOpenStatus: () -> Unit,
     onOpenEquipment: () -> Unit,
     onOpenInventory: () -> Unit,
@@ -992,60 +1033,53 @@ private fun RoleActionPanel(
     val choiceMap = choices.associateBy { it.id }
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(12.dp)) {
-            Text(text = "角色行动", fontWeight = FontWeight.Bold)
+            Text(text = "战斗操作", fontWeight = FontWeight.Bold)
             Divider(modifier = Modifier.padding(vertical = 8.dp))
-            Text(text = "战斗操作", fontWeight = FontWeight.SemiBold)
-            Spacer(modifier = Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                CompactActionButton(
-                    label = "攻",
+                ActionIconButton(
+                    label = "攻击",
                     enabled = choiceMap.containsKey("battle_attack"),
                     onClick = { onChoice("battle_attack") }
                 )
-                CompactActionButton(
-                    label = "技",
+                ActionIconButton(
+                    label = "技能",
                     enabled = choiceMap.containsKey("battle_skill"),
                     onClick = { onChoice("battle_skill") }
                 )
-                CompactActionButton(
-                    label = "药",
+                ActionIconButton(
+                    label = "药丸",
                     enabled = choiceMap.containsKey("battle_item"),
                     onClick = { onChoice("battle_item") }
                 )
             }
             Spacer(modifier = Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                CompactActionButton(
-                    label = "换",
+                ActionIconButton(
+                    label = "换装",
                     enabled = choiceMap.containsKey("battle_equip"),
                     onClick = { onChoice("battle_equip") }
                 )
-                CompactActionButton(
-                    label = "撤",
+                ActionIconButton(
+                    label = "撤离",
                     enabled = choiceMap.containsKey("battle_flee"),
                     onClick = { onChoice("battle_flee") }
                 )
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "我方 生命 ${player.hp}/${player.hpMax}  能量 ${player.mp}/${player.mpMax}  攻击 ${player.atk}  防御 ${player.def}",
-                color = Color(0xFFB8B2A6)
-            )
             Divider(modifier = Modifier.padding(vertical = 8.dp))
             Text(text = "快捷面板", fontWeight = FontWeight.SemiBold)
             Spacer(modifier = Modifier.height(4.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                CompactActionButton(label = "状", enabled = true, onClick = onOpenStatus)
-                CompactActionButton(label = "装", enabled = true, onClick = onOpenEquipment)
-                CompactActionButton(label = "包", enabled = true, onClick = onOpenInventory)
-                CompactActionButton(label = "卡", enabled = true, onClick = onOpenCards)
+                ActionIconButton(label = "状态", enabled = true, onClick = onOpenStatus)
+                ActionIconButton(label = "装备", enabled = true, onClick = onOpenEquipment)
+                ActionIconButton(label = "背包", enabled = true, onClick = onOpenInventory)
+                ActionIconButton(label = "卡牌", enabled = true, onClick = onOpenCards)
             }
         }
     }
 }
 
 @Composable
-private fun RowScope.CompactActionButton(
+private fun RowScope.ActionIconButton(
     label: String,
     enabled: Boolean,
     onClick: () -> Unit
@@ -1053,10 +1087,46 @@ private fun RowScope.CompactActionButton(
     Button(
         onClick = onClick,
         enabled = enabled,
-        modifier = Modifier.weight(1f)
+        modifier = Modifier
+            .width(96.dp)
+            .height(44.dp)
     ) {
         Text(label)
     }
+}
+
+@Composable
+private fun RowScope.InfoBlock(title: String, lines: List<String>) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF182720)),
+        modifier = Modifier.weight(1f)
+    ) {
+        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(text = title, fontWeight = FontWeight.SemiBold)
+            lines.forEach { line ->
+                Text(text = line, color = Color(0xFFB8B2A6))
+            }
+        }
+    }
+}
+
+private fun buildEnemyInfoLines(
+    battle: BattleUiState?,
+    enemyPreview: EnemyPreviewUiState?
+): List<String> {
+    val lines = mutableListOf<String>()
+    if (battle != null) {
+        lines += "${battle.enemyName}"
+        lines += "生命 ${battle.enemyHp}  能量 ${battle.enemyMp}"
+    }
+    if (enemyPreview != null) {
+        lines += "等级 ${enemyPreview.level}  数量 ${enemyPreview.count}"
+        lines += "攻击 ${enemyPreview.atk}  防御 ${enemyPreview.def}  速度 ${enemyPreview.speed}"
+    }
+    if (lines.isEmpty()) {
+        lines += "暂无敌人情报"
+    }
+    return lines
 }
 
 @Composable
