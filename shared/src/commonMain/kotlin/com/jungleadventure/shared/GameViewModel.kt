@@ -1612,6 +1612,18 @@ class GameViewModel(
             )
         }
 
+        if (escaped) {
+            GameLogger.info(logTag, "玩家撤离战斗，返回关卡选择界面")
+            _state.update { state ->
+                state.copy(
+                    screen = GameScreen.CHAPTER_SELECT,
+                    lastAction = "已撤离战斗，返回关卡选择",
+                    log = state.log + "已撤离战斗，返回关卡选择"
+                )
+            }
+            return
+        }
+
         val nextEventId = if (victory) {
             event.result?.nextEventId ?: event.nextEventId
         } else {
