@@ -27,7 +27,13 @@ data class GameUiState(
     val showSkillFormula: Boolean = false,
     val showDialog: Boolean = false,
     val dialogTitle: String = "",
-    val dialogMessage: String = ""
+    val dialogMessage: String = "",
+    val showCardDialog: Boolean = false,
+    val cardOptions: List<CardInstance> = emptyList(),
+    val cardDialogLevel: Int = 0,
+    val cardDialogReason: String = "",
+    val pendingCardLevels: List<Int> = emptyList(),
+    val pendingCardReasons: List<String> = emptyList()
 )
 
 data class BattleUiState(

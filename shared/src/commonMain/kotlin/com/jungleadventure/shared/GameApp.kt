@@ -1,5 +1,6 @@
 ﻿package com.jungleadventure.shared
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -105,8 +106,14 @@ fun GameApp(
                     onToggleShowSkillFormula = viewModel::onToggleShowSkillFormula
                 )
             }
-        }
-        if (state.showDialog) {
+    }
+        if (state.showCardDialog) {
+            CardSelectDialog(
+                level = state.cardDialogLevel,
+                options = state.cardOptions,
+                onSelect = viewModel::onSelectCardOption
+            )
+        } else if (state.showDialog) {
             AlertDialog(
                 onDismissRequest = viewModel::onDismissDialog,
                 title = { Text(state.dialogTitle.ifBlank { "提示" }) },
@@ -1018,6 +1025,56 @@ private fun CardPanel(player: PlayerStats) {
 }
 
 @Composable
+private fun CardSelectDialog(
+    level: Int,
+    options: List<CardInstance>,
+    onSelect: (String) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = {},
+        title = { Text(text = "卡牌抉择 Lv$level") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "请选择 1 张卡牌，选择后立即生效。",
+                    color = Color(0xFFB8B2A6)
+                )
+                options.forEach { card ->
+                    val qualityColor = cardQualityColor(card.quality)
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF182720)),
+                        border = BorderStroke(1.dp, qualityColor)
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "${card.name}（${cardQualityLabel(card.quality)}）",
+                                fontWeight = FontWeight.SemiBold,
+                                color = qualityColor
+                            )
+                            Text(
+                                text = "类型 ${if (card.isGood) "厉害" else "垃圾"}",
+                                color = Color(0xFFB8B2A6)
+                            )
+                            Text(text = card.description, color = Color(0xFFB8B2A6))
+                            Text(
+                                text = "效果 ${formatCardEffects(card.effects)}",
+                                color = Color(0xFF8DB38B)
+                            )
+                            Button(onClick = { onSelect(card.uid) }, modifier = Modifier.fillMaxWidth()) {
+                                Text("选择这张")
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {}
+    )
+}
+
+@Composable
 private fun EventActionPanel(
     choices: List<GameChoice>,
     onChoice: (String) -> Unit,
@@ -1301,6 +1358,16 @@ private fun cardQualityLabel(quality: CardQuality): String {
         CardQuality.RARE -> "稀有"
         CardQuality.EPIC -> "史诗"
         CardQuality.LEGEND -> "传说"
+    }
+}
+
+private fun cardQualityColor(quality: CardQuality): Color {
+    return when (quality) {
+        CardQuality.COMMON -> Color(0xFF8F8F8F)
+        CardQuality.UNCOMMON -> Color(0xFF6FBF73)
+        CardQuality.RARE -> Color(0xFF5DADE2)
+        CardQuality.EPIC -> Color(0xFFF39C12)
+        CardQuality.LEGEND -> Color(0xFFF5C542)
     }
 }
 

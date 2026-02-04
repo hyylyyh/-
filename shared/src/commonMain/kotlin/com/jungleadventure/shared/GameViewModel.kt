@@ -269,7 +269,9 @@ class GameViewModel(
                 log = current.log + listOfNotNull(
                     currentEvent.logText.ifBlank { null },
                     result?.let { summarizeResult(it) }
-                ) + applied.logs
+                ) + applied.logs,
+                pendingCardLevels = current.pendingCardLevels + applied.pendingCardLevels,
+                pendingCardReasons = current.pendingCardReasons + applied.pendingCardReasons
             )
         }
 
@@ -278,6 +280,7 @@ class GameViewModel(
             forcedEventId = nextEventId,
             forcedNodeId = nextNodeId
         )
+        openNextCardDialogIfNeeded()
     }
 
     fun onOpenStatus() {
@@ -532,7 +535,13 @@ class GameViewModel(
                 battle = null,
                 choices = emptyList(),
                 lastAction = "已选择新存档槽位 $slot",
-                log = current.log + "已选择新存档槽位 $slot，请选择角色"
+                log = current.log + "已选择新存档槽位 $slot，请选择角色",
+                showCardDialog = false,
+                cardOptions = emptyList(),
+                cardDialogLevel = 0,
+                cardDialogReason = "",
+                pendingCardLevels = emptyList(),
+                pendingCardReasons = emptyList()
             )
         }
     }
@@ -564,7 +573,13 @@ class GameViewModel(
                 log = current.log + "返回主界面，重新选择存档与角色",
                 showDialog = false,
                 dialogTitle = "",
-                dialogMessage = ""
+                dialogMessage = "",
+                showCardDialog = false,
+                cardOptions = emptyList(),
+                cardDialogLevel = 0,
+                cardDialogReason = "",
+                pendingCardLevels = emptyList(),
+                pendingCardReasons = emptyList()
             )
         }
         refreshSaveSlots()
@@ -574,6 +589,43 @@ class GameViewModel(
         _state.update { current ->
             if (!current.showDialog) current else current.copy(showDialog = false, dialogTitle = "", dialogMessage = "")
         }
+    }
+
+    fun onSelectCardOption(uid: String) {
+        val current = _state.value
+        if (!current.showCardDialog) {
+            GameLogger.warn(logTag, "卡牌选择已关闭，忽略选择：$uid")
+            return
+        }
+        val option = current.cardOptions.firstOrNull { it.uid == uid }
+        if (option == null) {
+            GameLogger.warn(logTag, "未找到卡牌选项：$uid")
+            return
+        }
+        val qualityLabel = cardQualityLabel(option.quality)
+        val goodLabel = if (option.isGood) "厉害" else "垃圾"
+        val effectText = formatCardEffects(option.effects)
+        val logLine = "选择卡牌：Lv${current.cardDialogLevel} ${option.name}（$qualityLabel/$goodLabel）效果：$effectText"
+        GameLogger.info(
+            logTag,
+            "卡牌选择完成：等级=${current.cardDialogLevel} 品质=$qualityLabel 类型=$goodLabel 名称=${option.name} 原因=${current.cardDialogReason}"
+        )
+        val nextPlayer = recalculatePlayerStats(
+            current.player.copy(cards = current.player.cards + option),
+            "选择卡牌"
+        )
+        _state.update { state ->
+            state.copy(
+                player = nextPlayer,
+                showCardDialog = false,
+                cardOptions = emptyList(),
+                cardDialogLevel = 0,
+                cardDialogReason = "",
+                lastAction = "已选择卡牌",
+                log = state.log + logLine
+            )
+        }
+        openNextCardDialogIfNeeded()
     }
 
     private fun advanceToNextNode(
@@ -732,6 +784,12 @@ class GameViewModel(
                 choices = choices,
                 activePanel = saveGame.activePanel,
                 showSkillFormula = saveGame.showSkillFormula,
+                showCardDialog = saveGame.showCardDialog,
+                cardOptions = saveGame.cardOptions,
+                cardDialogLevel = saveGame.cardDialogLevel,
+                cardDialogReason = saveGame.cardDialogReason,
+                pendingCardLevels = saveGame.pendingCardLevels,
+                pendingCardReasons = saveGame.pendingCardReasons,
                 lastAction = "已读取槽位 $slot",
                 log = saveGame.log + "已读取槽位 $slot",
                 saveSlots = current.saveSlots
@@ -739,6 +797,10 @@ class GameViewModel(
         }
         if (event != null && isBattleEvent(event)) {
             startBattleSession(event)
+        }
+        if (!saveGame.showCardDialog && saveGame.pendingCardLevels.isNotEmpty()) {
+            GameLogger.info(logTag, "存档包含未处理卡牌抉择，准备恢复弹窗")
+            openNextCardDialogIfNeeded()
         }
     }
 
@@ -888,7 +950,9 @@ class GameViewModel(
 
     private data class ResultApplication(
         val player: PlayerStats,
-        val logs: List<String>
+        val logs: List<String>,
+        val pendingCardLevels: List<Int> = emptyList(),
+        val pendingCardReasons: List<String> = emptyList()
     )
 
     private data class LootApplication(
@@ -923,10 +987,14 @@ class GameViewModel(
         )
 
         val logs = mutableListOf<String>()
+        val pendingLevels = mutableListOf<Int>()
+        val pendingReasons = mutableListOf<String>()
         if (result.expDelta != 0) {
             val expApplied = applyExperience(updated, result.expDelta, reason)
             updated = expApplied.player
             logs += expApplied.logs
+            pendingLevels += expApplied.pendingCardLevels
+            pendingReasons += expApplied.pendingCardReasons
         }
         val dropId = result.dropTableId ?: event?.dropTableId
         if (!dropId.isNullOrBlank()) {
@@ -934,7 +1002,7 @@ class GameViewModel(
             updated = loot.player
             logs += loot.logs
         }
-        return ResultApplication(updated, logs)
+        return ResultApplication(updated, logs, pendingLevels, pendingReasons)
     }
 
     private fun applyExperience(
@@ -945,6 +1013,8 @@ class GameViewModel(
         val nextExp = (player.exp + expDelta).coerceAtLeast(0)
         var current = player.copy(exp = nextExp)
         val logs = mutableListOf<String>()
+        val pendingLevels = mutableListOf<Int>()
+        val pendingReasons = mutableListOf<String>()
         val growth = growthForRole(_state.value.selectedRoleId)
         logs += "经验变化 ${signed(expDelta)}（当前 ${current.exp}/${current.expToNext}）"
         GameLogger.info(
@@ -978,12 +1048,13 @@ class GameViewModel(
                 "角色升级：Lv$beforeLevel -> Lv$nextLevel 经验=${current.exp}/${current.expToNext} 原因=$reason"
             )
             if (nextLevel % 3 == 0) {
-                val cardApplied = grantCard(current, nextLevel, reason)
-                current = cardApplied.player
-                logs += cardApplied.logs
+                pendingLevels += nextLevel
+                pendingReasons += reason
+                logs += "触发卡牌抉择：Lv$nextLevel"
+                GameLogger.info(logTag, "触发卡牌抉择：等级=$nextLevel 原因=$reason")
             }
         }
-        return ResultApplication(current, logs)
+        return ResultApplication(current, logs, pendingLevels, pendingReasons)
     }
 
     private fun growthForRole(roleId: String): GrowthProfile {
@@ -1298,34 +1369,67 @@ class GameViewModel(
         return totals
     }
 
-    private fun grantCard(
-        player: PlayerStats,
-        level: Int,
-        reason: String
-    ): ResultApplication {
-        val definition = cardRepository.drawCard(rng)
-        val uid = "card_${player.cards.size + 1}_lv${level}_${kotlin.math.abs(rng.nextInt())}"
-        val instance = CardInstance(
-            uid = uid,
-            name = definition.name,
-            quality = definition.quality,
-            description = definition.description,
-            effects = definition.effects,
-            isGood = definition.isGood
-        )
-        val nextPlayer = recalculatePlayerStats(
-            player.copy(cards = player.cards + instance),
-            "获得卡牌"
-        )
-        val qualityLabel = cardQualityLabel(definition.quality)
-        val goodLabel = if (definition.isGood) "厉害" else "垃圾"
-        val effectText = formatCardEffects(definition.effects)
-        val logLine = "获得卡牌：${definition.name}（$qualityLabel/$goodLabel）效果：$effectText"
+    private fun openNextCardDialogIfNeeded() {
+        val current = _state.value
+        if (current.showCardDialog) {
+            GameLogger.info(logTag, "卡牌抉择已打开，等待玩家选择")
+            return
+        }
+        if (current.pendingCardLevels.isEmpty()) return
+        val level = current.pendingCardLevels.first()
+        val reason = current.pendingCardReasons.firstOrNull().orEmpty().ifBlank { "升级" }
+        val options = buildCardOptions(level, reason)
+        val optionLabels = options.joinToString(" / ") { option ->
+            val qualityLabel = cardQualityLabel(option.quality)
+            val goodLabel = if (option.isGood) "厉害" else "垃圾"
+            "${option.name}（$qualityLabel/$goodLabel）"
+        }
+        val optionLogs = options.mapIndexed { index, option ->
+            val qualityLabel = cardQualityLabel(option.quality)
+            val goodLabel = if (option.isGood) "厉害" else "垃圾"
+            val effectText = formatCardEffects(option.effects)
+            "候选卡牌${index + 1}：Lv$level ${option.name}（$qualityLabel/$goodLabel）效果：$effectText"
+        }
         GameLogger.info(
             logTag,
-            "卡牌发放：等级=$level 品质=$qualityLabel 类型=$goodLabel 名称=${definition.name} 原因=$reason"
+            "卡牌抉择开启：等级=$level 原因=$reason 选项=$optionLabels"
         )
-        return ResultApplication(nextPlayer, listOf(logLine))
+        _state.update { state ->
+            state.copy(
+                showCardDialog = true,
+                cardOptions = options,
+                cardDialogLevel = level,
+                cardDialogReason = reason,
+                pendingCardLevels = state.pendingCardLevels.drop(1),
+                pendingCardReasons = state.pendingCardReasons.drop(1),
+                lastAction = "卡牌抉择开启",
+                log = state.log + listOf("卡牌抉择：Lv$level 出现 3 张候选卡牌") + optionLogs
+            )
+        }
+    }
+
+    private fun buildCardOptions(level: Int, reason: String): List<CardInstance> {
+        val options = mutableListOf<CardInstance>()
+        repeat(3) { index ->
+            val definition = cardRepository.drawCard(rng)
+            val uid = "card_option_${level}_${index}_${kotlin.math.abs(rng.nextInt())}"
+            val instance = CardInstance(
+                uid = uid,
+                name = definition.name,
+                quality = definition.quality,
+                description = definition.description,
+                effects = definition.effects,
+                isGood = definition.isGood
+            )
+            options += instance
+            val qualityLabel = cardQualityLabel(definition.quality)
+            val goodLabel = if (definition.isGood) "厉害" else "垃圾"
+            GameLogger.info(
+                logTag,
+                "卡牌候选生成：等级=$level 序号=${index + 1} 品质=$qualityLabel 类型=$goodLabel 名称=${definition.name} 原因=$reason"
+            )
+        }
+        return options
     }
 
     private fun cardQualityLabel(quality: CardQuality): String {
@@ -1725,9 +1829,12 @@ class GameViewModel(
                     outcomeText.ifBlank { null },
                     event.logText.ifBlank { null },
                     resultSummary
-                ) + outcome.logLines + listOf(rewardSummaryLine) + applied.logs
+                ) + outcome.logLines + listOf(rewardSummaryLine) + applied.logs,
+                pendingCardLevels = state.pendingCardLevels + applied.pendingCardLevels,
+                pendingCardReasons = state.pendingCardReasons + applied.pendingCardReasons
             )
         }
+        openNextCardDialogIfNeeded()
 
         if (!victory && !escaped) {
             val chapter = _state.value.selectedChapter.coerceIn(1, totalChapters)
@@ -1856,9 +1963,12 @@ class GameViewModel(
                     outcomeText.ifBlank { null },
                     event.logText.ifBlank { null },
                     resultSummary
-                ) + listOf(rewardSummaryLine) + applied.logs
+                ) + listOf(rewardSummaryLine) + applied.logs,
+                pendingCardLevels = state.pendingCardLevels + applied.pendingCardLevels,
+                pendingCardReasons = state.pendingCardReasons + applied.pendingCardReasons
             )
         }
+        openNextCardDialogIfNeeded()
 
         if (victory && shouldTriggerShop(event)) {
             GameLogger.info(logTag, "自动战斗后触发商店")
@@ -2334,7 +2444,13 @@ class GameViewModel(
             nodeId = runtime?.currentNodeId,
             visitedNodes = runtime?.visited?.toList() ?: emptyList(),
             stageCompleted = runtime?.completed ?: false,
-            guardianGroupId = runtime?.guardianGroupId
+            guardianGroupId = runtime?.guardianGroupId,
+            showCardDialog = snapshot.showCardDialog,
+            cardOptions = snapshot.cardOptions,
+            cardDialogLevel = snapshot.cardDialogLevel,
+            cardDialogReason = snapshot.cardDialogReason,
+            pendingCardLevels = snapshot.pendingCardLevels,
+            pendingCardReasons = snapshot.pendingCardReasons
         )
     }
 
