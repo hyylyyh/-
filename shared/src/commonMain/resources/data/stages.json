@@ -3,7 +3,7 @@
   "stages": [
     {
       "id": "stage_1",
-      "name": "?1??????",
+      "name": "第1章：误入丛林乐园",
       "chapter": 1,
       "difficulty": 1,
       "floors": 1,
@@ -26,7 +26,7 @@
     },
     {
       "id": "stage_2",
-      "name": "?2??????",
+      "name": "第2章：节目组的任务单",
       "chapter": 2,
       "difficulty": 1,
       "floors": 1,
@@ -49,7 +49,7 @@
     },
     {
       "id": "stage_3",
-      "name": "?3??????",
+      "name": "第3章：打工人怪物的吐槽会",
       "chapter": 3,
       "difficulty": 1,
       "floors": 1,
@@ -72,7 +72,7 @@
     },
     {
       "id": "stage_4",
-      "name": "?4??????",
+      "name": "第4章：出口就在入口旁",
       "chapter": 4,
       "difficulty": 1,
       "floors": 1,
@@ -95,7 +95,7 @@
     },
     {
       "id": "stage_5",
-      "name": "?5??????",
+      "name": "第5章：最后一步",
       "chapter": 5,
       "difficulty": 1,
       "floors": 1,
@@ -118,7 +118,7 @@
     },
     {
       "id": "stage_6",
-      "name": "?6??????",
+      "name": "第6章：迷雾密林",
       "chapter": 6,
       "difficulty": 1,
       "floors": 1,
@@ -141,7 +141,7 @@
     },
     {
       "id": "stage_7",
-      "name": "?7??????",
+      "name": "第7章：遗迹回响",
       "chapter": 7,
       "difficulty": 1,
       "floors": 1,
@@ -164,7 +164,7 @@
     },
     {
       "id": "stage_8",
-      "name": "?8??????",
+      "name": "第8章：回廊试炼",
       "chapter": 8,
       "difficulty": 1,
       "floors": 1,
@@ -187,7 +187,7 @@
     },
     {
       "id": "stage_9",
-      "name": "?9??????",
+      "name": "第9章：边境警戒",
       "chapter": 9,
       "difficulty": 1,
       "floors": 1,
@@ -210,7 +210,7 @@
     },
     {
       "id": "stage_10",
-      "name": "?10??????",
+      "name": "第10章：终局试炼",
       "chapter": 10,
       "difficulty": 1,
       "floors": 1,
