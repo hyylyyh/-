@@ -53,6 +53,8 @@ class GameViewModel(
     private val cardRepository = CardRepository()
     private var battleSession: BattleSession? = null
     private var battleEventId: String? = null
+    private var shopEventId: String? = null
+    private var shopOffers: List<ShopOffer> = emptyList()
     private var pendingNewSaveSlot: Int? = null
     private val autoSaveScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val autoSaveIntervalMs = 10_000L
@@ -231,6 +233,11 @@ class GameViewModel(
         if (currentEvent == null) {
             GameLogger.warn(logTag, "当前事件为空，直接进入下一个事件")
             advanceToNextNode(incrementTurn = true)
+            return
+        }
+
+        if (isShopEvent(currentEvent)) {
+            handleShopChoice(choiceId, currentEvent)
             return
         }
 
@@ -597,15 +604,9 @@ class GameViewModel(
         }
         stageRuntime = nextRuntime
         val node = stageEngine.currentNode(nextRuntime)
-        val forcedEvent = if (!forcedEventId.isNullOrBlank()) {
-            engine.eventById(forcedEventId)
-        } else {
-            null
-        }
+        val forcedEvent = buildForcedEvent(forcedEventId, chapter, difficulty, nextTurn)
         val nextEvent = forcedEvent ?: resolveEventForNode(nextRuntime, node, chapter)
-        val nextChoices = nextEvent?.let { engine.toChoices(it) } ?: listOf(
-            GameChoice("继续", "继续")
-        )
+        val nextChoices = buildEventChoices(nextEvent, chapter, difficulty, nextTurn)
 
         val stageLog = if (shouldRestartStage) {
             "进入关卡：${nextRuntime.stage.name}"
@@ -666,6 +667,8 @@ class GameViewModel(
     private fun applySaveGame(slot: Int, saveGame: SaveGame) {
         battleSession = null
         battleEventId = null
+        shopEventId = null
+        shopOffers = emptyList()
         pendingNewSaveSlot = null
         val runtime = stageEngine.restoreStage(
             stageId = saveGame.stageId,
@@ -685,8 +688,14 @@ class GameViewModel(
 
         val node = stageEngine.currentNode(assignedRuntime)
         val event = if (monsterOnlyMode) {
-            GameLogger.info("存档系统", "纯怪物模式开启，忽略存档事件编号=${saveGame.currentEventId ?: "无"}")
-            resolveEventForNode(assignedRuntime, node, saveGame.chapter)
+            val savedEventId = saveGame.currentEventId
+            if (savedEventId?.startsWith("auto_shop") == true) {
+                GameLogger.info("存档系统", "纯怪物模式读取商店事件：事件编号=$savedEventId")
+                buildShopEvent(saveGame.chapter, saveGame.selectedDifficulty, saveGame.turn, savedEventId)
+            } else {
+                GameLogger.info("存档系统", "纯怪物模式开启，忽略存档事件编号=${savedEventId ?: "无"}")
+                resolveEventForNode(assignedRuntime, node, saveGame.chapter)
+            }
         } else {
             saveGame.currentEventId?.let { id ->
                 engine.eventById(id)
@@ -696,9 +705,7 @@ class GameViewModel(
             GameLogger.warn("存档系统", "存档事件未找到：事件编号=${saveGame.currentEventId}")
         }
 
-        val choices = event?.let { engine.toChoices(it) } ?: listOf(
-            GameChoice("继续", "继续")
-        )
+        val choices = buildEventChoices(event, saveGame.chapter, saveGame.selectedDifficulty, saveGame.turn)
         val runtimeNode = node
 
         val validRoleId = if (roles.any { it.id == saveGame.selectedRoleId }) {
@@ -751,13 +758,13 @@ class GameViewModel(
         difficulty: Int,
         reason: String
     ) {
+        shopEventId = null
+        shopOffers = emptyList()
         val runtime = assignGuardian(stageEngine.startStageForChapter(chapter, rng, difficulty))
         stageRuntime = runtime
         val node = stageEngine.currentNode(runtime)
         val event = resolveEventForNode(runtime, node, chapter)
-        val choices = event?.let { engine.toChoices(it) } ?: listOf(
-            GameChoice("继续", "继续")
-        )
+        val choices = buildEventChoices(event, chapter, difficulty, turn)
         val stageLog = if (reason.isBlank()) {
             "进入关卡：${runtime.stage.name}"
         } else {
@@ -1759,6 +1766,12 @@ class GameViewModel(
             return
         }
 
+        if (victory && shouldTriggerShop(event)) {
+            GameLogger.info(logTag, "精英/首领战后触发商店")
+            openShopEventAfterBattle(event)
+            return
+        }
+
         val nextEventId = if (victory) {
             event.result?.nextEventId ?: event.nextEventId
         } else {
@@ -1847,6 +1860,12 @@ class GameViewModel(
             )
         }
 
+        if (victory && shouldTriggerShop(event)) {
+            GameLogger.info(logTag, "自动战斗后触发商店")
+            openShopEventAfterBattle(event)
+            return
+        }
+
         val nextEventId = if (victory) {
             event.result?.nextEventId ?: event.nextEventId
         } else {
@@ -1864,6 +1883,266 @@ class GameViewModel(
         if (!event.enemyGroupId.isNullOrBlank()) return true
         val type = event.type.lowercase()
         return type.startsWith("battle") || event.type.contains("战斗")
+    }
+
+    private fun isShopEvent(event: EventDefinition): Boolean {
+        val type = event.type.lowercase()
+        return type.contains("shop") || event.type.contains("商店")
+    }
+
+    private fun shouldTriggerShop(event: EventDefinition): Boolean {
+        val type = event.type.lowercase()
+        return type.contains("elite") || type.contains("boss") || event.type.contains("精英") || event.type.contains("首领")
+    }
+
+    private data class ShopOffer(
+        val item: EquipmentItem,
+        val price: Int
+    )
+
+    private fun buildForcedEvent(
+        forcedEventId: String?,
+        chapter: Int,
+        difficulty: Int,
+        turn: Int
+    ): EventDefinition? {
+        if (forcedEventId.isNullOrBlank()) return null
+        if (forcedEventId.startsWith("auto_shop")) {
+            return buildShopEvent(chapter, difficulty, turn, forcedEventId)
+        }
+        return engine.eventById(forcedEventId)
+    }
+
+    private fun buildEventChoices(
+        event: EventDefinition?,
+        chapter: Int,
+        difficulty: Int,
+        turn: Int
+    ): List<GameChoice> {
+        if (event == null) {
+            return listOf(GameChoice("继续", "继续"))
+        }
+        return if (isShopEvent(event)) {
+            buildShopChoices(event, chapter, difficulty, turn)
+        } else {
+            engine.toChoices(event)
+        }
+    }
+
+    private fun buildShopEvent(
+        chapter: Int,
+        difficulty: Int,
+        turn: Int,
+        eventId: String = "auto_shop_turn_$turn"
+    ): EventDefinition {
+        val title = "补给商店"
+        val intro = "精英/首领战后出现商店，你可以使用金币购买装备。"
+        return EventDefinition(
+            eventId = eventId,
+            chapter = chapter,
+            title = title,
+            type = "SHOP",
+            difficulty = difficulty,
+            weight = 1,
+            cooldown = 0,
+            introText = intro,
+            successText = "你结束了商店采购。",
+            failText = "你离开了商店。",
+            logText = "商店结算完成。",
+            conditions = emptyList(),
+            options = emptyList(),
+            result = null,
+            enemyGroupId = null,
+            roundLimit = null,
+            firstStrike = null,
+            battleModifiers = null,
+            dropTableId = null,
+            guarantee = 0,
+            nextEventId = null,
+            failEventId = null
+        )
+    }
+
+    private fun buildShopChoices(
+        event: EventDefinition,
+        chapter: Int,
+        difficulty: Int,
+        turn: Int
+    ): List<GameChoice> {
+        ensureShopOffers(event, chapter, difficulty, turn)
+        val choices = mutableListOf<GameChoice>()
+        if (shopOffers.isEmpty()) {
+            choices += GameChoice("shop_leave", "商店暂无商品，离开")
+            return choices
+        }
+        shopOffers.forEachIndexed { index, offer ->
+            val label = "购买 ${offer.item.name}（${offer.item.rarityName}） 价格 ${offer.price} 金币"
+            choices += GameChoice("shop_buy_$index", label)
+        }
+        choices += GameChoice("shop_leave", "离开商店")
+        return choices
+    }
+
+    private fun ensureShopOffers(
+        event: EventDefinition,
+        chapter: Int,
+        difficulty: Int,
+        turn: Int
+    ) {
+        if (shopEventId == event.eventId && shopOffers.isNotEmpty()) return
+        shopEventId = event.eventId
+        shopOffers = generateShopOffers(chapter, difficulty, turn, count = 3)
+        GameLogger.info(
+            "商店系统",
+            "商店商品生成：事件=${event.eventId} 章节=$chapter 难度=$difficulty 数量=${shopOffers.size}"
+        )
+    }
+
+    private fun generateShopOffers(
+        chapter: Int,
+        difficulty: Int,
+        turn: Int,
+        count: Int
+    ): List<ShopOffer> {
+        val offers = mutableListOf<ShopOffer>()
+        val tier = resolveShopTier(chapter, difficulty)
+        repeat(count) {
+            val item = generateShopEquipment(tier, turn)
+            if (item != null) {
+                val price = estimateShopPrice(item)
+                offers += ShopOffer(item, price)
+                GameLogger.info(
+                    "商店系统",
+                    "商品上架：${item.name}（${item.rarityName}） 价格=$price 金币"
+                )
+            }
+        }
+        return offers
+    }
+
+    private fun resolveShopTier(chapter: Int, difficulty: Int): Int {
+        val chapterTier = when {
+            chapter >= 7 -> 3
+            chapter >= 4 -> 2
+            else -> 1
+        }
+        val difficultyBonus = when {
+            difficulty >= 5 -> 2
+            difficulty >= 4 -> 1
+            else -> 0
+        }
+        val tier = (chapterTier + difficultyBonus).coerceIn(1, 3)
+        GameLogger.info("商店系统", "商店层级计算：章节=$chapter 难度=$difficulty -> $tier")
+        return tier
+    }
+
+    private fun generateShopEquipment(tier: Int, turn: Int): EquipmentItem? {
+        val pityCounters = mutableMapOf<String, Int>()
+        repeat(20) { attempt ->
+            val outcome = lootRepository.generateLoot(
+                LootSourceType.EVENT,
+                tier,
+                rng,
+                pityCounters
+            )
+            if (outcome.equipment != null) {
+                return buildEquipmentItem(outcome.equipment, "shop_tier_$tier", turn)
+            }
+            GameLogger.info("商店系统", "商店抽取未命中装备，继续尝试：轮次=${attempt + 1}")
+        }
+        GameLogger.warn("商店系统", "商店抽取装备失败，层级=$tier")
+        return null
+    }
+
+    private fun estimateShopPrice(item: EquipmentItem): Int {
+        val base = estimateSellValue(item)
+        val price = base * 4 + item.rarityTier * 8 + item.level * 2
+        return price.coerceAtLeast(10)
+    }
+
+    private fun handleShopChoice(choiceId: String, event: EventDefinition) {
+        val current = _state.value
+        if (!isShopEvent(event)) {
+            GameLogger.warn("商店系统", "当前事件不是商店，忽略选择")
+            return
+        }
+        if (choiceId == "shop_leave") {
+            GameLogger.info("商店系统", "离开商店")
+            _state.update { state ->
+                state.copy(
+                    lastAction = "离开商店",
+                    log = state.log + "离开商店"
+                )
+            }
+            advanceToNextNode(incrementTurn = true)
+            return
+        }
+        if (!choiceId.startsWith("shop_buy_")) {
+            GameLogger.warn("商店系统", "未知商店选项：$choiceId")
+            return
+        }
+        val index = choiceId.removePrefix("shop_buy_").toIntOrNull()
+        if (index == null || index !in shopOffers.indices) {
+            GameLogger.warn("商店系统", "商店商品索引无效：$choiceId")
+            return
+        }
+        val offer = shopOffers[index]
+        if (current.player.inventory.items.size >= current.player.inventory.capacity) {
+            GameLogger.warn("商店系统", "背包已满，无法购买：${offer.item.name}")
+            _state.update { state ->
+                state.copy(
+                    lastAction = "背包已满，无法购买",
+                    log = state.log + "背包已满，无法购买 ${offer.item.name}"
+                )
+            }
+            return
+        }
+        if (current.player.gold < offer.price) {
+            GameLogger.warn("商店系统", "金币不足，无法购买：${offer.item.name}")
+            _state.update { state ->
+                state.copy(
+                    lastAction = "金币不足，无法购买",
+                    log = state.log + "金币不足，无法购买 ${offer.item.name}"
+                )
+            }
+            return
+        }
+        val paidPlayer = current.player.copy(gold = current.player.gold - offer.price)
+        val added = addEquipmentToInventory(paidPlayer, offer.item)
+        shopOffers = shopOffers.toMutableList().also { it.removeAt(index) }
+        val newChoices = buildShopChoices(event, current.chapter, current.selectedDifficulty, current.turn)
+        GameLogger.info(
+            "商店系统",
+            "购买完成：${offer.item.name} 价格=${offer.price} 剩余金币=${added.player.gold}"
+        )
+        _state.update { state ->
+            state.copy(
+                player = added.player,
+                choices = newChoices,
+                lastAction = "已购买 ${offer.item.name}",
+                log = state.log + "购买 ${offer.item.name}（${offer.item.rarityName}） -${offer.price} 金币" + added.logs
+            )
+        }
+    }
+
+    private fun openShopEventAfterBattle(event: EventDefinition) {
+        val current = _state.value
+        val shopEvent = buildShopEvent(current.chapter, current.selectedDifficulty, current.turn)
+        val choices = buildShopChoices(shopEvent, current.chapter, current.selectedDifficulty, current.turn)
+        GameLogger.info(
+            "商店系统",
+            "商店出现：章节=${current.chapter} 回合=${current.turn} 事件=${shopEvent.eventId}"
+        )
+        _state.update { state ->
+            state.copy(
+                currentEvent = shopEvent,
+                enemyPreview = null,
+                battle = null,
+                choices = choices,
+                lastAction = "商店出现",
+                log = state.log + listOf("精英/首领战后出现商店", shopEvent.introText)
+            )
+        }
     }
 
     private fun buildEnemyPreview(
@@ -2172,7 +2451,8 @@ class GameViewModel(
         }
         val difficulty = _state.value.selectedDifficulty.coerceIn(1, 5)
         val nodeIndex = parseNodeIndex(node.id)
-        val isElite = nodeIndex == 5
+        val eliteNodes = setOf(3, 6, 9)
+        val isElite = nodeIndex != null && eliteNodes.contains(nodeIndex)
         val isBoss = nodeIndex == 10 || isExitNode
         val groupId = pickMonsterGroupId(runtime, node, chapter, nodeIndex)
         val enemyName = guardianNameForGroup(groupId)
