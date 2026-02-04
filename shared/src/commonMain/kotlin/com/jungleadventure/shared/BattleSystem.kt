@@ -170,25 +170,49 @@ fun EnemyDefinition.toCombatActor(count: Int): CombatActor {
     val scaledAtk = (stats.atk * (1.0 + 0.2 * (count - 1))).roundToInt().coerceAtLeast(1)
     val scaledDef = (stats.def * (1.0 + 0.15 * (count - 1))).roundToInt().coerceAtLeast(1)
     val scaledSpeed = (stats.spd * (1.0 + 0.05 * (count - 1))).roundToInt().coerceAtLeast(1)
+    val (strength, intelligence, agility) = resolveEnemyAttributes(stats)
+    val hpFromStr = strength * 2
+    val atkFromStr = strength / 2
+    val defFromAgi = agility / 2
+    val speedFromAgi = agility / 3
+    val hitFromInt = intelligence / 3
+    val critFromAgi = agility / 3
+    val evaFromAgi = agility / 4
     val stats = CombatStats(
-        hpMax = scaledHp,
-        atk = scaledAtk,
-        def = scaledDef,
-        speed = scaledSpeed,
-        hit = stats.hit,
-        eva = stats.eva,
-        crit = stats.crit,
+        hpMax = (scaledHp + hpFromStr).coerceAtLeast(1),
+        atk = (scaledAtk + atkFromStr).coerceAtLeast(1),
+        def = (scaledDef + defFromAgi).coerceAtLeast(0),
+        speed = (scaledSpeed + speedFromAgi).coerceAtLeast(1),
+        hit = (stats.hit + hitFromInt).coerceIn(50, 98),
+        eva = (stats.eva + evaFromAgi).coerceIn(5, 45),
+        crit = (stats.crit + critFromAgi).coerceIn(5, 40),
         critDmg = stats.critDmg,
         resist = stats.resist
     )
-    GameLogger.log("战斗", "敌人转化战斗属性：$name 数量=$count，生命=$scaledHp 攻击=$scaledAtk 防御=$scaledDef 速度=$scaledSpeed")
+    GameLogger.log(
+        "战斗",
+        "敌人转化战斗属性：$name 数量=$count，生命=${stats.hpMax} 攻击=${stats.atk} 防御=${stats.def} 速度=${stats.speed} 力量=$strength 智力=$intelligence 敏捷=$agility"
+    )
     return CombatActor(
         id = id,
         name = if (count <= 1) name else "${name}($count)",
         type = CombatActorType.ENEMY,
         stats = stats,
-        hp = scaledHp,
+        hp = stats.hpMax,
         mp = 0,
         skills = skills
     )
+}
+
+private fun resolveEnemyAttributes(stats: EnemyStats): Triple<Int, Int, Int> {
+    val strength = if (stats.strength > 0) stats.strength else ((stats.atk + stats.def) / 4).coerceAtLeast(1)
+    val agility = if (stats.agility > 0) stats.agility else (stats.spd / 2).coerceAtLeast(1)
+    val intelligence = if (stats.intelligence > 0) stats.intelligence else (stats.hit / 20).coerceAtLeast(1)
+    if (stats.strength == 0 || stats.intelligence == 0 || stats.agility == 0) {
+        GameLogger.info(
+            "战斗",
+            "敌人三围补全：力量$strength 智力$intelligence 敏捷$agility（原始 力量${stats.strength} 智力${stats.intelligence} 敏捷${stats.agility}）"
+        )
+    }
+    return Triple(strength, intelligence, agility)
 }

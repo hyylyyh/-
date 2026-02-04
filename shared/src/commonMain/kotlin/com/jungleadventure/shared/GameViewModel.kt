@@ -940,9 +940,10 @@ class GameViewModel(
     }
 
     private fun applyRole(role: RoleProfile, reason: String) {
+        val normalizedStats = normalizeCharacterStats(role.stats)
         GameLogger.info(
             logTag,
-            "应用角色：${role.name}，原因=$reason，属性=生命${role.stats.hp}/攻击${role.stats.atk}/防御${role.stats.def}/速度${role.stats.speed}"
+            "应用角色：${role.name}，原因=$reason，属性=生命${normalizedStats.hp}/攻击${normalizedStats.atk}/防御${normalizedStats.def}/速度${normalizedStats.speed} 力量${normalizedStats.strength} 智力${normalizedStats.intelligence} 敏捷${normalizedStats.agility}"
         )
         _state.update { current ->
             current.copy(
@@ -955,21 +956,29 @@ class GameViewModel(
     }
 
     private fun toPlayerStats(role: RoleProfile): PlayerStats {
+        val normalizedStats = normalizeCharacterStats(role.stats)
         val base = PlayerBaseStats(
-            hpMax = role.stats.hp,
-            atk = role.stats.atk,
-            def = role.stats.def,
-            speed = role.stats.speed
+            hpMax = normalizedStats.hp,
+            mpMax = 30,
+            atk = normalizedStats.atk,
+            def = normalizedStats.def,
+            speed = normalizedStats.speed,
+            strength = normalizedStats.strength,
+            intelligence = normalizedStats.intelligence,
+            agility = normalizedStats.agility
         )
-        return PlayerStats(
+        val raw = PlayerStats(
             name = role.name,
-            hp = role.stats.hp,
-            hpMax = role.stats.hp,
+            hp = normalizedStats.hp,
+            hpMax = normalizedStats.hp,
             mp = 30,
             mpMax = 30,
-            atk = role.stats.atk,
-            def = role.stats.def,
-            speed = role.stats.speed,
+            atk = normalizedStats.atk,
+            def = normalizedStats.def,
+            speed = normalizedStats.speed,
+            strength = normalizedStats.strength,
+            intelligence = normalizedStats.intelligence,
+            agility = normalizedStats.agility,
             level = 1,
             exp = 0,
             expToNext = expRequiredFor(1),
@@ -979,6 +988,7 @@ class GameViewModel(
             equipment = EquipmentLoadout(),
             inventory = InventoryState()
         )
+        return recalculatePlayerStats(raw, "应用角色")
     }
 
     private data class ResultApplication(
@@ -1060,9 +1070,13 @@ class GameViewModel(
             val remainingExp = current.exp - current.expToNext
             val nextBase = current.baseStats.copy(
                 hpMax = current.baseStats.hpMax + growth.hpMax,
+                mpMax = current.baseStats.mpMax + growth.mpMax,
                 atk = current.baseStats.atk + growth.atk,
                 def = current.baseStats.def + growth.def,
-                speed = current.baseStats.speed + growth.speed
+                speed = current.baseStats.speed + growth.speed,
+                strength = current.baseStats.strength + growth.strength,
+                intelligence = current.baseStats.intelligence + growth.intelligence,
+                agility = current.baseStats.agility + growth.agility
             )
             val boosted = current.copy(
                 level = nextLevel,
@@ -1074,7 +1088,7 @@ class GameViewModel(
                 mpMax = current.mpMax + growth.mpMax
             )
             current = recalculatePlayerStats(boosted, "升级")
-            val log = "升级到 Lv$nextLevel：生命上限+${growth.hpMax} 能量上限+${growth.mpMax} 攻击+${growth.atk} 防御+${growth.def} 速度+${growth.speed}"
+            val log = "升级到 Lv$nextLevel：生命上限+${growth.hpMax} 能量上限+${growth.mpMax} 攻击+${growth.atk} 防御+${growth.def} 速度+${growth.speed} 力量+${growth.strength} 智力+${growth.intelligence} 敏捷+${growth.agility}"
             logs += log
             GameLogger.info(
                 logTag,
@@ -1333,9 +1347,13 @@ class GameViewModel(
         val base = if (player.baseStats.hpMax <= 0 || player.baseStats.atk <= 0) {
             PlayerBaseStats(
                 hpMax = player.hpMax.coerceAtLeast(1),
+                mpMax = player.mpMax.coerceAtLeast(1),
                 atk = player.atk.coerceAtLeast(1),
                 def = player.def.coerceAtLeast(0),
-                speed = player.speed.coerceAtLeast(1)
+                speed = player.speed.coerceAtLeast(1),
+                strength = player.strength.coerceAtLeast(0),
+                intelligence = player.intelligence.coerceAtLeast(0),
+                agility = player.agility.coerceAtLeast(0)
             )
         } else {
             player.baseStats
@@ -1364,27 +1382,59 @@ class GameViewModel(
         val base = player.baseStats
         val bonus = collectEquipmentStats(player.equipment)
         val cardBonus = collectCardStats(player.cards)
-        val nextHpMax = (base.hpMax + (bonus[StatType.HP] ?: 0) + (cardBonus[StatType.HP] ?: 0)).coerceAtLeast(1)
-        val nextAtk = (base.atk + (bonus[StatType.ATK] ?: 0) + (cardBonus[StatType.ATK] ?: 0)).coerceAtLeast(1)
-        val nextDef = (base.def + (bonus[StatType.DEF] ?: 0) + (cardBonus[StatType.DEF] ?: 0)).coerceAtLeast(0)
-        val nextSpeed = (base.speed + (bonus[StatType.SPEED] ?: 0) + (cardBonus[StatType.SPEED] ?: 0)).coerceAtLeast(1)
+        val baseStr = base.strength
+        val baseInt = base.intelligence
+        val baseAgi = base.agility
+        val totalStr = (baseStr + (bonus[StatType.STR] ?: 0) + (cardBonus[StatType.STR] ?: 0)).coerceAtLeast(0)
+        val totalInt = (baseInt + (bonus[StatType.INT] ?: 0) + (cardBonus[StatType.INT] ?: 0)).coerceAtLeast(0)
+        val totalAgi = (baseAgi + (bonus[StatType.AGI] ?: 0) + (cardBonus[StatType.AGI] ?: 0)).coerceAtLeast(0)
+
+        val hpFromStr = totalStr * 2
+        val atkFromStr = totalStr / 2
+        val mpFromInt = totalInt * 2
+        val hitFromInt = totalInt / 3
+        val defFromAgi = totalAgi / 2
+        val speedFromAgi = totalAgi / 3
+        val critFromAgi = totalAgi / 3
+        val evaFromAgi = totalAgi / 4
+
+        val nextHpMax = (base.hpMax + hpFromStr + (bonus[StatType.HP] ?: 0) + (cardBonus[StatType.HP] ?: 0)).coerceAtLeast(1)
+        val nextMpMax = (base.mpMax + mpFromInt).coerceAtLeast(1)
+        val nextAtk = (base.atk + atkFromStr + (bonus[StatType.ATK] ?: 0) + (cardBonus[StatType.ATK] ?: 0)).coerceAtLeast(1)
+        val nextDef = (base.def + defFromAgi + (bonus[StatType.DEF] ?: 0) + (cardBonus[StatType.DEF] ?: 0)).coerceAtLeast(0)
+        val nextSpeed = (base.speed + speedFromAgi + (bonus[StatType.SPEED] ?: 0) + (cardBonus[StatType.SPEED] ?: 0)).coerceAtLeast(1)
         val nextHp = player.hp.coerceIn(0, nextHpMax)
-        val nextHitBonus = (bonus[StatType.HIT] ?: 0) + (cardBonus[StatType.HIT] ?: 0)
-        val nextEvaBonus = (bonus[StatType.EVADE] ?: 0) + (cardBonus[StatType.EVADE] ?: 0)
-        val nextCritBonus = (bonus[StatType.CRIT] ?: 0) + (cardBonus[StatType.CRIT] ?: 0)
+        val nextMp = player.mp.coerceIn(0, nextMpMax)
+        val nextHitBonus = (bonus[StatType.HIT] ?: 0) + (cardBonus[StatType.HIT] ?: 0) + hitFromInt
+        val nextEvaBonus = (bonus[StatType.EVADE] ?: 0) + (cardBonus[StatType.EVADE] ?: 0) + evaFromAgi
+        val nextCritBonus = (bonus[StatType.CRIT] ?: 0) + (cardBonus[StatType.CRIT] ?: 0) + critFromAgi
         val nextResistBonus = (bonus[StatType.CRIT_RESIST] ?: 0) + (cardBonus[StatType.CRIT_RESIST] ?: 0)
-        if (player.hpMax != nextHpMax || player.atk != nextAtk || player.def != nextDef || player.speed != nextSpeed) {
+        if (
+            player.hpMax != nextHpMax ||
+            player.mpMax != nextMpMax ||
+            player.atk != nextAtk ||
+            player.def != nextDef ||
+            player.speed != nextSpeed ||
+            player.strength != totalStr ||
+            player.intelligence != totalInt ||
+            player.agility != totalAgi
+        ) {
             GameLogger.info(
                 "装备系统",
-                "刷新角色属性：生命上限${player.hpMax}->$nextHpMax 攻击${player.atk}->$nextAtk 防御${player.def}->$nextDef 速度${player.speed}->$nextSpeed 原因=$reason"
+                "刷新角色属性：生命上限${player.hpMax}->$nextHpMax 能量上限${player.mpMax}->$nextMpMax 攻击${player.atk}->$nextAtk 防御${player.def}->$nextDef 速度${player.speed}->$nextSpeed 力量${player.strength}->$totalStr 智力${player.intelligence}->$totalInt 敏捷${player.agility}->$totalAgi 原因=$reason"
             )
         }
         return player.copy(
             hp = nextHp,
             hpMax = nextHpMax,
+            mp = nextMp,
+            mpMax = nextMpMax,
             atk = nextAtk,
             def = nextDef,
             speed = nextSpeed,
+            strength = totalStr,
+            intelligence = totalInt,
+            agility = totalAgi,
             hitBonus = nextHitBonus,
             evaBonus = nextEvaBonus,
             critBonus = nextCritBonus,
@@ -1489,6 +1539,9 @@ class GameViewModel(
             StatType.ATK -> "攻击"
             StatType.DEF -> "防御"
             StatType.SPEED -> "速度"
+            StatType.STR -> "力量"
+            StatType.INT -> "智力"
+            StatType.AGI -> "敏捷"
             StatType.HIT -> "命中"
             StatType.EVADE -> "闪避"
             StatType.CRIT -> "暴击"
@@ -1510,6 +1563,34 @@ class GameViewModel(
         return if (value > 0) "+$value" else value.toString()
     }
 
+    private fun normalizeCharacterStats(stats: CharacterStats): CharacterStats {
+        val strength = if (stats.strength > 0) stats.strength else ((stats.atk + stats.def) / 4).coerceAtLeast(1)
+        val agility = if (stats.agility > 0) stats.agility else (stats.speed / 2).coerceAtLeast(1)
+        val intelligence = if (stats.intelligence > 0) stats.intelligence else (stats.perception / 4).coerceAtLeast(1)
+        if (stats.strength == 0 || stats.intelligence == 0 || stats.agility == 0) {
+            GameLogger.info(
+                logTag,
+                "角色三围补全：力量$strength 智力$intelligence 敏捷$agility（原始 力量${stats.strength} 智力${stats.intelligence} 敏捷${stats.agility}）"
+            )
+        }
+        return stats.copy(
+            strength = strength,
+            intelligence = intelligence,
+            agility = agility
+        )
+    }
+
+    private fun normalizeGrowthProfile(growth: GrowthProfile): GrowthProfile {
+        val strength = if (growth.strength > 0) growth.strength else max(1, growth.atk / 2)
+        val intelligence = if (growth.intelligence > 0) growth.intelligence else max(1, growth.mpMax / 2)
+        val agility = if (growth.agility > 0) growth.agility else max(1, growth.speed)
+        return growth.copy(
+            strength = strength,
+            intelligence = intelligence,
+            agility = agility
+        )
+    }
+
     private fun loadRoleProfiles(): List<RoleProfile> {
         GameLogger.info(logTag, "开始加载角色与技能配置")
         val characters = characterDefinitions
@@ -1520,6 +1601,7 @@ class GameViewModel(
         }
         val skillMap = skills.associateBy { it.id }
         val profiles = characters.map { character ->
+            val normalizedStats = normalizeCharacterStats(character.stats)
             val passiveSkill = skillMap[character.passiveSkillId].toRoleSkill()
             val activeSkills = character.activeSkillIds.mapNotNull { skillId ->
                 skillMap[skillId].toRoleSkill()
@@ -1532,12 +1614,12 @@ class GameViewModel(
             } else {
                 skillMap[character.ultimateSkillId].toRoleSkill()
             }
-            val growth = character.growth ?: defaultGrowthProfile()
+            val growth = normalizeGrowthProfile(character.growth ?: defaultGrowthProfile())
             RoleProfile(
                 id = character.id,
                 name = character.name,
                 role = character.role,
-                stats = character.stats,
+                stats = normalizedStats,
                 growth = growth,
                 passiveSkill = passiveSkill,
                 activeSkills = activeSkills,
@@ -2384,10 +2466,25 @@ class GameViewModel(
         val scaledAtk = (enemyDef.stats.atk * groupAtkMultiplier * atkMultiplier).toInt().coerceAtLeast(1)
         val scaledDef = (enemyDef.stats.def * groupDefMultiplier * defMultiplier).toInt().coerceAtLeast(1)
         val scaledSpd = (enemyDef.stats.spd * groupSpdMultiplier * spdMultiplier).toInt().coerceAtLeast(1)
+        val (enemyStr, enemyInt, enemyAgi) = resolveEnemyAttributes(enemyDef.stats)
+        val hpFromStr = enemyStr * 2
+        val atkFromStr = enemyStr / 2
+        val defFromAgi = enemyAgi / 2
+        val spdFromAgi = enemyAgi / 3
+        val hitFromInt = enemyInt / 3
+        val critFromAgi = enemyAgi / 3
+        val evaFromAgi = enemyAgi / 4
+        val previewHp = (scaledHp + hpFromStr).coerceAtLeast(1)
+        val previewAtk = (scaledAtk + atkFromStr).coerceAtLeast(1)
+        val previewDef = (scaledDef + defFromAgi).coerceAtLeast(0)
+        val previewSpd = (scaledSpd + spdFromAgi).coerceAtLeast(1)
+        val previewHit = (enemyDef.stats.hit + hitFromInt).coerceIn(50, 98)
+        val previewEva = (enemyDef.stats.eva + evaFromAgi).coerceIn(5, 45)
+        val previewCrit = (enemyDef.stats.crit + critFromAgi).coerceIn(5, 40)
 
         val playerScore = player.hp + player.atk * 2.0 + player.def * 1.5 + player.speed * 0.8
-        val effectiveAtk = scaledAtk * damageMultiplier
-        val enemyScore = scaledHp + effectiveAtk * 2.0 + scaledDef * 1.5 + scaledSpd * 0.8
+        val effectiveAtk = previewAtk * damageMultiplier
+        val enemyScore = previewHp + effectiveAtk * 2.0 + previewDef * 1.5 + previewSpd * 0.8
         var ratio = if (enemyScore <= 0.0) 1.0 else playerScore / enemyScore
 
         when (event.firstStrike) {
@@ -2435,7 +2532,7 @@ class GameViewModel(
 
         GameLogger.info(
             logTag,
-            "生成敌人预览：敌人=${enemyDef.name} 数量=$count 生命=$scaledHp 攻击=$scaledAtk 防御=$scaledDef 速度=$scaledSpd 评估=$threat 胜率=${winRate}% 掉落表=$dropTableId"
+            "生成敌人预览：敌人=${enemyDef.name} 数量=$count 生命=$previewHp 攻击=$previewAtk 防御=$previewDef 速度=$previewSpd 力量=$enemyStr 智力=$enemyInt 敏捷=$enemyAgi 评估=$threat 胜率=${winRate}% 掉落表=$dropTableId"
         )
 
         return EnemyPreviewUiState(
@@ -2443,13 +2540,16 @@ class GameViewModel(
             type = enemyTypeLabel(enemyDef.type),
             level = enemyDef.level,
             count = count,
-            hp = scaledHp,
-            atk = scaledAtk,
-            def = scaledDef,
-            speed = scaledSpd,
-            hit = enemyDef.stats.hit,
-            eva = enemyDef.stats.eva,
-            crit = enemyDef.stats.crit,
+            hp = previewHp,
+            atk = previewAtk,
+            def = previewDef,
+            speed = previewSpd,
+            strength = enemyStr,
+            intelligence = enemyInt,
+            agility = enemyAgi,
+            hit = previewHit,
+            eva = previewEva,
+            crit = previewCrit,
             critDmg = enemyDef.stats.critDmg,
             resist = enemyDef.stats.resist,
             note = enemyDef.notes.ifBlank { group.note },
@@ -2462,6 +2562,19 @@ class GameViewModel(
             dropTableId = dropTableId,
             dropPreview = dropPreview
         )
+    }
+
+    private fun resolveEnemyAttributes(stats: EnemyStats): Triple<Int, Int, Int> {
+        val strength = if (stats.strength > 0) stats.strength else ((stats.atk + stats.def) / 4).coerceAtLeast(1)
+        val agility = if (stats.agility > 0) stats.agility else (stats.spd / 2).coerceAtLeast(1)
+        val intelligence = if (stats.intelligence > 0) stats.intelligence else (stats.hit / 20).coerceAtLeast(1)
+        if (stats.strength == 0 || stats.intelligence == 0 || stats.agility == 0) {
+            GameLogger.info(
+                logTag,
+                "敌人三围补全：力量$strength 智力$intelligence 敏捷$agility（原始 力量${stats.strength} 智力${stats.intelligence} 敏捷${stats.agility}）"
+            )
+        }
+        return Triple(strength, intelligence, agility)
     }
 
     private fun buildDropPreview(dropTableId: String, event: EventDefinition): List<String> {

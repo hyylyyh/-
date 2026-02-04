@@ -7,9 +7,13 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class PlayerBaseStats(
     val hpMax: Int,
+    val mpMax: Int = 30,
     val atk: Int,
     val def: Int,
-    val speed: Int
+    val speed: Int,
+    val strength: Int = 0,
+    val intelligence: Int = 0,
+    val agility: Int = 0
 )
 
 @Serializable
@@ -56,4 +60,3 @@ fun EquipmentItem.totalStats(): Map<StatType, Int> {
     }
     return totals
 }
-

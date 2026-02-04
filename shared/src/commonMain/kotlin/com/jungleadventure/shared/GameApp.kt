@@ -617,6 +617,11 @@ private fun RoleDetailPanel(
             RoleStat(label = "速度", value = selectedRole.stats.speed)
             RoleStat(label = "感知", value = selectedRole.stats.perception)
         }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            RoleStat(label = "力量", value = selectedRole.stats.strength)
+            RoleStat(label = "智力", value = selectedRole.stats.intelligence)
+            RoleStat(label = "敏捷", value = selectedRole.stats.agility)
+        }
 
         Divider()
         Text(text = "成长（每级）", fontWeight = FontWeight.SemiBold)
@@ -626,6 +631,11 @@ private fun RoleDetailPanel(
             RoleStat(label = "攻击", value = selectedRole.growth.atk)
             RoleStat(label = "防御", value = selectedRole.growth.def)
             RoleStat(label = "速度", value = selectedRole.growth.speed)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            RoleStat(label = "力量", value = selectedRole.growth.strength)
+            RoleStat(label = "智力", value = selectedRole.growth.intelligence)
+            RoleStat(label = "敏捷", value = selectedRole.growth.agility)
         }
 
         Divider()
@@ -707,6 +717,11 @@ private fun EnemyPreviewPanel(preview: EnemyPreviewUiState) {
             RoleStat(label = "攻击", value = preview.atk)
             RoleStat(label = "防御", value = preview.def)
             RoleStat(label = "速度", value = preview.speed)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            RoleStat(label = "力量", value = preview.strength)
+            RoleStat(label = "智力", value = preview.intelligence)
+            RoleStat(label = "敏捷", value = preview.agility)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             RoleStat(label = "命中", value = preview.hit)
@@ -876,6 +891,7 @@ private fun StatusPanel(player: PlayerStats) {
         Text("能量 ${player.mp}/${player.mpMax}")
         Text("攻击 ${player.atk}  防御 ${player.def}")
         Text("速度 ${player.speed}")
+        Text("力量 ${player.strength}  智力 ${player.intelligence}  敏捷 ${player.agility}")
         if (player.hitBonus != 0 || player.evaBonus != 0 || player.critBonus != 0 || player.resistBonus != 0) {
             Text(
                 text = "命中+${player.hitBonus} 闪避+${player.evaBonus} 暴击+${player.critBonus} 抗暴+${player.resistBonus}",
@@ -933,15 +949,29 @@ private fun EquipmentPanel(
         EquipmentSlot.values().forEach { slot ->
             val item = loadout.slots[slot]
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(text = "${slotLabel(slot)}：${item?.name ?: "空"}", fontWeight = FontWeight.SemiBold)
+                val rarityColor = item?.let { equipmentRarityColor(it.rarityTier, it.rarityId) }
+                    ?: Color(0xFF8F8F8F)
+                val levelColor = item?.let { equipmentLevelColor(it.level) } ?: Color(0xFFB8B2A6)
+                Text(
+                    text = "${slotLabel(slot)}：${item?.name ?: "空"}",
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (item == null) Color(0xFFB8B2A6) else rarityColor
+                )
                 if (item != null) {
                     Text(
                         text = "稀有度 ${item.rarityName} | 等级 ${item.level} | 评分 ${item.score}",
-                        color = Color(0xFFB8B2A6)
+                        color = rarityColor
                     )
+                    Text(text = "等级 ${item.level}", color = levelColor)
                     Text(text = "属性 ${formatStats(item.totalStats())}", color = Color(0xFFB8B2A6))
                     if (item.affixes.isNotEmpty()) {
-                        Text(text = "词条 ${formatAffixes(item.affixes)}", color = Color(0xFF8DB38B))
+                        Text(text = "词条", fontWeight = FontWeight.SemiBold)
+                        item.affixes.forEach { affix ->
+                            Text(
+                                text = formatAffixLine(affix),
+                                color = equipmentAffixColor(item.rarityTier, item.rarityId)
+                            )
+                        }
                     }
                     OutlinedButton(onClick = { onUnequip(slot) }) {
                         Text("卸下")
@@ -972,16 +1002,29 @@ private fun InventoryPanel(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(inventory.items, key = { it.uid }) { item ->
+                val rarityColor = equipmentRarityColor(item.rarityTier, item.rarityId)
+                val levelColor = equipmentLevelColor(item.level)
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(text = "${item.name}（${item.rarityName}）", fontWeight = FontWeight.SemiBold)
+                        Text(
+                            text = "${item.name}（${item.rarityName}）",
+                            fontWeight = FontWeight.SemiBold,
+                            color = rarityColor
+                        )
                         Text(
                             text = "部位 ${slotLabel(item.slot)} | 等级 ${item.level} | 评分 ${item.score}",
-                            color = Color(0xFFB8B2A6)
+                            color = rarityColor
                         )
+                        Text(text = "等级 ${item.level}", color = levelColor)
                         Text(text = "属性 ${formatStats(item.totalStats())}", color = Color(0xFFB8B2A6))
                         if (item.affixes.isNotEmpty()) {
-                            Text(text = "词条 ${formatAffixes(item.affixes)}", color = Color(0xFF8DB38B))
+                            Text(text = "词条", fontWeight = FontWeight.SemiBold)
+                            item.affixes.forEach { affix ->
+                                Text(
+                                    text = formatAffixLine(affix),
+                                    color = equipmentAffixColor(item.rarityTier, item.rarityId)
+                                )
+                            }
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(onClick = { onEquipItem(item.uid) }) { Text("装备") }
@@ -1344,6 +1387,9 @@ private fun statLabel(stat: StatType): String {
         StatType.ATK -> "攻击"
         StatType.DEF -> "防御"
         StatType.SPEED -> "速度"
+        StatType.STR -> "力量"
+        StatType.INT -> "智力"
+        StatType.AGI -> "敏捷"
         StatType.HIT -> "命中"
         StatType.EVADE -> "闪避"
         StatType.CRIT -> "暴击"
@@ -1381,11 +1427,42 @@ private fun formatAffixes(affixes: List<EquipmentAffix>): String {
     return affixes.joinToString(" ") { "${statLabel(it.type)}+${it.value}" }
 }
 
+private fun formatAffixLine(affix: EquipmentAffix): String {
+    val value = if (affix.value >= 0) "+${affix.value}" else affix.value.toString()
+    return "${statLabel(affix.type)}$value"
+}
+
 private fun formatCardEffects(effects: List<CardEffect>): String {
     if (effects.isEmpty()) return "无"
     return effects.joinToString("，") { effect ->
         val value = if (effect.value >= 0) "+${effect.value}" else effect.value.toString()
         "${statLabel(effect.stat)}$value"
+    }
+}
+
+private fun equipmentRarityColor(rarityTier: Int, rarityId: String): Color {
+    val id = rarityId.lowercase()
+    return when {
+        id.contains("legend") || rarityTier >= 5 -> Color(0xFFF5C542)
+        id.contains("epic") || rarityTier == 4 -> Color(0xFFF39C12)
+        id.contains("rare") || rarityTier == 3 -> Color(0xFF5DADE2)
+        id.contains("uncommon") || rarityTier == 2 -> Color(0xFF6FBF73)
+        else -> Color(0xFF8F8F8F)
+    }
+}
+
+private fun equipmentAffixColor(rarityTier: Int, rarityId: String): Color {
+    val base = equipmentRarityColor(rarityTier, rarityId)
+    return base.copy(alpha = 0.9f)
+}
+
+private fun equipmentLevelColor(level: Int): Color {
+    return when {
+        level >= 20 -> Color(0xFFD35400)
+        level >= 12 -> Color(0xFFB9770E)
+        level >= 8 -> Color(0xFF2E86C1)
+        level >= 4 -> Color(0xFF27AE60)
+        else -> Color(0xFFB8B2A6)
     }
 }
 

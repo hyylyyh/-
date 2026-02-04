@@ -27,7 +27,10 @@ data class CharacterStats(
     val atk: Int,
     val def: Int,
     val speed: Int,
-    val perception: Int
+    val perception: Int,
+    val strength: Int = 0,
+    val intelligence: Int = 0,
+    val agility: Int = 0
 )
 
 @Serializable
@@ -36,7 +39,10 @@ data class GrowthProfile(
     val mpMax: Int,
     val atk: Int,
     val def: Int,
-    val speed: Int
+    val speed: Int,
+    val strength: Int = 0,
+    val intelligence: Int = 0,
+    val agility: Int = 0
 )
 
 @Serializable
@@ -94,7 +100,16 @@ fun defaultRoles(): List<RoleProfile> = listOf(
         id = "fallback_explorer",
         name = "探险者",
         role = "探索/侦察",
-        stats = CharacterStats(hp = 120, atk = 22, def = 14, speed = 18, perception = 28),
+        stats = CharacterStats(
+            hp = 120,
+            atk = 22,
+            def = 14,
+            speed = 18,
+            perception = 28,
+            strength = 10,
+            intelligence = 8,
+            agility = 12
+        ),
         growth = defaultGrowthProfile(),
         passiveSkill = RoleSkill(
             name = "发现遗迹",
@@ -150,6 +165,9 @@ fun defaultGrowthProfile(): GrowthProfile {
         mpMax = 4,
         atk = 3,
         def = 2,
-        speed = 1
+        speed = 1,
+        strength = 1,
+        intelligence = 1,
+        agility = 1
     )
 }
