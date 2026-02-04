@@ -580,15 +580,20 @@ class GameViewModel(
         val nextTurn = if (incrementTurn) current.turn + 1 else current.turn
         val chapter = chapterForTurn(nextTurn)
         val difficulty = current.selectedDifficulty.coerceIn(1, 5)
+        val stageContext = StageContext(
+            chapter = chapter,
+            difficulty = difficulty,
+            turn = nextTurn
+        )
         val previousRuntime = stageRuntime
         val runtime = stageRuntime ?: assignGuardian(stageEngine.startStageForChapter(chapter, rng, difficulty))
         val shouldRestartStage = runtime.completed || runtime.stage.chapter != chapter
         val nextRuntime = if (shouldRestartStage) {
             assignGuardian(stageEngine.startStageForChapter(chapter, rng, difficulty))
         } else if (!forcedNodeId.isNullOrBlank()) {
-            stageEngine.moveToNode(runtime, forcedNodeId) ?: stageEngine.moveToNextNode(runtime, rng)
+            stageEngine.moveToNode(runtime, forcedNodeId) ?: stageEngine.moveToNextNode(runtime, rng, stageContext)
         } else {
-            stageEngine.moveToNextNode(runtime, rng)
+            stageEngine.moveToNextNode(runtime, rng, stageContext)
         }
         stageRuntime = nextRuntime
         val node = stageEngine.currentNode(nextRuntime)
@@ -606,10 +611,12 @@ class GameViewModel(
             "进入关卡：${nextRuntime.stage.name}"
         } else {
             val nodeId = node?.id ?: nextRuntime.currentNodeId
-            if (nodeId.contains("hidden", ignoreCase = true)) {
-                "发现隐藏路径：$nodeId"
+            val isHidden = node?.hidden == true || nodeId.contains("hidden", ignoreCase = true)
+            val reason = nextRuntime.lastMoveReason.ifBlank { "推进" }
+            if (isHidden) {
+                "发现隐藏路径：$nodeId（$reason）"
             } else {
-                "移动到节点：$nodeId"
+                "移动到节点：$nodeId（$reason）"
             }
         }
         val commandLog = if (shouldRestartStage && nextRuntime.command.isNotBlank()) {

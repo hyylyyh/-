@@ -34,7 +34,10 @@ data class NodeDefinition(
     val type: String,
     val neighbors: List<String>,
     val eventId: String? = null,
-    val conditions: List<String> = emptyList()
+    val conditions: List<String> = emptyList(),
+    val weight: Int = 1,
+    val tags: List<String> = emptyList(),
+    val hidden: Boolean = false
 )
 
 data class StageRuntime(
@@ -43,7 +46,9 @@ data class StageRuntime(
     val visited: Set<String>,
     val completed: Boolean,
     val command: String,
-    val guardianGroupId: String?
+    val guardianGroupId: String?,
+    val path: List<String> = emptyList(),
+    val lastMoveReason: String = "初始化"
 )
 
 fun defaultStages(): List<StageDefinition> {
