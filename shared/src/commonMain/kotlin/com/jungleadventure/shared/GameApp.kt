@@ -129,8 +129,16 @@ private fun HeaderBar(state: GameUiState) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
+            val titleStageProgress = if (state.stage.total > 0) {
+                "${state.stage.visited}/${state.stage.total}"
+            } else {
+                "--"
+            }
+            val titleChapterLabel = "第 ${state.chapter} 章"
+            val titleProgressLabel = "关卡进度 $titleStageProgress"
+            val titleText = "${state.title} · $titleChapterLabel · $titleProgressLabel"
             Text(
-                text = state.title,
+                text = titleText,
                 style = MaterialTheme.typography.headlineSmall,
                 color = Color(0xFFECE8D9),
                 fontWeight = FontWeight.Bold
