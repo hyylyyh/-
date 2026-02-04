@@ -179,6 +179,9 @@ private fun MainPanel(
     onToggleShowSkillFormula: (Boolean) -> Unit
 ) {
     val scrollState = rememberScrollState()
+    LaunchedEffect(state.activePanel) {
+        scrollState.animateScrollTo(scrollState.maxValue)
+    }
     Column(
         modifier = modifier.verticalScroll(scrollState),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -747,7 +750,14 @@ private fun SidePanel(
     showSkillFormula: Boolean,
     onToggleShowSkillFormula: (Boolean) -> Unit
 ) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    val scrollState = rememberScrollState()
+    LaunchedEffect(state.activePanel) {
+        scrollState.animateScrollTo(scrollState.maxValue)
+    }
+    Column(
+        modifier = modifier.verticalScroll(scrollState),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         if (state.screen != GameScreen.ADVENTURE) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
