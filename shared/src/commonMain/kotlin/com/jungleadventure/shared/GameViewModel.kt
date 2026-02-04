@@ -1169,13 +1169,41 @@ class GameViewModel(
 
     private fun battleRewardSummary(
         before: PlayerStats,
-        after: PlayerStats,
-        expDelta: Int
+        after: PlayerStats
     ): String {
         val goldGain = after.gold - before.gold
+        val materialGain = after.materials - before.materials
         val equipGain = (after.inventory.items.size - before.inventory.items.size).coerceAtLeast(0)
-        val expGain = expDelta.coerceAtLeast(0)
-        return "本次战斗获得：金币${signed(goldGain)} 经验${signed(expGain)} 装备+$equipGain"
+        val expGain = (totalExpValue(after) - totalExpValue(before)).coerceAtLeast(0)
+        return "本次战斗获得：金币${signed(goldGain)} 经验${signed(expGain)} 材料${signed(materialGain)} 装备+$equipGain"
+    }
+
+    private fun totalExpValue(player: PlayerStats): Int {
+        var total = 0
+        for (level in 1 until player.level) {
+            total += expRequiredFor(level)
+        }
+        return total + player.exp
+    }
+
+    private fun logBattleRewardSummary(
+        before: PlayerStats,
+        after: PlayerStats,
+        victory: Boolean,
+        reason: String
+    ) {
+        val goldGain = after.gold - before.gold
+        val materialGain = after.materials - before.materials
+        val equipGain = (after.inventory.items.size - before.inventory.items.size).coerceAtLeast(0)
+        val expGain = (totalExpValue(after) - totalExpValue(before)).coerceAtLeast(0)
+        GameLogger.info(
+            logTag,
+            "战斗奖励汇总：胜利=$victory 金币${signed(goldGain)} 经验${signed(expGain)} 材料${signed(materialGain)} 装备+$equipGain 原因=$reason"
+        )
+        GameLogger.info(
+            logTag,
+            "战斗奖励对比：金币${before.gold}->${after.gold} 经验总值${totalExpValue(before)}->${totalExpValue(after)} 材料${before.materials}->${after.materials} 背包${before.inventory.items.size}->${after.inventory.items.size}"
+        )
     }
 
     private fun expRequiredFor(level: Int): Int {
@@ -1661,8 +1689,8 @@ class GameViewModel(
             ResultApplication(basePlayer, emptyList())
         }
         val rewardPlayer = applied.player
-        val expDelta = if (victory) event.result?.expDelta ?: 0 else 0
-        val rewardSummaryLine = battleRewardSummary(basePlayer, rewardPlayer, expDelta)
+        val rewardSummaryLine = battleRewardSummary(basePlayer, rewardPlayer)
+        logBattleRewardSummary(basePlayer, rewardPlayer, victory, "战斗结算")
         val resultSummary = if (victory) {
             event.result?.let { summarizeResult(it) } ?: "战斗无额外奖励"
         } else if (escaped) {
@@ -1791,8 +1819,8 @@ class GameViewModel(
             ResultApplication(postBattlePlayer, emptyList())
         }
         val rewardPlayer = applied.player
-        val expDelta = if (victory) event.result?.expDelta ?: 0 else 0
-        val rewardSummaryLine = battleRewardSummary(postBattlePlayer, rewardPlayer, expDelta)
+        val rewardSummaryLine = battleRewardSummary(postBattlePlayer, rewardPlayer)
+        logBattleRewardSummary(postBattlePlayer, rewardPlayer, victory, "自动战斗结算")
 
         val resultSummary = if (victory) {
             event.result?.let { summarizeResult(it) } ?: "战斗无额外奖励"
