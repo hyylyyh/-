@@ -94,6 +94,7 @@ fun GameApp(
                     onOpenEquipment = viewModel::onOpenEquipment,
                     onOpenInventory = viewModel::onOpenInventory,
                     onOpenCards = viewModel::onOpenCards,
+                    onOpenSkills = viewModel::onOpenSkills,
                     onEquipItem = viewModel::onEquipItem,
                     onUnequipSlot = viewModel::onUnequipSlot,
                     onSave = viewModel::onSave,
@@ -736,6 +737,7 @@ private fun SidePanel(
     onOpenEquipment: () -> Unit,
     onOpenInventory: () -> Unit,
     onOpenCards: () -> Unit,
+    onOpenSkills: () -> Unit,
     onEquipItem: (String) -> Unit,
     onUnequipSlot: (EquipmentSlot) -> Unit,
     onSave: (Int) -> Unit,
@@ -780,6 +782,7 @@ private fun SidePanel(
                     Button(onClick = onOpenEquipment) { Text("装备") }
                     Button(onClick = onOpenInventory) { Text("背包") }
                     Button(onClick = onOpenCards) { Text("卡牌") }
+                    Button(onClick = onOpenSkills) { Text("技能") }
                 }
             }
         }
@@ -800,7 +803,8 @@ private fun SidePanel(
                         onOpenStatus = onOpenStatus,
                         onOpenEquipment = onOpenEquipment,
                         onOpenInventory = onOpenInventory,
-                        onOpenCards = onOpenCards
+                        onOpenCards = onOpenCards,
+                        onOpenSkills = onOpenSkills
                     )
                 }
             }
@@ -816,6 +820,7 @@ private fun SidePanel(
                     GamePanel.EQUIPMENT -> "当前装备"
                     GamePanel.INVENTORY -> "背包物品"
                     GamePanel.CARDS -> "卡牌收藏"
+                    GamePanel.SKILLS -> "角色技能"
                 }, fontWeight = FontWeight.Bold)
                 Divider(modifier = Modifier.padding(vertical = 8.dp))
                 when (state.activePanel) {
@@ -829,6 +834,11 @@ private fun SidePanel(
                         onEquipItem = onEquipItem
                     )
                     GamePanel.CARDS -> CardPanel(player = state.player)
+                    GamePanel.SKILLS -> SkillPanel(
+                        role = state.roles.firstOrNull { it.id == state.selectedRoleId }
+                            ?: state.roles.firstOrNull { it.unlocked },
+                        showSkillFormula = showSkillFormula
+                    )
                 }
             }
         }
@@ -856,6 +866,38 @@ private fun StatusPanel(player: PlayerStats) {
             Spacer(modifier = Modifier.width(12.dp))
             Text("材料 ${player.materials}")
         }
+    }
+}
+
+@Composable
+private fun SkillPanel(role: RoleProfile?, showSkillFormula: Boolean) {
+    if (role == null) {
+        PlaceholderPanel("暂无角色技能")
+        return
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(text = "${role.name} / ${role.role}", color = Color(0xFFB8B2A6))
+        SkillDetailCard(
+            title = "被动技能",
+            skill = role.passiveSkill,
+            showFormula = showSkillFormula
+        )
+        if (role.activeSkills.isEmpty()) {
+            Text(text = "主动技能：暂无", color = Color(0xFFB8B2A6))
+        } else {
+            role.activeSkills.forEachIndexed { index, skill ->
+                SkillDetailCard(
+                    title = "主动技能 ${index + 1}",
+                    skill = skill,
+                    showFormula = showSkillFormula
+                )
+            }
+        }
+        SkillDetailCard(
+            title = "终极技能",
+            skill = role.ultimateSkill,
+            showFormula = showSkillFormula
+        )
     }
 }
 
@@ -1028,7 +1070,8 @@ private fun BattleOperationPanel(
     onOpenStatus: () -> Unit,
     onOpenEquipment: () -> Unit,
     onOpenInventory: () -> Unit,
-    onOpenCards: () -> Unit
+    onOpenCards: () -> Unit,
+    onOpenSkills: () -> Unit
 ) {
     val choiceMap = choices.associateBy { it.id }
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -1073,6 +1116,7 @@ private fun BattleOperationPanel(
                 ActionIconButton(label = "装备", enabled = true, onClick = onOpenEquipment)
                 ActionIconButton(label = "背包", enabled = true, onClick = onOpenInventory)
                 ActionIconButton(label = "卡牌", enabled = true, onClick = onOpenCards)
+                ActionIconButton(label = "技能", enabled = true, onClick = onOpenSkills)
             }
         }
     }

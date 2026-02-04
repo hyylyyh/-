@@ -293,6 +293,11 @@ class GameViewModel(
         _state.update { it.copy(activePanel = GamePanel.CARDS, lastAction = "查看卡牌") }
     }
 
+    fun onOpenSkills() {
+        GameLogger.info(logTag, "切换面板：技能")
+        _state.update { it.copy(activePanel = GamePanel.SKILLS, lastAction = "查看技能") }
+    }
+
     fun onToggleShowSkillFormula(enabled: Boolean) {
         val status = if (enabled) "显示" else "隐藏"
         GameLogger.info(logTag, "设置变更：技能伤害公式=$status")

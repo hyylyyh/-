@@ -120,7 +120,8 @@ enum class GamePanel {
     STATUS,
     EQUIPMENT,
     INVENTORY,
-    CARDS
+    CARDS,
+    SKILLS
 }
 
 enum class GameScreen {
