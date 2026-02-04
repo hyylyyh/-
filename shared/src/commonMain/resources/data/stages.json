@@ -1,255 +1,235 @@
-﻿{
-    "schema":  "stages.v1",
-    "stages":  [
-                   {
-                       "id":  "stage_1",
-                       "name":  "第1章：丛林试炼",
-                       "chapter":  1,
-                       "difficulty":  1,
-                       "floors":  1,
-                       "nodes":  [
-                                     "1-1",
-                                     "1-2",
-                                     "1-3",
-                                     "1-4",
-                                     "1-5",
-                                     "1-6",
-                                     "1-7",
-                                     "1-8",
-                                     "1-9",
-                                     "1-10"
-                                 ],
-                       "entry":  "1-1",
-                       "exit":  "1-10",
-                       "command":  "JUNGLE-",
-                       "guardianPool":  [
-
-                                        ]
-                   },
-                   {
-                       "id":  "stage_2",
-                       "name":  "第2章：丛林试炼",
-                       "chapter":  2,
-                       "difficulty":  1,
-                       "floors":  1,
-                       "nodes":  [
-                                     "2-1",
-                                     "2-2",
-                                     "2-3",
-                                     "2-4",
-                                     "2-5",
-                                     "2-6",
-                                     "2-7",
-                                     "2-8",
-                                     "2-9",
-                                     "2-10"
-                                 ],
-                       "entry":  "2-1",
-                       "exit":  "2-10",
-                       "command":  "JUNGLE-",
-                       "guardianPool":  [
-
-                                        ]
-                   },
-                   {
-                       "id":  "stage_3",
-                       "name":  "第3章：丛林试炼",
-                       "chapter":  3,
-                       "difficulty":  1,
-                       "floors":  1,
-                       "nodes":  [
-                                     "3-1",
-                                     "3-2",
-                                     "3-3",
-                                     "3-4",
-                                     "3-5",
-                                     "3-6",
-                                     "3-7",
-                                     "3-8",
-                                     "3-9",
-                                     "3-10"
-                                 ],
-                       "entry":  "3-1",
-                       "exit":  "3-10",
-                       "command":  "JUNGLE-",
-                       "guardianPool":  [
-
-                                        ]
-                   },
-                   {
-                       "id":  "stage_4",
-                       "name":  "第4章：丛林试炼",
-                       "chapter":  4,
-                       "difficulty":  1,
-                       "floors":  1,
-                       "nodes":  [
-                                     "4-1",
-                                     "4-2",
-                                     "4-3",
-                                     "4-4",
-                                     "4-5",
-                                     "4-6",
-                                     "4-7",
-                                     "4-8",
-                                     "4-9",
-                                     "4-10"
-                                 ],
-                       "entry":  "4-1",
-                       "exit":  "4-10",
-                       "command":  "JUNGLE-",
-                       "guardianPool":  [
-
-                                        ]
-                   },
-                   {
-                       "id":  "stage_5",
-                       "name":  "第5章：丛林试炼",
-                       "chapter":  5,
-                       "difficulty":  1,
-                       "floors":  1,
-                       "nodes":  [
-                                     "5-1",
-                                     "5-2",
-                                     "5-3",
-                                     "5-4",
-                                     "5-5",
-                                     "5-6",
-                                     "5-7",
-                                     "5-8",
-                                     "5-9",
-                                     "5-10"
-                                 ],
-                       "entry":  "5-1",
-                       "exit":  "5-10",
-                       "command":  "JUNGLE-",
-                       "guardianPool":  [
-
-                                        ]
-                   },
-                   {
-                       "id":  "stage_6",
-                       "name":  "第6章：丛林试炼",
-                       "chapter":  6,
-                       "difficulty":  1,
-                       "floors":  1,
-                       "nodes":  [
-                                     "6-1",
-                                     "6-2",
-                                     "6-3",
-                                     "6-4",
-                                     "6-5",
-                                     "6-6",
-                                     "6-7",
-                                     "6-8",
-                                     "6-9",
-                                     "6-10"
-                                 ],
-                       "entry":  "6-1",
-                       "exit":  "6-10",
-                       "command":  "JUNGLE-",
-                       "guardianPool":  [
-
-                                        ]
-                   },
-                   {
-                       "id":  "stage_7",
-                       "name":  "第7章：丛林试炼",
-                       "chapter":  7,
-                       "difficulty":  1,
-                       "floors":  1,
-                       "nodes":  [
-                                     "7-1",
-                                     "7-2",
-                                     "7-3",
-                                     "7-4",
-                                     "7-5",
-                                     "7-6",
-                                     "7-7",
-                                     "7-8",
-                                     "7-9",
-                                     "7-10"
-                                 ],
-                       "entry":  "7-1",
-                       "exit":  "7-10",
-                       "command":  "JUNGLE-",
-                       "guardianPool":  [
-
-                                        ]
-                   },
-                   {
-                       "id":  "stage_8",
-                       "name":  "第8章：丛林试炼",
-                       "chapter":  8,
-                       "difficulty":  1,
-                       "floors":  1,
-                       "nodes":  [
-                                     "8-1",
-                                     "8-2",
-                                     "8-3",
-                                     "8-4",
-                                     "8-5",
-                                     "8-6",
-                                     "8-7",
-                                     "8-8",
-                                     "8-9",
-                                     "8-10"
-                                 ],
-                       "entry":  "8-1",
-                       "exit":  "8-10",
-                       "command":  "JUNGLE-",
-                       "guardianPool":  [
-
-                                        ]
-                   },
-                   {
-                       "id":  "stage_9",
-                       "name":  "第9章：丛林试炼",
-                       "chapter":  9,
-                       "difficulty":  1,
-                       "floors":  1,
-                       "nodes":  [
-                                     "9-1",
-                                     "9-2",
-                                     "9-3",
-                                     "9-4",
-                                     "9-5",
-                                     "9-6",
-                                     "9-7",
-                                     "9-8",
-                                     "9-9",
-                                     "9-10"
-                                 ],
-                       "entry":  "9-1",
-                       "exit":  "9-10",
-                       "command":  "JUNGLE-",
-                       "guardianPool":  [
-
-                                        ]
-                   },
-                   {
-                       "id":  "stage_10",
-                       "name":  "第10章：丛林试炼",
-                       "chapter":  10,
-                       "difficulty":  1,
-                       "floors":  1,
-                       "nodes":  [
-                                     "10-1",
-                                     "10-2",
-                                     "10-3",
-                                     "10-4",
-                                     "10-5",
-                                     "10-6",
-                                     "10-7",
-                                     "10-8",
-                                     "10-9",
-                                     "10-10"
-                                 ],
-                       "entry":  "10-1",
-                       "exit":  "10-10",
-                       "command":  "JUNGLE-",
-                       "guardianPool":  [
-
-                                        ]
-                   }
-               ]
+{
+  "schema": "stages.v1",
+  "stages": [
+    {
+      "id": "stage_1",
+      "name": "?1??????",
+      "chapter": 1,
+      "difficulty": 1,
+      "floors": 1,
+      "nodes": [
+        "1-1",
+        "1-2",
+        "1-3",
+        "1-4",
+        "1-5",
+        "1-6",
+        "1-7",
+        "1-8",
+        "1-9",
+        "1-10"
+      ],
+      "entry": "1-1",
+      "exit": "1-10",
+      "command": "JUNGLE-01",
+      "guardianPool": []
+    },
+    {
+      "id": "stage_2",
+      "name": "?2??????",
+      "chapter": 2,
+      "difficulty": 1,
+      "floors": 1,
+      "nodes": [
+        "2-1",
+        "2-2",
+        "2-3",
+        "2-4",
+        "2-5",
+        "2-6",
+        "2-7",
+        "2-8",
+        "2-9",
+        "2-10"
+      ],
+      "entry": "2-1",
+      "exit": "2-10",
+      "command": "JUNGLE-02",
+      "guardianPool": []
+    },
+    {
+      "id": "stage_3",
+      "name": "?3??????",
+      "chapter": 3,
+      "difficulty": 1,
+      "floors": 1,
+      "nodes": [
+        "3-1",
+        "3-2",
+        "3-3",
+        "3-4",
+        "3-5",
+        "3-6",
+        "3-7",
+        "3-8",
+        "3-9",
+        "3-10"
+      ],
+      "entry": "3-1",
+      "exit": "3-10",
+      "command": "JUNGLE-03",
+      "guardianPool": []
+    },
+    {
+      "id": "stage_4",
+      "name": "?4??????",
+      "chapter": 4,
+      "difficulty": 1,
+      "floors": 1,
+      "nodes": [
+        "4-1",
+        "4-2",
+        "4-3",
+        "4-4",
+        "4-5",
+        "4-6",
+        "4-7",
+        "4-8",
+        "4-9",
+        "4-10"
+      ],
+      "entry": "4-1",
+      "exit": "4-10",
+      "command": "JUNGLE-04",
+      "guardianPool": []
+    },
+    {
+      "id": "stage_5",
+      "name": "?5??????",
+      "chapter": 5,
+      "difficulty": 1,
+      "floors": 1,
+      "nodes": [
+        "5-1",
+        "5-2",
+        "5-3",
+        "5-4",
+        "5-5",
+        "5-6",
+        "5-7",
+        "5-8",
+        "5-9",
+        "5-10"
+      ],
+      "entry": "5-1",
+      "exit": "5-10",
+      "command": "JUNGLE-05",
+      "guardianPool": []
+    },
+    {
+      "id": "stage_6",
+      "name": "?6??????",
+      "chapter": 6,
+      "difficulty": 1,
+      "floors": 1,
+      "nodes": [
+        "6-1",
+        "6-2",
+        "6-3",
+        "6-4",
+        "6-5",
+        "6-6",
+        "6-7",
+        "6-8",
+        "6-9",
+        "6-10"
+      ],
+      "entry": "6-1",
+      "exit": "6-10",
+      "command": "JUNGLE-06",
+      "guardianPool": []
+    },
+    {
+      "id": "stage_7",
+      "name": "?7??????",
+      "chapter": 7,
+      "difficulty": 1,
+      "floors": 1,
+      "nodes": [
+        "7-1",
+        "7-2",
+        "7-3",
+        "7-4",
+        "7-5",
+        "7-6",
+        "7-7",
+        "7-8",
+        "7-9",
+        "7-10"
+      ],
+      "entry": "7-1",
+      "exit": "7-10",
+      "command": "JUNGLE-07",
+      "guardianPool": []
+    },
+    {
+      "id": "stage_8",
+      "name": "?8??????",
+      "chapter": 8,
+      "difficulty": 1,
+      "floors": 1,
+      "nodes": [
+        "8-1",
+        "8-2",
+        "8-3",
+        "8-4",
+        "8-5",
+        "8-6",
+        "8-7",
+        "8-8",
+        "8-9",
+        "8-10"
+      ],
+      "entry": "8-1",
+      "exit": "8-10",
+      "command": "JUNGLE-08",
+      "guardianPool": []
+    },
+    {
+      "id": "stage_9",
+      "name": "?9??????",
+      "chapter": 9,
+      "difficulty": 1,
+      "floors": 1,
+      "nodes": [
+        "9-1",
+        "9-2",
+        "9-3",
+        "9-4",
+        "9-5",
+        "9-6",
+        "9-7",
+        "9-8",
+        "9-9",
+        "9-10"
+      ],
+      "entry": "9-1",
+      "exit": "9-10",
+      "command": "JUNGLE-09",
+      "guardianPool": []
+    },
+    {
+      "id": "stage_10",
+      "name": "?10??????",
+      "chapter": 10,
+      "difficulty": 1,
+      "floors": 1,
+      "nodes": [
+        "10-1",
+        "10-2",
+        "10-3",
+        "10-4",
+        "10-5",
+        "10-6",
+        "10-7",
+        "10-8",
+        "10-9",
+        "10-10"
+      ],
+      "entry": "10-1",
+      "exit": "10-10",
+      "command": "JUNGLE-10",
+      "guardianPool": []
+    }
+  ]
 }
