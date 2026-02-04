@@ -751,9 +751,6 @@ private fun SidePanel(
     onToggleShowSkillFormula: (Boolean) -> Unit
 ) {
     val scrollState = rememberScrollState()
-    LaunchedEffect(state.activePanel) {
-        scrollState.animateScrollTo(scrollState.maxValue)
-    }
     Column(
         modifier = modifier.verticalScroll(scrollState),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -797,33 +794,6 @@ private fun SidePanel(
             }
         }
         Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (state.battle == null) {
-                    Text(text = "敌人情报", fontWeight = FontWeight.Bold)
-                    Divider(modifier = Modifier.padding(vertical = 4.dp))
-                    if (state.enemyPreview == null) {
-                        PlaceholderPanel("暂无敌人情报")
-                    } else {
-                        EnemyPreviewPanel(preview = state.enemyPreview)
-                    }
-                } else {
-                    BattleOperationPanel(
-                        choices = state.choices,
-                        onChoice = onChoice,
-                        onOpenStatus = onOpenStatus,
-                        onOpenEquipment = onOpenEquipment,
-                        onOpenInventory = onOpenInventory,
-                        onOpenCards = onOpenCards,
-                        onOpenSkills = onOpenSkills
-                    )
-                }
-            }
-        }
-        SettingsPanelCard(
-            showSkillFormula = showSkillFormula,
-            onToggleShowSkillFormula = onToggleShowSkillFormula
-        )
-        Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(12.dp)) {
                 Text(text = when (state.activePanel) {
                     GamePanel.STATUS -> "角色状态"
@@ -852,6 +822,33 @@ private fun SidePanel(
                 }
             }
         }
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (state.battle == null) {
+                    Text(text = "敌人情报", fontWeight = FontWeight.Bold)
+                    Divider(modifier = Modifier.padding(vertical = 4.dp))
+                    if (state.enemyPreview == null) {
+                        PlaceholderPanel("暂无敌人情报")
+                    } else {
+                        EnemyPreviewPanel(preview = state.enemyPreview)
+                    }
+                } else {
+                    BattleOperationPanel(
+                        choices = state.choices,
+                        onChoice = onChoice,
+                        onOpenStatus = onOpenStatus,
+                        onOpenEquipment = onOpenEquipment,
+                        onOpenInventory = onOpenInventory,
+                        onOpenCards = onOpenCards,
+                        onOpenSkills = onOpenSkills
+                    )
+                }
+            }
+        }
+        SettingsPanelCard(
+            showSkillFormula = showSkillFormula,
+            onToggleShowSkillFormula = onToggleShowSkillFormula
+        )
     }
 }
 
