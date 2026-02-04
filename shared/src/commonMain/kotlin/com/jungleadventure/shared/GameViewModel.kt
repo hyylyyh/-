@@ -326,11 +326,6 @@ class GameViewModel(
             GameLogger.warn("装备系统", "未进入冒险界面，无法装备")
             return
         }
-        if (current.battle != null) {
-            GameLogger.warn("装备系统", "战斗中禁止更换装备")
-            _state.update { it.copy(lastAction = "战斗中无法更换装备", log = it.log + "战斗中无法更换装备") }
-            return
-        }
         val inventory = current.player.inventory
         val target = inventory.items.firstOrNull { it.uid == itemId }
         if (target == null) {
@@ -342,8 +337,14 @@ class GameViewModel(
         val remaining = inventory.items.filterNot { it.uid == itemId }
         val newInventory = if (equipped == null) remaining else remaining + equipped
         val nextLoadout = loadout.copy(slots = loadout.slots + (target.slot to target))
+        val battleSessionSnapshot = battleSession
+        val preparedPlayer = if (battleSessionSnapshot != null) {
+            current.player.copy(hp = battleSessionSnapshot.player.hp, mp = battleSessionSnapshot.player.mp)
+        } else {
+            current.player
+        }
         val updatedPlayer = recalculatePlayerStats(
-            current.player.copy(
+            preparedPlayer.copy(
                 equipment = nextLoadout,
                 inventory = inventory.copy(items = newInventory)
             ),
@@ -358,12 +359,27 @@ class GameViewModel(
         } else {
             "装备 ${target.name}（${target.rarityName}），替换 ${equipped.name}"
         }
-        _state.update {
-            it.copy(
-                player = updatedPlayer,
-                lastAction = "已装备 ${target.name}",
-                log = it.log + logLine
+        if (battleSessionSnapshot != null) {
+            val refreshedSession = refreshBattleSessionForEquipmentChange(
+                session = battleSessionSnapshot,
+                updatedPlayer = updatedPlayer,
+                reason = "战斗中装备 ${target.name}"
             )
+            battleSession = refreshedSession
+            updateBattleStateAfterEquipmentChange(
+                refreshedSession,
+                updatedPlayer,
+                logLine,
+                "已装备 ${target.name}"
+            )
+        } else {
+            _state.update {
+                it.copy(
+                    player = updatedPlayer,
+                    lastAction = "已装备 ${target.name}",
+                    log = it.log + logLine
+                )
+            }
         }
     }
 
@@ -371,11 +387,6 @@ class GameViewModel(
         val current = _state.value
         if (current.screen != GameScreen.ADVENTURE) {
             GameLogger.warn("装备系统", "未进入冒险界面，无法卸下装备")
-            return
-        }
-        if (current.battle != null) {
-            GameLogger.warn("装备系统", "战斗中禁止更换装备")
-            _state.update { it.copy(lastAction = "战斗中无法更换装备", log = it.log + "战斗中无法更换装备") }
             return
         }
         val loadout = current.player.equipment
@@ -392,17 +403,39 @@ class GameViewModel(
         }
         val nextLoadout = loadout.copy(slots = loadout.slots - slot)
         val nextInventory = inventory.copy(items = inventory.items + item)
+        val battleSessionSnapshot = battleSession
+        val preparedPlayer = if (battleSessionSnapshot != null) {
+            current.player.copy(hp = battleSessionSnapshot.player.hp, mp = battleSessionSnapshot.player.mp)
+        } else {
+            current.player
+        }
         val updatedPlayer = recalculatePlayerStats(
-            current.player.copy(equipment = nextLoadout, inventory = nextInventory),
+            preparedPlayer.copy(equipment = nextLoadout, inventory = nextInventory),
             "卸下 ${item.name}"
         )
         GameLogger.info("装备系统", "卸下装备：${item.name} 槽位=$slot")
-        _state.update {
-            it.copy(
-                player = updatedPlayer,
-                lastAction = "已卸下 ${item.name}",
-                log = it.log + "卸下 ${item.name}"
+        val logLine = "卸下 ${item.name}"
+        if (battleSessionSnapshot != null) {
+            val refreshedSession = refreshBattleSessionForEquipmentChange(
+                session = battleSessionSnapshot,
+                updatedPlayer = updatedPlayer,
+                reason = "战斗中卸下 ${item.name}"
             )
+            battleSession = refreshedSession
+            updateBattleStateAfterEquipmentChange(
+                refreshedSession,
+                updatedPlayer,
+                logLine,
+                "已卸下 ${item.name}"
+            )
+        } else {
+            _state.update {
+                it.copy(
+                    player = updatedPlayer,
+                    lastAction = "已卸下 ${item.name}",
+                    log = it.log + logLine
+                )
+            }
         }
     }
 
@@ -1761,6 +1794,35 @@ class GameViewModel(
         }
     }
 
+    private fun updateBattleStateAfterEquipmentChange(
+        session: BattleSession,
+        updatedPlayer: PlayerStats,
+        logLine: String,
+        lastAction: String
+    ) {
+        val battleState = BattleUiState(
+            round = session.round,
+            playerHp = session.player.hp,
+            playerMp = session.player.mp,
+            enemyHp = session.enemy.hp,
+            enemyMp = session.enemy.mp,
+            enemyName = session.enemy.name,
+            equipmentMode = equipmentModeLabel(session.equipmentMode),
+            skillCooldown = session.skillCooldown
+        )
+        val choices = buildBattleChoices(session)
+        _state.update { current ->
+            current.copy(
+                player = updatedPlayer,
+                battle = battleState,
+                enemyPreview = buildEnemyPreview(current.currentEvent, updatedPlayer),
+                choices = choices,
+                lastAction = lastAction,
+                log = current.log + logLine
+            )
+        }
+    }
+
     private fun syncBattlePlayerStats(current: PlayerStats, session: BattleSession): PlayerStats {
         val actor = session.player
         val nextHpMax = actor.stats.hpMax
@@ -1777,6 +1839,43 @@ class GameViewModel(
             hpMax = nextHpMax,
             mp = nextMp
         )
+    }
+
+    private fun refreshBattleSessionForEquipmentChange(
+        session: BattleSession,
+        updatedPlayer: PlayerStats,
+        reason: String
+    ): BattleSession {
+        val baseActor = updatedPlayer.toCombatActor()
+        val baseStats = baseActor.stats
+        val adjustedStats = applyEquipmentMode(baseStats, session.equipmentMode)
+        val nextHp = session.player.hp.coerceIn(0, adjustedStats.hpMax)
+        val nextMp = session.player.mp.coerceIn(0, updatedPlayer.mpMax)
+        val refreshedPlayer = baseActor.copy(
+            stats = adjustedStats,
+            hp = nextHp,
+            mp = nextMp,
+            statuses = session.player.statuses
+        )
+        GameLogger.info(
+            "装备系统",
+            "战斗中更新装备属性：模式=${equipmentModeLabel(session.equipmentMode)} 生命${session.player.hp}/${session.player.stats.hpMax}->${refreshedPlayer.hp}/${refreshedPlayer.stats.hpMax} 攻击${session.player.stats.atk}->${refreshedPlayer.stats.atk} 防御${session.player.stats.def}->${refreshedPlayer.stats.def} 速度${session.player.stats.speed}->${refreshedPlayer.stats.speed} 原因=$reason"
+        )
+        return session.copy(player = refreshedPlayer, basePlayerStats = baseStats)
+    }
+
+    private fun applyEquipmentMode(baseStats: CombatStats, mode: EquipmentMode): CombatStats {
+        return when (mode) {
+            EquipmentMode.NORMAL -> baseStats
+            EquipmentMode.OFFENSE -> baseStats.copy(
+                atk = max(1, (baseStats.atk * 1.2).toInt()),
+                def = max(1, (baseStats.def * 0.9).toInt())
+            )
+            EquipmentMode.DEFENSE -> baseStats.copy(
+                atk = max(1, (baseStats.atk * 0.9).toInt()),
+                def = max(1, (baseStats.def * 1.2).toInt())
+            )
+        }
     }
 
     private fun finishBattle(event: EventDefinition, outcome: BattleOutcome) {
