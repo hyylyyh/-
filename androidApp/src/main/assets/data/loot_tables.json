@@ -6,10 +6,10 @@
       "tier": 1,
       "guarantee": { "counterKey": "enemy_basic", "threshold": 5, "grantRarityMin": 2 },
       "weightedPool": [
-        { "type": "EQUIPMENT", "refId": "rusty_spear", "weight": 18, "min": 1, "max": 1 },
-        { "type": "EQUIPMENT", "refId": "hunter_armor", "weight": 12, "min": 1, "max": 1 },
-        { "type": "GOLD", "refId": "gold", "weight": 50, "min": 4, "max": 8 },
-        { "type": "MATERIAL", "refId": "fiber", "weight": 20, "min": 1, "max": 2 }
+        { "type": "EQUIPMENT", "refId": "rusty_spear", "weight": 24, "min": 1, "max": 1 },
+        { "type": "EQUIPMENT", "refId": "hunter_armor", "weight": 16, "min": 1, "max": 1 },
+        { "type": "GOLD", "refId": "gold", "weight": 42, "min": 4, "max": 8 },
+        { "type": "MATERIAL", "refId": "fiber", "weight": 18, "min": 1, "max": 2 }
       ]
     },
     {
@@ -18,10 +18,10 @@
       "tier": 2,
       "guarantee": { "counterKey": "enemy_basic", "threshold": 5, "grantRarityMin": 3 },
       "weightedPool": [
-        { "type": "EQUIPMENT", "refId": "hunter_armor", "weight": 18, "min": 1, "max": 1 },
-        { "type": "EQUIPMENT", "refId": "jade_helm", "weight": 10, "min": 1, "max": 1 },
-        { "type": "GOLD", "refId": "gold", "weight": 50, "min": 6, "max": 12 },
-        { "type": "MATERIAL", "refId": "fiber", "weight": 22, "min": 1, "max": 3 }
+        { "type": "EQUIPMENT", "refId": "hunter_armor", "weight": 22, "min": 1, "max": 1 },
+        { "type": "EQUIPMENT", "refId": "jade_helm", "weight": 14, "min": 1, "max": 1 },
+        { "type": "GOLD", "refId": "gold", "weight": 44, "min": 6, "max": 12 },
+        { "type": "MATERIAL", "refId": "fiber", "weight": 20, "min": 1, "max": 3 }
       ]
     },
     {
@@ -30,10 +30,10 @@
       "tier": 3,
       "guarantee": { "counterKey": "enemy_basic", "threshold": 4, "grantRarityMin": 4 },
       "weightedPool": [
-        { "type": "EQUIPMENT", "refId": "jade_helm", "weight": 16, "min": 1, "max": 1 },
-        { "type": "EQUIPMENT", "refId": "shadow_charm", "weight": 6, "min": 1, "max": 1 },
-        { "type": "GOLD", "refId": "gold", "weight": 50, "min": 8, "max": 16 },
-        { "type": "MATERIAL", "refId": "fiber", "weight": 28, "min": 2, "max": 4 }
+        { "type": "EQUIPMENT", "refId": "jade_helm", "weight": 22, "min": 1, "max": 1 },
+        { "type": "EQUIPMENT", "refId": "shadow_charm", "weight": 10, "min": 1, "max": 1 },
+        { "type": "GOLD", "refId": "gold", "weight": 44, "min": 8, "max": 16 },
+        { "type": "MATERIAL", "refId": "fiber", "weight": 24, "min": 2, "max": 4 }
       ]
     },
     {
