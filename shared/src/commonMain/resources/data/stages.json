@@ -28,7 +28,7 @@
       "id": "stage_2",
       "name": "第2章：节目组的任务单",
       "chapter": 2,
-      "difficulty": 1,
+      "difficulty": 2,
       "floors": 1,
       "nodes": [
         "2-1",
@@ -51,7 +51,7 @@
       "id": "stage_3",
       "name": "第3章：打工人怪物的吐槽会",
       "chapter": 3,
-      "difficulty": 1,
+      "difficulty": 3,
       "floors": 1,
       "nodes": [
         "3-1",
@@ -74,7 +74,7 @@
       "id": "stage_4",
       "name": "第4章：出口就在入口旁",
       "chapter": 4,
-      "difficulty": 1,
+      "difficulty": 4,
       "floors": 1,
       "nodes": [
         "4-1",
@@ -97,7 +97,7 @@
       "id": "stage_5",
       "name": "第5章：最后一步",
       "chapter": 5,
-      "difficulty": 1,
+      "difficulty": 5,
       "floors": 1,
       "nodes": [
         "5-1",
