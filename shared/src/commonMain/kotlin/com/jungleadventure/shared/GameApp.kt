@@ -987,16 +987,15 @@ private fun EquipmentOverviewPanel(
     player: PlayerStats,
     onShowEquipmentDetail: (EquipmentItem?) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        EquipmentSlot.values().forEach { slot ->
-            val item = player.equipment.slots[slot]
-            EquipmentInfoRow(
-                slot = slot,
-                item = item,
-                onShowDetail = { onShowEquipmentDetail(item) }
-            )
-        }
+    val entries = buildEquipmentIconEntries(player)
+    if (entries.isEmpty()) {
+        Text(text = "暂无装备槽位", color = Color(0xFF7B756B))
+        return
     }
+    EquipmentIconGrid(
+        entries = entries,
+        onShowEquipmentDetail = onShowEquipmentDetail
+    )
 }
 
 @Composable
@@ -1045,6 +1044,176 @@ private fun InventoryOverviewPanel(
                 }
             }
         }
+    }
+}
+
+private data class EquipmentIconEntry(
+    val id: String,
+    val slot: EquipmentSlot,
+    val item: EquipmentItem?
+)
+
+private fun buildEquipmentIconEntries(player: PlayerStats): List<EquipmentIconEntry> {
+    return EquipmentSlot.values().map { slot ->
+        EquipmentIconEntry(
+            id = "slot_${slot.name}",
+            slot = slot,
+            item = player.equipment.slots[slot]
+        )
+    }
+}
+
+@Composable
+private fun EquipmentIconGrid(
+    entries: List<EquipmentIconEntry>,
+    onShowEquipmentDetail: (EquipmentItem?) -> Unit
+) {
+    var pinnedId by remember { mutableStateOf<String?>(null) }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(text = "悬浮查看详情，点击图标固定悬浮窗", color = Color(0xFF7B756B))
+        entries.chunked(4).forEach { rowEntries ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                rowEntries.forEach { entry ->
+                    EquipmentIconCard(
+                        entry = entry,
+                        pinned = pinnedId == entry.id,
+                        modifier = Modifier.weight(1f),
+                        onShowEquipmentDetail = onShowEquipmentDetail,
+                        onClick = {
+                            val nextId = if (pinnedId == entry.id) null else entry.id
+                            val slotLabel = slotLabel(entry.slot)
+                            val nameLabel = entry.item?.name ?: "空"
+                            GameLogger.info(
+                                "装备图标",
+                                "点击装备图标：槽位=$slotLabel 名称=$nameLabel 固定=${nextId != null}"
+                            )
+                            pinnedId = nextId
+                        }
+                    )
+                }
+                val missing = 4 - rowEntries.size
+                if (missing > 0) {
+                    Spacer(modifier = Modifier.weight(missing.toFloat()))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EquipmentIconCard(
+    entry: EquipmentIconEntry,
+    pinned: Boolean,
+    modifier: Modifier = Modifier,
+    onShowEquipmentDetail: (EquipmentItem?) -> Unit,
+    onClick: () -> Unit
+) {
+    val item = entry.item
+    val slot = entry.slot
+    val slotName = slotLabel(slot)
+    val baseColor = item?.let { equipmentRarityColor(it.rarityTier, it.rarityId) }
+        ?: equipmentSlotColor(slot)
+    val borderColor = if (pinned) Color(0xFFE8C07D) else baseColor.copy(alpha = 0.7f)
+    val backgroundColor = baseColor.copy(alpha = if (pinned) 0.25f else 0.18f)
+    val fallbackText = equipmentSlotShortLabel(slot)
+    val label = item?.name ?: "${slotName}空"
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        HoverTooltipBox(
+            logTag = "装备图标",
+            logName = item?.name ?: slotName,
+            pinned = pinned,
+            tooltip = {
+                EquipmentTooltipCard(
+                    slot = slot,
+                    item = item,
+                    onShowEquipmentDetail = onShowEquipmentDetail
+                )
+            }
+        ) { baseModifier ->
+            Box(
+                modifier = baseModifier
+                    .size(60.dp)
+                    .border(2.dp, borderColor, RoundedCornerShape(14.dp))
+                    .background(backgroundColor, RoundedCornerShape(14.dp))
+                    .clickable { onClick() },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = fallbackText,
+                    fontWeight = FontWeight.Bold,
+                    color = baseColor
+                )
+            }
+        }
+        Text(
+            text = label,
+            color = if (item == null) Color(0xFF7B756B) else Color(0xFFB8B2A6),
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+private fun EquipmentTooltipCard(
+    slot: EquipmentSlot,
+    item: EquipmentItem?,
+    onShowEquipmentDetail: (EquipmentItem?) -> Unit
+) {
+    val slotName = slotLabel(slot)
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF182720))
+    ) {
+        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(text = "$slotName 装备详情", fontWeight = FontWeight.SemiBold)
+            if (item == null) {
+                Text(text = "该槽位暂无装备", color = Color(0xFF7B756B))
+                return@Column
+            }
+            val rarityColor = equipmentRarityColor(item.rarityTier, item.rarityId)
+            Text(
+                text = "${item.name}（${item.rarityName}）",
+                fontWeight = FontWeight.SemiBold,
+                color = rarityColor
+            )
+            Text(text = "等级 ${item.level} | 评分 ${item.score}", color = Color(0xFFB8B2A6))
+            Text(text = "基础属性 ${formatStats(item.stats)}", color = Color(0xFFB8B2A6))
+            val totalStats = formatStats(item.totalStats())
+            Text(text = "总属性 $totalStats", color = Color(0xFF7B756B))
+            if (item.affixes.isNotEmpty()) {
+                Text(text = "词条 ${formatAffixes(item.affixes)}", color = Color(0xFF8DB38B))
+            }
+            if (item.source.isNotBlank()) {
+                Text(text = "来源 ${item.source}", color = Color(0xFF7B756B))
+            }
+            OutlinedButton(onClick = { onShowEquipmentDetail(item) }) {
+                Text("打开详情弹窗")
+            }
+        }
+    }
+}
+
+private fun equipmentSlotShortLabel(slot: EquipmentSlot): String {
+    return when (slot) {
+        EquipmentSlot.WEAPON -> "武"
+        EquipmentSlot.ARMOR -> "甲"
+        EquipmentSlot.HELM -> "盔"
+        EquipmentSlot.ACCESSORY -> "饰"
+    }
+}
+
+private fun equipmentSlotColor(slot: EquipmentSlot): Color {
+    return when (slot) {
+        EquipmentSlot.WEAPON -> Color(0xFFE67E22)
+        EquipmentSlot.ARMOR -> Color(0xFF5DADE2)
+        EquipmentSlot.HELM -> Color(0xFF6FBF73)
+        EquipmentSlot.ACCESSORY -> Color(0xFFF5C542)
     }
 }
 
