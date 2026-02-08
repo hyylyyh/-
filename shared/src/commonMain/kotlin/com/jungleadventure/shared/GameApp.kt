@@ -2,6 +2,7 @@ package com.jungleadventure.shared
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -42,17 +43,25 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import kotlinx.coroutines.CancellationException
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.jungleadventure.shared.loot.EquipmentSlot
 import com.jungleadventure.shared.loot.StatType
+
+private val LocalResourceReader = staticCompositionLocalOf<ResourceReader> {
+    error("未提供ResourceReader")
+}
 
 @Composable
 fun GameApp(
@@ -64,51 +73,53 @@ fun GameApp(
 ) {
     val state by viewModel.state.collectAsState()
 
-    MaterialTheme {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0xFF0E1A14))
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            HeaderBar(state, onToggleRoleDetail = viewModel::onToggleRoleDetail)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+    CompositionLocalProvider(LocalResourceReader provides resourceReader) {
+        MaterialTheme {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFF0E1A14))
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                MainPanel(
-                    modifier = Modifier.weight(1.2f),
-                    state = state,
-                    onChoice = viewModel::onSelectChoice,
-                    onAdvance = viewModel::onAdvance,
-                    onSelectRole = viewModel::onSelectRole,
-                    onConfirmRole = viewModel::onConfirmRole,
-                    onSelectChapter = viewModel::onSelectChapter,
-                    onSelectDifficulty = viewModel::onSelectDifficulty,
-                    onConfirmChapterSelection = viewModel::onConfirmChapterSelection,
-                    onCreateNewSave = viewModel::onCreateNewSave,
-                    onLoadSave = viewModel::onLoad,
-                    onToggleShopOfferSelection = viewModel::onToggleShopOfferSelection,
-                    onToggleShopSellSelection = viewModel::onToggleShopSellSelection,
-                    onShopBuySelected = viewModel::onShopBuySelected,
-                    onShopSellSelected = viewModel::onShopSellSelected,
-                    onShopLeave = viewModel::onShopLeave,
-                    showSkillFormula = state.showSkillFormula,
-                    onToggleShowSkillFormula = viewModel::onToggleShowSkillFormula
-                )
-                SidePanel(
-                    modifier = Modifier.weight(0.8f),
-                    state = state,
-                    onSelectCodexTab = viewModel::onSelectCodexTab,
-                    onShowEquipmentDetail = viewModel::onShowEquipmentDetail,
-                    onReturnToMain = viewModel::onReturnToMain,
-                    onOpenChapterSelect = viewModel::onOpenChapterSelect,
-                    showSkillFormula = state.showSkillFormula,
-                    onToggleShowSkillFormula = viewModel::onToggleShowSkillFormula
-                )
+                HeaderBar(state, onToggleRoleDetail = viewModel::onToggleRoleDetail)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    MainPanel(
+                        modifier = Modifier.weight(1.2f),
+                        state = state,
+                        onChoice = viewModel::onSelectChoice,
+                        onAdvance = viewModel::onAdvance,
+                        onSelectRole = viewModel::onSelectRole,
+                        onConfirmRole = viewModel::onConfirmRole,
+                        onSelectChapter = viewModel::onSelectChapter,
+                        onSelectDifficulty = viewModel::onSelectDifficulty,
+                        onConfirmChapterSelection = viewModel::onConfirmChapterSelection,
+                        onCreateNewSave = viewModel::onCreateNewSave,
+                        onLoadSave = viewModel::onLoad,
+                        onToggleShopOfferSelection = viewModel::onToggleShopOfferSelection,
+                        onToggleShopSellSelection = viewModel::onToggleShopSellSelection,
+                        onShopBuySelected = viewModel::onShopBuySelected,
+                        onShopSellSelected = viewModel::onShopSellSelected,
+                        onShopLeave = viewModel::onShopLeave,
+                        showSkillFormula = state.showSkillFormula,
+                        onToggleShowSkillFormula = viewModel::onToggleShowSkillFormula
+                    )
+                    SidePanel(
+                        modifier = Modifier.weight(0.8f),
+                        state = state,
+                        onSelectCodexTab = viewModel::onSelectCodexTab,
+                        onShowEquipmentDetail = viewModel::onShowEquipmentDetail,
+                        onReturnToMain = viewModel::onReturnToMain,
+                        onOpenChapterSelect = viewModel::onOpenChapterSelect,
+                        showSkillFormula = state.showSkillFormula,
+                        onToggleShowSkillFormula = viewModel::onToggleShowSkillFormula
+                    )
+                }
             }
-    }
+        }
         if (state.showCardDialog) {
             CardSelectDialog(
                 level = state.cardDialogLevel,
@@ -1128,7 +1139,12 @@ private fun SkillIconCard(
     onClick: () -> Unit
 ) {
     val typeLabel = skillTypeLabel(entry.skill.type)
-    val iconText = entry.skill.name.take(1).ifBlank {
+    val baseColor = skillTypeColor(entry.skill.type)
+    val borderColor = if (selected) Color(0xFFE8C07D) else baseColor.copy(alpha = 0.7f)
+    val backgroundColor = baseColor.copy(alpha = if (selected) 0.25f else 0.18f)
+    val iconPath = skillIconPath(entry.skill.type, locked = false)
+    val painter = rememberSkillIconPainter(iconPath, "技能图标")
+    val fallbackText = entry.skill.name.take(1).ifBlank {
         when (typeLabel) {
             "被动" -> "被"
             "主动" -> "主"
@@ -1136,9 +1152,6 @@ private fun SkillIconCard(
             else -> typeLabel.take(1)
         }
     }
-    val baseColor = skillTypeColor(entry.skill.type)
-    val borderColor = if (selected) Color(0xFFE8C07D) else baseColor.copy(alpha = 0.7f)
-    val backgroundColor = baseColor.copy(alpha = if (selected) 0.25f else 0.18f)
     Column(
         modifier = Modifier.weight(1f),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -1152,11 +1165,19 @@ private fun SkillIconCard(
                 .clickable { onClick() },
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = iconText,
-                fontWeight = FontWeight.Bold,
-                color = baseColor
-            )
+            if (painter == null) {
+                Text(
+                    text = fallbackText,
+                    fontWeight = FontWeight.Bold,
+                    color = baseColor
+                )
+            } else {
+                Image(
+                    painter = painter,
+                    contentDescription = entry.skill.name,
+                    modifier = Modifier.size(38.dp)
+                )
+            }
         }
         Text(
             text = entry.skill.name,
@@ -1502,14 +1523,16 @@ private fun SkillCatalogIconCard(
     selected: Boolean,
     onClick: () -> Unit
 ) {
-    val iconText = if (unlocked) {
+    val baseColor = if (unlocked) skillTypeColor(entry.type) else Color(0xFF8F8F8F)
+    val borderColor = if (selected) Color(0xFFE8C07D) else baseColor.copy(alpha = 0.7f)
+    val backgroundColor = baseColor.copy(alpha = if (selected) 0.25f else 0.18f)
+    val iconPath = skillIconPath(entry.type, locked = !unlocked)
+    val painter = rememberSkillIconPainter(iconPath, "技能图鉴")
+    val fallbackText = if (unlocked) {
         entry.name.take(1).ifBlank { "技" }
     } else {
         "锁"
     }
-    val baseColor = if (unlocked) skillTypeColor(entry.type) else Color(0xFF8F8F8F)
-    val borderColor = if (selected) Color(0xFFE8C07D) else baseColor.copy(alpha = 0.7f)
-    val backgroundColor = baseColor.copy(alpha = if (selected) 0.25f else 0.18f)
     Column(
         modifier = Modifier.weight(1f),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -1523,11 +1546,19 @@ private fun SkillCatalogIconCard(
                 .clickable { onClick() },
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = iconText,
-                fontWeight = FontWeight.Bold,
-                color = baseColor
-            )
+            if (painter == null) {
+                Text(
+                    text = fallbackText,
+                    fontWeight = FontWeight.Bold,
+                    color = baseColor
+                )
+            } else {
+                Image(
+                    painter = painter,
+                    contentDescription = entry.name,
+                    modifier = Modifier.size(36.dp)
+                )
+            }
         }
         Text(
             text = if (unlocked) entry.name else "未解锁",
@@ -2263,6 +2294,35 @@ private fun skillTypeColor(raw: String): Color {
         "ULTIMATE" -> Color(0xFFF39C12)
         else -> Color(0xFF8DB38B)
     }
+}
+
+private fun skillIconPath(rawType: String, locked: Boolean): String {
+    if (locked) {
+        return "icons/skills/locked.png"
+    }
+    return when (rawType.uppercase()) {
+        "PASSIVE" -> "icons/skills/passive.png"
+        "ACTIVE" -> "icons/skills/active.png"
+        "ULTIMATE" -> "icons/skills/ultimate.png"
+        else -> "icons/skills/active.png"
+    }
+}
+
+@Composable
+private fun rememberSkillIconPainter(path: String, logTag: String): Painter? {
+    val reader = LocalResourceReader.current
+    val bytes = remember(path) {
+        try {
+            val data = reader.readBytes(path)
+            GameLogger.info(logTag, "读取图标资源：$path 字节=${data.size}")
+            data
+        } catch (e: Exception) {
+            GameLogger.warn(logTag, "读取图标资源失败：$path", e)
+            null
+        }
+    }
+    val image = remember(path, bytes) { bytes?.let { decodeImageBitmap(it) } }
+    return image?.let { remember(path) { BitmapPainter(it) } }
 }
 
 private fun nodeTypeLabel(raw: String): String {
