@@ -2956,8 +2956,7 @@ private fun BattleInfoPanel(
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Text(text = "战斗面板", fontWeight = FontWeight.Bold)
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            Divider(modifier = Modifier.padding(bottom = 8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -3074,8 +3073,7 @@ private fun BattleOperationPanel(
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text(text = "战斗操作", fontWeight = FontWeight.Bold)
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            Divider(modifier = Modifier.padding(bottom = 8.dp))
             Text(text = "基础动作", fontWeight = FontWeight.SemiBold)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 val attack = choiceMap[BATTLE_CHOICE_ATTACK]
@@ -3111,31 +3109,6 @@ private fun BattleOperationPanel(
                     modifier = Modifier.size(BattleBaseTileWidth, BattleBaseTileHeight),
                     onClick = {
                         potion2?.let(onBattleChoiceClick)
-                    }
-                )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                val equipChoice = choiceMap[BATTLE_CHOICE_EQUIP]
-                val (_, equipDetail) = splitChoiceLabel(equipChoice?.label ?: "换装备")
-                BattleOptionTile(
-                    title = "换装",
-                    subtitle = equipDetail?.let { "模式$it" } ?: "装备切换",
-                    enabled = equipChoice?.enabled == true,
-                    accent = Color(0xFF8DB38B),
-                    modifier = Modifier.size(BattleUtilityTileWidth, BattleUtilityTileHeight),
-                    onClick = {
-                        equipChoice?.let(onBattleChoiceClick)
-                    }
-                )
-                val fleeChoice = choiceMap[BATTLE_CHOICE_FLEE]
-                BattleOptionTile(
-                    title = "撤离",
-                    subtitle = "退出战斗",
-                    enabled = fleeChoice?.enabled == true,
-                    accent = Color(0xFFD16A6A),
-                    modifier = Modifier.size(BattleUtilityTileWidth, BattleUtilityTileHeight),
-                    onClick = {
-                        fleeChoice?.let(onBattleChoiceClick)
                     }
                 )
             }
