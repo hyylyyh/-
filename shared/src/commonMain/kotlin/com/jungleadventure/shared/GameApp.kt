@@ -5,13 +5,17 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,6 +36,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -2583,6 +2588,9 @@ private fun ShopPanel(
     val selectedOfferIds = state.shopSelectedOfferIds
     val selectedSellIds = state.shopSelectedSellIds
     val inventory = state.player.inventory
+    val gridItemModifier = Modifier
+        .fillMaxWidth()
+        .aspectRatio(1f)
     val equipmentSlots = offers.take(12)
     val potionSlots = List(3) { index -> ShopGridEntry.Potion(index + 1) }
     val filledSlots = equipmentSlots.map { ShopGridEntry.Offer(it) } + potionSlots
@@ -2611,15 +2619,8 @@ private fun ShopPanel(
             GameLogger.info(logTag, "商品数量超出展示上限：展示12件 实际=${offers.size}")
         }
     }
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Card(
-            modifier = Modifier
-                .weight(1.25f)
-                .heightIn(min = 420.dp)
-        ) {
+    val shopSection: @Composable (Modifier) -> Unit = { modifier ->
+        Card(modifier = modifier) {
             Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(text = "商品展示区", fontWeight = FontWeight.Bold)
                 Divider(modifier = Modifier.padding(vertical = 4.dp))
@@ -2638,7 +2639,7 @@ private fun ShopPanel(
                                     offer = slot.offer,
                                     selected = selected,
                                     onToggle = { onToggleShopOfferSelection(slot.offer.id) },
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = gridItemModifier
                                 )
                             }
                             is ShopGridEntry.Potion -> {
@@ -2646,22 +2647,21 @@ private fun ShopPanel(
                                     title = "${POTION_NAME}${slot.index}",
                                     price = POTION_PRICE,
                                     enabled = state.player.gold >= POTION_PRICE,
-                                    onClick = onShopBuyPotion
+                                    onClick = onShopBuyPotion,
+                                    modifier = gridItemModifier
                                 )
                             }
                             ShopGridEntry.Empty -> {
-                                ShopEmptySlot()
+                                ShopEmptySlot(modifier = gridItemModifier)
                             }
                         }
                     }
                 }
             }
         }
-        Card(
-            modifier = Modifier
-                .weight(1.05f)
-                .heightIn(min = 420.dp)
-        ) {
+    }
+    val tradeSection: @Composable (Modifier) -> Unit = { modifier ->
+        Card(modifier = modifier) {
             Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(text = "交易操作区", fontWeight = FontWeight.Bold)
                 Divider(modifier = Modifier.padding(vertical = 4.dp))
@@ -2677,11 +2677,9 @@ private fun ShopPanel(
                 }
             }
         }
-        Card(
-            modifier = Modifier
-                .weight(1.15f)
-                .heightIn(min = 420.dp)
-        ) {
+    }
+    val inventorySection: @Composable (Modifier) -> Unit = { modifier ->
+        Card(modifier = modifier) {
             Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(text = "背包物品区", fontWeight = FontWeight.Bold)
                 Divider(modifier = Modifier.padding(vertical = 4.dp))
@@ -2708,6 +2706,46 @@ private fun ShopPanel(
             }
         }
     }
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val isPortrait = maxHeight > maxWidth
+        LaunchedEffect(isPortrait, maxWidth, maxHeight) {
+            GameLogger.info(
+                logTag,
+                "商店布局方向：portrait=$isPortrait 宽=${maxWidth} 高=${maxHeight}"
+            )
+        }
+        if (isPortrait) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                shopSection(Modifier.fillMaxWidth())
+                tradeSection(Modifier.fillMaxWidth())
+                inventorySection(Modifier.fillMaxWidth())
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                shopSection(
+                    Modifier
+                        .weight(1.25f)
+                        .heightIn(min = 420.dp)
+                )
+                tradeSection(
+                    Modifier
+                        .weight(1.05f)
+                        .heightIn(min = 420.dp)
+                )
+                inventorySection(
+                    Modifier
+                        .weight(1.15f)
+                        .heightIn(min = 420.dp)
+                )
+            }
+        }
+    }
 }
 
 private sealed class ShopGridEntry {
@@ -2721,15 +2759,15 @@ private fun ShopPotionCard(
     title: String,
     price: Int,
     enabled: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val borderColor = if (enabled) Color(0xFF6FBF73) else Color(0xFF2C3B33)
     val background = if (enabled) Color(0xFF182720) else Color(0xFF171E1B)
     Card(
         colors = CardDefaults.cardColors(containerColor = background),
         border = BorderStroke(1.dp, borderColor),
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = modifier
             .clickable(enabled = enabled, onClick = onClick)
     ) {
         Column(
@@ -2746,11 +2784,13 @@ private fun ShopPotionCard(
 }
 
 @Composable
-private fun ShopEmptySlot() {
+private fun ShopEmptySlot(
+    modifier: Modifier = Modifier
+) {
     Card(
         colors = CardDefaults.cardColors(containerColor = Color(0xFF151C18)),
         border = BorderStroke(1.dp, Color(0xFF2C3B33)),
-        modifier = Modifier.fillMaxWidth()
+        modifier = modifier
     ) {
         Box(
             modifier = Modifier
@@ -2774,67 +2814,85 @@ private fun ShopOfferCard(
     val borderColor = if (selected) Color(0xFF8DB38B) else Color(0xFF2C3B33)
     val rarityColor = equipmentRarityColor(offer.item.rarityTier, offer.item.rarityId)
     val cardAlpha = if (available) 1f else 0.5f
-    Card(
-        modifier = modifier
-            .alpha(cardAlpha)
-            .clickable(enabled = available) { onToggle() },
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF182720)),
-        border = BorderStroke(1.dp, borderColor)
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(8.dp)
-                .background(Color.Transparent)
-                .heightIn(min = 84.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            HoverTooltipBox(
-                logTag = "商店装备",
-                logName = offer.item.name,
-                tooltip = {
-                    EquipmentTooltipCard(
-                        slot = offer.item.slot,
-                        item = offer.item
-                    )
-                }
-            ) { baseModifier ->
-                EquipmentRarityIcon(
-                    label = equipmentSlotShortLabel(offer.item.slot),
-                    color = rarityColor,
-                    size = 40.dp,
-                    modifier = baseModifier
-                )
+    PressTooltipBox(
+        modifier = modifier,
+        logTag = "商店装备",
+        logName = offer.item.name,
+        enabled = available,
+        onClick = {
+            if (available) {
+                onToggle()
             }
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+        },
+        tooltip = {
+            EquipmentTooltipCard(
+                slot = offer.item.slot,
+                item = offer.item
+            )
+        }
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxSize()
+                .alpha(cardAlpha),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF182720)),
+            border = BorderStroke(1.dp, borderColor)
+        ) {
+            Row(
+                modifier = Modifier
+                    .padding(8.dp)
+                    .background(Color.Transparent)
+                    .heightIn(min = 84.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "${offer.item.name}（${offer.item.rarityName}）",
-                    fontWeight = FontWeight.SemiBold,
-                    color = rarityColor.copy(alpha = cardAlpha)
-                )
-                Text(
-                    text = "价格 ${offer.price} 金币",
-                    color = Color(0xFFB8B2A6).copy(alpha = cardAlpha)
-                )
-                val stockLabel = if (offer.stock > 0) "库存 ${offer.stock}" else "已售罄"
-                Text(
-                    text = stockLabel,
-                    color = Color(0xFF7B756B).copy(alpha = cardAlpha)
-                )
-                if (offer.lockedReason.isNotBlank()) {
-                    Text(
-                        text = offer.lockedReason,
-                        color = Color(0xFFD6B36A).copy(alpha = cardAlpha)
+                HoverTooltipBox(
+                    logTag = "商店装备",
+                    logName = offer.item.name,
+                    tooltip = {
+                        EquipmentTooltipCard(
+                            slot = offer.item.slot,
+                            item = offer.item
+                        )
+                    }
+                ) { baseModifier ->
+                    EquipmentRarityIcon(
+                        label = equipmentSlotShortLabel(offer.item.slot),
+                        color = rarityColor,
+                        size = 40.dp,
+                        modifier = baseModifier
                     )
                 }
-                if (selected) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
                     Text(
-                        text = "已选中",
-                        color = Color(0xFF8DB38B)
+                        text = "${offer.item.name}（${offer.item.rarityName}）",
+                        fontWeight = FontWeight.SemiBold,
+                        color = rarityColor.copy(alpha = cardAlpha)
                     )
+                    Text(
+                        text = "价格 ${offer.price} 金币",
+                        color = Color(0xFFB8B2A6).copy(alpha = cardAlpha)
+                    )
+                    val stockLabel = if (offer.stock > 0) "库存 ${offer.stock}" else "已售罄"
+                    Text(
+                        text = stockLabel,
+                        color = Color(0xFF7B756B).copy(alpha = cardAlpha)
+                    )
+                    if (offer.lockedReason.isNotBlank()) {
+                        Text(
+                            text = offer.lockedReason,
+                            color = Color(0xFFD6B36A).copy(alpha = cardAlpha)
+                        )
+                    }
+                    if (selected) {
+                        Text(
+                            text = "已选中",
+                            color = Color(0xFF8DB38B)
+                        )
+                    }
                 }
             }
         }
@@ -3541,6 +3599,92 @@ private fun HoverTooltipBox(
             }
         }
     }
+}
+
+@OptIn(ExperimentalComposeUiApi::class)
+@Composable
+private fun PressTooltipBox(
+    modifier: Modifier = Modifier,
+    logTag: String,
+    logName: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    tooltip: @Composable () -> Unit,
+    content: @Composable () -> Unit
+) {
+    var showTooltip by remember { mutableStateOf(false) }
+    var anchorBounds by remember { mutableStateOf<IntRect?>(null) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val positionProvider = remember(anchorBounds) {
+        object : PopupPositionProvider {
+            override fun calculatePosition(
+                anchorBoundsInput: IntRect,
+                windowSize: IntSize,
+                layoutDirection: LayoutDirection,
+                popupContentSize: IntSize
+            ): IntOffset {
+                val anchor = anchorBounds ?: anchorBoundsInput
+                val targetX = anchor.left + 12
+                val targetY = anchor.bottom + 12
+                val maxX = (windowSize.width - popupContentSize.width - 12).coerceAtLeast(12)
+                val maxY = (windowSize.height - popupContentSize.height - 12).coerceAtLeast(12)
+                return IntOffset(
+                    targetX.coerceIn(12, maxX),
+                    targetY.coerceIn(12, maxY)
+                )
+            }
+        }
+    }
+    Box(
+        modifier = modifier
+            .onGloballyPositioned { coords ->
+                anchorBounds = rectToIntRect(coords.boundsInRoot())
+            }
+            .combinedClickable(
+                enabled = enabled,
+                interactionSource = interactionSource,
+                indication = LocalIndication.current,
+                onClick = onClick,
+                onLongClick = {
+                    if (!showTooltip) {
+                        GameLogger.info(logTag, "长按查看详情：$logName")
+                    }
+                    showTooltip = true
+                }
+            )
+    ) {
+        content()
+    }
+    if (showTooltip && anchorBounds != null) {
+        Box(modifier = Modifier.size(0.dp)) {
+            Popup(
+                popupPositionProvider = positionProvider,
+                onDismissRequest = {
+                    GameLogger.info(logTag, "关闭详情悬浮窗：$logName")
+                    showTooltip = false
+                },
+                properties = PopupProperties(focusable = true)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .widthIn(max = 320.dp)
+                        .heightIn(max = 280.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    tooltip()
+                }
+            }
+        }
+    }
+}
+
+private fun rectToIntRect(rect: Rect): IntRect {
+    return IntRect(
+        rect.left.roundToInt(),
+        rect.top.roundToInt(),
+        rect.right.roundToInt(),
+        rect.bottom.roundToInt()
+    )
 }
 
 private fun nodeTypeLabel(raw: String): String {
