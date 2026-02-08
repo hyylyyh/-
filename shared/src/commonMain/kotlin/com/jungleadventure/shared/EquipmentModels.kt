@@ -10,7 +10,6 @@ data class PlayerBaseStats(
     val mpMax: Int = 30,
     val atk: Int,
     val def: Int,
-    val speed: Int,
     val strength: Int = 0,
     val intelligence: Int = 0,
     val agility: Int = 0

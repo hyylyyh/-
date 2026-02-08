@@ -116,14 +116,6 @@ private object EmbeddedJson {
               "stackRule": "UNIQUE"
             },
             {
-              "id": "speed",
-              "type": "SPEED",
-              "valueRange": { "min": 1, "max": 3 },
-              "weight": 15,
-              "rarityGate": 2,
-              "stackRule": "UNIQUE"
-            },
-            {
               "id": "hit",
               "type": "HIT",
               "valueRange": { "min": 1, "max": 3 },
@@ -147,7 +139,7 @@ private object EmbeddedJson {
               "baseStats": { "ATK": 6 },
               "statScale": { "ATK": 0.8 },
               "affixCount": { "min": 0, "max": 1 },
-              "affixPool": ["atk_flat", "crit", "speed"],
+              "affixPool": ["atk_flat", "crit"],
               "enhanceMax": 5,
               "sellValue": 6,
               "salvageYield": 1
@@ -161,7 +153,7 @@ private object EmbeddedJson {
               "baseStats": { "DEF": 5, "HP": 10 },
               "statScale": { "DEF": 0.6, "HP": 1.2 },
               "affixCount": { "min": 1, "max": 2 },
-              "affixPool": ["def_flat", "hp_flat", "speed"],
+              "affixPool": ["def_flat", "hp_flat"],
               "enhanceMax": 5,
               "sellValue": 8,
               "salvageYield": 2
@@ -186,10 +178,10 @@ private object EmbeddedJson {
               "slot": "ACCESSORY",
               "rarity": "epic",
               "levelReq": 3,
-              "baseStats": { "CRIT": 3, "SPEED": 1 },
-              "statScale": { "CRIT": 0.4, "SPEED": 0.2 },
+              "baseStats": { "CRIT": 3 },
+              "statScale": { "CRIT": 0.4 },
               "affixCount": { "min": 3, "max": 4 },
-              "affixPool": ["crit", "speed", "hit"],
+              "affixPool": ["crit", "hit"],
               "enhanceMax": 9,
               "sellValue": 18,
               "salvageYield": 4
@@ -200,10 +192,10 @@ private object EmbeddedJson {
               "slot": "WEAPON",
               "rarity": "common",
               "levelReq": 1,
-              "baseStats": { "ATK": 5, "SPEED": 1 },
-              "statScale": { "ATK": 0.7, "SPEED": 0.2 },
+              "baseStats": { "ATK": 5 },
+              "statScale": { "ATK": 0.7 },
               "affixCount": { "min": 0, "max": 1 },
-              "affixPool": ["atk_flat", "speed"],
+              "affixPool": ["atk_flat"],
               "enhanceMax": 5,
               "sellValue": 5,
               "salvageYield": 1
@@ -228,10 +220,10 @@ private object EmbeddedJson {
               "slot": "HELM",
               "rarity": "uncommon",
               "levelReq": 2,
-              "baseStats": { "DEF": 4, "SPEED": 1 },
-              "statScale": { "DEF": 0.6, "SPEED": 0.3 },
+              "baseStats": { "DEF": 4 },
+              "statScale": { "DEF": 0.6 },
               "affixCount": { "min": 1, "max": 2 },
-              "affixPool": ["def_flat", "speed", "hit"],
+              "affixPool": ["def_flat", "hit"],
               "enhanceMax": 6,
               "sellValue": 9,
               "salvageYield": 2
@@ -245,7 +237,7 @@ private object EmbeddedJson {
               "baseStats": { "HP": 12, "HIT": 1 },
               "statScale": { "HP": 1.1, "HIT": 0.2 },
               "affixCount": { "min": 1, "max": 2 },
-              "affixPool": ["hp_flat", "hit", "speed"],
+              "affixPool": ["hp_flat", "hit"],
               "enhanceMax": 6,
               "sellValue": 10,
               "salvageYield": 2
@@ -287,7 +279,7 @@ private object EmbeddedJson {
               "baseStats": { "DEF": 6, "HIT": 2 },
               "statScale": { "DEF": 0.7, "HIT": 0.4 },
               "affixCount": { "min": 2, "max": 3 },
-              "affixPool": ["hit", "speed", "def_flat"],
+              "affixPool": ["hit", "def_flat"],
               "enhanceMax": 7,
               "sellValue": 13,
               "salvageYield": 3
@@ -301,7 +293,7 @@ private object EmbeddedJson {
               "baseStats": { "CRIT": 4, "HIT": 2 },
               "statScale": { "CRIT": 0.5, "HIT": 0.4 },
               "affixCount": { "min": 3, "max": 4 },
-              "affixPool": ["crit", "hit", "speed"],
+              "affixPool": ["crit", "hit"],
               "enhanceMax": 9,
               "sellValue": 20,
               "salvageYield": 4
@@ -312,10 +304,10 @@ private object EmbeddedJson {
               "slot": "WEAPON",
               "rarity": "epic",
               "levelReq": 4,
-              "baseStats": { "ATK": 12, "SPEED": 1 },
-              "statScale": { "ATK": 1.2, "SPEED": 0.3 },
+              "baseStats": { "ATK": 12 },
+              "statScale": { "ATK": 1.2 },
               "affixCount": { "min": 3, "max": 4 },
-              "affixPool": ["atk_flat", "speed", "crit"],
+              "affixPool": ["atk_flat", "crit"],
               "enhanceMax": 9,
               "sellValue": 22,
               "salvageYield": 4

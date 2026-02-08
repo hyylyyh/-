@@ -940,9 +940,9 @@ private fun RoleDetailPanel(
             entry.sourceRoleIds.contains(roleId) && !entry.type.equals("PASSIVE", true)
         }
     }
-    val hit = (70 + player.speed + player.hitBonus).coerceIn(50, 98)
-    val eva = (8 + player.speed / 2 + player.evaBonus).coerceIn(5, 45)
-    val crit = (6 + player.speed / 3 + player.critBonus).coerceIn(5, 40)
+    val hit = (70 + player.agility + player.hitBonus).coerceIn(50, 98)
+    val eva = (8 + player.agility / 2 + player.evaBonus).coerceIn(5, 45)
+    val crit = (6 + player.agility / 3 + player.critBonus).coerceIn(5, 40)
     val critDmg = 1.5
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -2944,9 +2944,9 @@ private fun BattleInfoPanel(
     battle: BattleUiState?,
     enemyPreview: EnemyPreviewUiState?
 ) {
-    val hit = (70 + player.speed + player.hitBonus).coerceIn(50, 98)
-    val eva = (8 + player.speed / 2 + player.evaBonus).coerceIn(5, 45)
-    val crit = (6 + player.speed / 3 + player.critBonus).coerceIn(5, 40)
+    val hit = (70 + player.agility + player.hitBonus).coerceIn(50, 98)
+    val eva = (8 + player.agility / 2 + player.evaBonus).coerceIn(5, 45)
+    val crit = (6 + player.agility / 3 + player.critBonus).coerceIn(5, 40)
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -3723,14 +3723,12 @@ private fun statLabel(stat: StatType): String {
         StatType.HP -> "生命"
         StatType.ATK -> "攻击"
         StatType.DEF -> "防御"
-        StatType.SPEED -> "速度"
         StatType.STR -> "力量"
         StatType.INT -> "智力"
         StatType.AGI -> "敏捷"
         StatType.HIT -> "命中"
         StatType.EVADE -> "闪避"
         StatType.CRIT -> "暴击"
-        StatType.CRIT_RESIST -> "抗暴"
     }
 }
 
@@ -3755,7 +3753,7 @@ private fun cardQualityColor(quality: CardQuality): Color {
 }
 
 private fun isHiddenStat(type: StatType): Boolean {
-    return type == StatType.SPEED || type == StatType.CRIT_RESIST
+    return false
 }
 
 private fun formatStats(stats: Map<StatType, Int>): String {

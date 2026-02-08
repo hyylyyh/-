@@ -1,4 +1,4 @@
-﻿package com.jungleadventure.shared
+package com.jungleadventure.shared
 
 enum class CombatActorType {
     PLAYER,
@@ -32,21 +32,20 @@ data class CombatStats(
     val hpMax: Int,
     val atk: Int,
     val def: Int,
-    val speed: Int,
+    val agility: Int,
     val hit: Int,
     val eva: Int,
     val crit: Int,
-    val critDmg: Double,
-    val resist: Int
+    val critDmg: Double
 )
 
 data class CombatConfig(
     val roundLimit: Int? = null,
-    val firstStrike: FirstStrikeRule = FirstStrikeRule.SPEED
+    val firstStrike: FirstStrikeRule = FirstStrikeRule.AGILITY
 )
 
 enum class FirstStrikeRule {
-    SPEED,
+    AGILITY,
     RANDOM,
     PLAYER,
     ENEMY

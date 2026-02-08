@@ -6,10 +6,20 @@
       "slot": "WEAPON",
       "rarity": "common",
       "levelReq": 1,
-      "baseStats": { "ATK": 6 },
-      "statScale": { "ATK": 0.8 },
-      "affixCount": { "min": 0, "max": 1 },
-      "affixPool": ["atk_flat", "crit", "speed"],
+      "baseStats": {
+        "ATK": 6
+      },
+      "statScale": {
+        "ATK": 0.8
+      },
+      "affixCount": {
+        "min": 0,
+        "max": 1
+      },
+      "affixPool": [
+        "atk_flat",
+        "crit"
+      ],
       "enhanceMax": 5,
       "sellValue": 6,
       "salvageYield": 1
@@ -20,10 +30,22 @@
       "slot": "ARMOR",
       "rarity": "uncommon",
       "levelReq": 1,
-      "baseStats": { "DEF": 5, "HP": 10 },
-      "statScale": { "DEF": 0.6, "HP": 1.2 },
-      "affixCount": { "min": 1, "max": 2 },
-      "affixPool": ["def_flat", "hp_flat", "speed"],
+      "baseStats": {
+        "DEF": 5,
+        "HP": 10
+      },
+      "statScale": {
+        "DEF": 0.6,
+        "HP": 1.2
+      },
+      "affixCount": {
+        "min": 1,
+        "max": 2
+      },
+      "affixPool": [
+        "def_flat",
+        "hp_flat"
+      ],
       "enhanceMax": 5,
       "sellValue": 8,
       "salvageYield": 2
@@ -34,10 +56,23 @@
       "slot": "HELM",
       "rarity": "rare",
       "levelReq": 2,
-      "baseStats": { "DEF": 6, "HP": 12 },
-      "statScale": { "DEF": 0.7, "HP": 1.4 },
-      "affixCount": { "min": 2, "max": 3 },
-      "affixPool": ["def_flat", "hp_flat", "hit"],
+      "baseStats": {
+        "DEF": 6,
+        "HP": 12
+      },
+      "statScale": {
+        "DEF": 0.7,
+        "HP": 1.4
+      },
+      "affixCount": {
+        "min": 2,
+        "max": 3
+      },
+      "affixPool": [
+        "def_flat",
+        "hp_flat",
+        "hit"
+      ],
       "enhanceMax": 7,
       "sellValue": 12,
       "salvageYield": 3
@@ -48,10 +83,20 @@
       "slot": "ACCESSORY",
       "rarity": "epic",
       "levelReq": 3,
-      "baseStats": { "CRIT": 3, "SPEED": 1 },
-      "statScale": { "CRIT": 0.4, "SPEED": 0.2 },
-      "affixCount": { "min": 3, "max": 4 },
-      "affixPool": ["crit", "speed", "hit"],
+      "baseStats": {
+        "CRIT": 3
+      },
+      "statScale": {
+        "CRIT": 0.4
+      },
+      "affixCount": {
+        "min": 3,
+        "max": 4
+      },
+      "affixPool": [
+        "crit",
+        "hit"
+      ],
       "enhanceMax": 9,
       "sellValue": 18,
       "salvageYield": 4
@@ -62,10 +107,19 @@
       "slot": "WEAPON",
       "rarity": "common",
       "levelReq": 1,
-      "baseStats": { "ATK": 5, "SPEED": 1 },
-      "statScale": { "ATK": 0.7, "SPEED": 0.2 },
-      "affixCount": { "min": 0, "max": 1 },
-      "affixPool": ["atk_flat", "speed"],
+      "baseStats": {
+        "ATK": 5
+      },
+      "statScale": {
+        "ATK": 0.7
+      },
+      "affixCount": {
+        "min": 0,
+        "max": 1
+      },
+      "affixPool": [
+        "atk_flat"
+      ],
       "enhanceMax": 5,
       "sellValue": 5,
       "salvageYield": 1
@@ -76,10 +130,22 @@
       "slot": "ARMOR",
       "rarity": "common",
       "levelReq": 1,
-      "baseStats": { "DEF": 4, "HP": 8 },
-      "statScale": { "DEF": 0.6, "HP": 1.0 },
-      "affixCount": { "min": 0, "max": 1 },
-      "affixPool": ["def_flat", "hp_flat"],
+      "baseStats": {
+        "DEF": 4,
+        "HP": 8
+      },
+      "statScale": {
+        "DEF": 0.6,
+        "HP": 1.0
+      },
+      "affixCount": {
+        "min": 0,
+        "max": 1
+      },
+      "affixPool": [
+        "def_flat",
+        "hp_flat"
+      ],
       "enhanceMax": 5,
       "sellValue": 6,
       "salvageYield": 1
@@ -90,10 +156,20 @@
       "slot": "HELM",
       "rarity": "uncommon",
       "levelReq": 2,
-      "baseStats": { "DEF": 4, "SPEED": 1 },
-      "statScale": { "DEF": 0.6, "SPEED": 0.3 },
-      "affixCount": { "min": 1, "max": 2 },
-      "affixPool": ["def_flat", "speed", "hit"],
+      "baseStats": {
+        "DEF": 4
+      },
+      "statScale": {
+        "DEF": 0.6
+      },
+      "affixCount": {
+        "min": 1,
+        "max": 2
+      },
+      "affixPool": [
+        "def_flat",
+        "hit"
+      ],
       "enhanceMax": 6,
       "sellValue": 9,
       "salvageYield": 2
@@ -104,10 +180,22 @@
       "slot": "ACCESSORY",
       "rarity": "uncommon",
       "levelReq": 2,
-      "baseStats": { "HP": 12, "HIT": 1 },
-      "statScale": { "HP": 1.1, "HIT": 0.2 },
-      "affixCount": { "min": 1, "max": 2 },
-      "affixPool": ["hp_flat", "hit", "speed"],
+      "baseStats": {
+        "HP": 12,
+        "HIT": 1
+      },
+      "statScale": {
+        "HP": 1.1,
+        "HIT": 0.2
+      },
+      "affixCount": {
+        "min": 1,
+        "max": 2
+      },
+      "affixPool": [
+        "hp_flat",
+        "hit"
+      ],
       "enhanceMax": 6,
       "sellValue": 10,
       "salvageYield": 2
@@ -118,10 +206,23 @@
       "slot": "WEAPON",
       "rarity": "rare",
       "levelReq": 3,
-      "baseStats": { "ATK": 9, "CRIT": 2 },
-      "statScale": { "ATK": 1.1, "CRIT": 0.3 },
-      "affixCount": { "min": 2, "max": 3 },
-      "affixPool": ["atk_flat", "crit", "hit"],
+      "baseStats": {
+        "ATK": 9,
+        "CRIT": 2
+      },
+      "statScale": {
+        "ATK": 1.1,
+        "CRIT": 0.3
+      },
+      "affixCount": {
+        "min": 2,
+        "max": 3
+      },
+      "affixPool": [
+        "atk_flat",
+        "crit",
+        "hit"
+      ],
       "enhanceMax": 7,
       "sellValue": 14,
       "salvageYield": 3
@@ -132,10 +233,23 @@
       "slot": "ARMOR",
       "rarity": "rare",
       "levelReq": 3,
-      "baseStats": { "DEF": 9, "HP": 16 },
-      "statScale": { "DEF": 0.9, "HP": 1.5 },
-      "affixCount": { "min": 2, "max": 3 },
-      "affixPool": ["def_flat", "hp_flat", "crit"],
+      "baseStats": {
+        "DEF": 9,
+        "HP": 16
+      },
+      "statScale": {
+        "DEF": 0.9,
+        "HP": 1.5
+      },
+      "affixCount": {
+        "min": 2,
+        "max": 3
+      },
+      "affixPool": [
+        "def_flat",
+        "hp_flat",
+        "crit"
+      ],
       "enhanceMax": 7,
       "sellValue": 15,
       "salvageYield": 3
@@ -146,10 +260,22 @@
       "slot": "HELM",
       "rarity": "rare",
       "levelReq": 3,
-      "baseStats": { "DEF": 6, "HIT": 2 },
-      "statScale": { "DEF": 0.7, "HIT": 0.4 },
-      "affixCount": { "min": 2, "max": 3 },
-      "affixPool": ["hit", "speed", "def_flat"],
+      "baseStats": {
+        "DEF": 6,
+        "HIT": 2
+      },
+      "statScale": {
+        "DEF": 0.7,
+        "HIT": 0.4
+      },
+      "affixCount": {
+        "min": 2,
+        "max": 3
+      },
+      "affixPool": [
+        "hit",
+        "def_flat"
+      ],
       "enhanceMax": 7,
       "sellValue": 13,
       "salvageYield": 3
@@ -160,10 +286,22 @@
       "slot": "ACCESSORY",
       "rarity": "epic",
       "levelReq": 4,
-      "baseStats": { "CRIT": 4, "HIT": 2 },
-      "statScale": { "CRIT": 0.5, "HIT": 0.4 },
-      "affixCount": { "min": 3, "max": 4 },
-      "affixPool": ["crit", "hit", "speed"],
+      "baseStats": {
+        "CRIT": 4,
+        "HIT": 2
+      },
+      "statScale": {
+        "CRIT": 0.5,
+        "HIT": 0.4
+      },
+      "affixCount": {
+        "min": 3,
+        "max": 4
+      },
+      "affixPool": [
+        "crit",
+        "hit"
+      ],
       "enhanceMax": 9,
       "sellValue": 20,
       "salvageYield": 4
@@ -174,10 +312,20 @@
       "slot": "WEAPON",
       "rarity": "epic",
       "levelReq": 4,
-      "baseStats": { "ATK": 12, "SPEED": 1 },
-      "statScale": { "ATK": 1.2, "SPEED": 0.3 },
-      "affixCount": { "min": 3, "max": 4 },
-      "affixPool": ["atk_flat", "speed", "crit"],
+      "baseStats": {
+        "ATK": 12
+      },
+      "statScale": {
+        "ATK": 1.2
+      },
+      "affixCount": {
+        "min": 3,
+        "max": 4
+      },
+      "affixPool": [
+        "atk_flat",
+        "crit"
+      ],
       "enhanceMax": 9,
       "sellValue": 22,
       "salvageYield": 4
@@ -188,10 +336,24 @@
       "slot": "ACCESSORY",
       "rarity": "legendary",
       "levelReq": 5,
-      "baseStats": { "HP": 24, "DEF": 6 },
-      "statScale": { "HP": 1.8, "DEF": 0.9 },
-      "affixCount": { "min": 4, "max": 5 },
-      "affixPool": ["hp_flat", "def_flat", "hit", "crit"],
+      "baseStats": {
+        "HP": 24,
+        "DEF": 6
+      },
+      "statScale": {
+        "HP": 1.8,
+        "DEF": 0.9
+      },
+      "affixCount": {
+        "min": 4,
+        "max": 5
+      },
+      "affixPool": [
+        "hp_flat",
+        "def_flat",
+        "hit",
+        "crit"
+      ],
       "enhanceMax": 10,
       "sellValue": 30,
       "salvageYield": 6

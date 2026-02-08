@@ -9,12 +9,10 @@
         "hp": 30,
         "atk": 8,
         "def": 2,
-        "spd": 9,
         "hit": 78,
         "eva": 10,
         "crit": 8,
-        "critDmg": 1.5,
-        "resist": 2
+        "critDmg": 1.5
       },
       "notes": "爱摸鱼的草丛猫。"
     },
@@ -27,12 +25,10 @@
         "hp": 55,
         "atk": 14,
         "def": 6,
-        "spd": 10,
         "hit": 80,
         "eva": 12,
         "crit": 10,
-        "critDmg": 1.6,
-        "resist": 4
+        "critDmg": 1.6
       },
       "notes": "背着考勤机的精英怪。"
     },
@@ -45,12 +41,10 @@
         "hp": 42,
         "atk": 12,
         "def": 5,
-        "spd": 9,
         "hit": 78,
         "eva": 10,
         "crit": 9,
-        "critDmg": 1.5,
-        "resist": 3
+        "critDmg": 1.5
       },
       "notes": "一边吐槽一边出手。"
     },
@@ -63,12 +57,10 @@
         "hp": 65,
         "atk": 16,
         "def": 7,
-        "spd": 11,
         "hit": 82,
         "eva": 13,
         "crit": 12,
-        "critDmg": 1.6,
-        "resist": 4
+        "critDmg": 1.6
       },
       "notes": "三人小队，输出密集。"
     },
@@ -81,12 +73,10 @@
         "hp": 80,
         "atk": 18,
         "def": 8,
-        "spd": 12,
         "hit": 83,
         "eva": 13,
         "crit": 12,
-        "critDmg": 1.7,
-        "resist": 5
+        "critDmg": 1.7
       },
       "notes": "章节小Boss。"
     },
@@ -99,12 +89,10 @@
         "hp": 95,
         "atk": 22,
         "def": 10,
-        "spd": 12,
         "hit": 85,
         "eva": 14,
         "crit": 14,
-        "critDmg": 1.7,
-        "resist": 6
+        "critDmg": 1.7
       },
       "notes": "限定回合的强敌。"
     },
@@ -117,12 +105,10 @@
         "hp": 110,
         "atk": 24,
         "def": 11,
-        "spd": 12,
         "hit": 86,
         "eva": 14,
         "crit": 14,
-        "critDmg": 1.7,
-        "resist": 6
+        "critDmg": 1.7
       },
       "notes": "负责守门的强力精英。"
     },
@@ -135,12 +121,10 @@
         "hp": 150,
         "atk": 30,
         "def": 14,
-        "spd": 13,
         "hit": 88,
         "eva": 15,
         "crit": 16,
-        "critDmg": 1.8,
-        "resist": 8
+        "critDmg": 1.8
       },
       "notes": "最终关卡Boss。"
     }

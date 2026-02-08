@@ -97,12 +97,12 @@ class CombatEngine(private val rng: Random) {
             FirstStrikeRule.PLAYER -> listOf(player, enemy)
             FirstStrikeRule.ENEMY -> listOf(enemy, player)
             FirstStrikeRule.RANDOM -> if (rng.nextBoolean()) listOf(player, enemy) else listOf(enemy, player)
-            FirstStrikeRule.SPEED -> {
-                val playerSpeed = effectiveSpeed(player)
-                val enemySpeed = effectiveSpeed(enemy)
+            FirstStrikeRule.AGILITY -> {
+                val playerAgi = effectiveAgility(player)
+                val enemyAgi = effectiveAgility(enemy)
                 when {
-                    playerSpeed > enemySpeed -> listOf(player, enemy)
-                    enemySpeed > playerSpeed -> listOf(enemy, player)
+                    playerAgi > enemyAgi -> listOf(player, enemy)
+                    enemyAgi > playerAgi -> listOf(enemy, player)
                     else -> if (rng.nextBoolean()) listOf(player, enemy) else listOf(enemy, player)
                 }
             }
@@ -114,15 +114,15 @@ class CombatEngine(private val rng: Random) {
             FirstStrikeRule.PLAYER -> "玩家"
             FirstStrikeRule.ENEMY -> "敌人"
             FirstStrikeRule.RANDOM -> "随机"
-            FirstStrikeRule.SPEED -> "速度"
+            FirstStrikeRule.AGILITY -> "敏捷"
         }
     }
 
-    private fun effectiveSpeed(actor: CombatActor): Int {
+    private fun effectiveAgility(actor: CombatActor): Int {
         val hasteStacks = actor.statuses.filter { it.type == StatusType.HASTE }.sumOf { it.stacks }
         val slowStacks = actor.statuses.filter { it.type == StatusType.SLOW }.sumOf { it.stacks }
         val multiplier = (1.0 + 0.2 * hasteStacks - 0.2 * slowStacks).coerceAtLeast(0.5)
-        return max(1, (actor.stats.speed * multiplier).toInt())
+        return max(1, (actor.stats.agility * multiplier).toInt())
     }
 
     private fun resolveAttack(
@@ -138,7 +138,7 @@ class CombatEngine(private val rng: Random) {
             return AttackResult(target = target, logs = listOf(log))
         }
 
-        val critRate = critChance(attacker.stats.crit, target.stats.resist)
+        val critRate = critChance(attacker.stats.crit)
         val critRoll = rng.nextDouble()
         val isCrit = critRoll <= critRate
         val baseDamage = max(1, attacker.stats.atk - target.stats.def)
@@ -248,9 +248,8 @@ class CombatEngine(private val rng: Random) {
         return raw.coerceIn(0.2, 0.95)
     }
 
-    private fun critChance(crit: Int, resist: Int): Double {
-        val effective = (crit - resist).coerceAtLeast(0)
-        return (effective / 100.0).coerceIn(0.0, 0.6)
+    private fun critChance(crit: Int): Double {
+        return (crit / 100.0).coerceIn(0.0, 0.6)
     }
 
     private data class AttackResult(

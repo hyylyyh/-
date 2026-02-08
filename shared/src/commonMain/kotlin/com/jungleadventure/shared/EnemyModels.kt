@@ -1,4 +1,4 @@
-﻿package com.jungleadventure.shared
+package com.jungleadventure.shared
 
 import kotlinx.serialization.Serializable
 
@@ -28,15 +28,13 @@ data class EnemyStats(
     val hp: Int,
     val atk: Int,
     val def: Int,
-    val spd: Int,
     val strength: Int = 0,
     val intelligence: Int = 0,
     val agility: Int = 0,
     val hit: Int = 75,
     val eva: Int = 8,
     val crit: Int = 8,
-    val critDmg: Double = 1.5,
-    val resist: Int = 0
+    val critDmg: Double = 1.5
 )
 
 @Serializable
@@ -93,7 +91,7 @@ fun defaultEnemyFile(): EnemyFile {
                 name = "丛林斥候",
                 type = "普通",
                 level = 1,
-                stats = EnemyStats(hp = 36, atk = 9, def = 3, spd = 10, hit = 78, eva = 10, crit = 8, critDmg = 1.5, resist = 2),
+                stats = EnemyStats(hp = 36, atk = 9, def = 3, hit = 78, eva = 10, crit = 8, critDmg = 1.5),
                 skills = listOf(
                     EnemySkillDefinition(
                         id = "es_quick_claw",
@@ -111,7 +109,7 @@ fun defaultEnemyFile(): EnemyFile {
                 name = "剧毒蜥蜴",
                 type = "普通",
                 level = 1,
-                stats = EnemyStats(hp = 34, atk = 8, def = 4, spd = 9, hit = 76, eva = 12, crit = 7, critDmg = 1.5, resist = 2),
+                stats = EnemyStats(hp = 34, atk = 8, def = 4, hit = 76, eva = 12, crit = 7, critDmg = 1.5),
                 skills = listOf(
                     EnemySkillDefinition(
                         id = "es_venom_bite",
@@ -132,7 +130,7 @@ fun defaultEnemyFile(): EnemyFile {
                 name = "丛林精英",
                 type = "精英",
                 level = 2,
-                stats = EnemyStats(hp = 70, atk = 16, def = 7, spd = 11, hit = 82, eva = 12, crit = 10, critDmg = 1.6, resist = 4),
+                stats = EnemyStats(hp = 70, atk = 16, def = 7, hit = 82, eva = 12, crit = 10, critDmg = 1.6),
                 skills = listOf(
                     EnemySkillDefinition(
                         id = "es_heavy_strike",
@@ -160,7 +158,7 @@ fun defaultEnemyFile(): EnemyFile {
                 name = "丛林巨兽",
                 type = "首领",
                 level = 3,
-                stats = EnemyStats(hp = 130, atk = 24, def = 12, spd = 12, hit = 86, eva = 12, crit = 14, critDmg = 1.8, resist = 6),
+                stats = EnemyStats(hp = 130, atk = 24, def = 12, hit = 86, eva = 12, crit = 14, critDmg = 1.8),
                 skills = listOf(
                     EnemySkillDefinition(
                         id = "es_frenzy_rend",

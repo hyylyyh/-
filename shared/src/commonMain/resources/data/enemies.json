@@ -1,4 +1,4 @@
-﻿{
+{
   "enemies": [
     {
       "id": "e_jungle_scout",
@@ -9,12 +9,10 @@
         "hp": 36,
         "atk": 9,
         "def": 3,
-        "spd": 10,
         "hit": 78,
         "eva": 10,
         "crit": 8,
-        "critDmg": 1.5,
-        "resist": 2
+        "critDmg": 1.5
       },
       "skills": [
         {
@@ -37,12 +35,10 @@
         "hp": 34,
         "atk": 8,
         "def": 4,
-        "spd": 9,
         "hit": 76,
         "eva": 12,
         "crit": 7,
-        "critDmg": 1.5,
-        "resist": 2
+        "critDmg": 1.5
       },
       "skills": [
         {
@@ -68,12 +64,10 @@
         "hp": 70,
         "atk": 16,
         "def": 7,
-        "spd": 11,
         "hit": 82,
         "eva": 12,
         "crit": 10,
-        "critDmg": 1.6,
-        "resist": 4
+        "critDmg": 1.6
       },
       "skills": [
         {
@@ -106,12 +100,10 @@
         "hp": 130,
         "atk": 24,
         "def": 12,
-        "spd": 12,
         "hit": 86,
         "eva": 12,
         "crit": 14,
-        "critDmg": 1.8,
-        "resist": 6
+        "critDmg": 1.8
       },
       "skills": [
         {

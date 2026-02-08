@@ -28,8 +28,8 @@ Android 资源有一份镜像（需要同步）：
 - `role`：定位描述
 - `starting`：是否默认解锁
 - `unlock`：解锁条件描述（未解锁时显示）
-- `stats`：初始属性（`hp/atk/def/speed/perception`）
-- `growth`：成长属性（每级增加，`hpMax/mpMax/atk/def/speed`）
+- `stats`：初始属性（`hp/atk/def/perception`）
+- `growth`：成长属性（每级增加，`hpMax/mpMax/atk/def`）
 - `passiveSkillId`：被动技能 ID（来自 `ski.json`）
 - `activeSkillIds`：主动技能 ID 列表（来自 `ski.json`）
 - `ultimateSkillId`：终极技能 ID（来自 `ski.json`，可为空字符串）
@@ -46,15 +46,13 @@ Android 资源有一份镜像（需要同步）：
     "hp": 108,
     "atk": 24,
     "def": 10,
-    "speed": 26,
     "perception": 26
   },
   "growth": {
     "hpMax": 10,
     "mpMax": 4,
     "atk": 3,
-    "def": 1,
-    "speed": 2
+    "def": 1
   },
   "passiveSkillId": "sk_pass_keen_eye",
   "activeSkillIds": ["sk_act_double_shot", "sk_act_smoke"],
@@ -109,7 +107,7 @@ Android 资源有一份镜像（需要同步）：
 - `slot`：`WEAPON` / `ARMOR` / `HELM` / `ACCESSORY`
 - `rarity`：`common` / `uncommon` / `rare` / `epic` / `legend`
 - `levelReq`：等级需求
-- `baseStats`：基础属性（键为 `ATK/DEF/HP/SPEED/HIT/EVADE/CRIT/CRIT_RESIST`）
+- `baseStats`：基础属性（键为 `ATK/DEF/HP/HIT/EVADE/CRIT`）
 - `statScale`：成长系数（同上）
 - `affixCount`：词条数量范围 `{ "min": x, "max": y }`
 - `affixPool`：可抽取词条 ID 列表（参考词条配置）
@@ -125,10 +123,10 @@ Android 资源有一份镜像（需要同步）：
   "slot": "WEAPON",
   "rarity": "rare",
   "levelReq": 3,
-  "baseStats": { "ATK": 9, "SPEED": 2 },
-  "statScale": { "ATK": 0.9, "SPEED": 0.3 },
+  "baseStats": { "ATK": 9 },
+  "statScale": { "ATK": 0.9 },
   "affixCount": { "min": 1, "max": 3 },
-  "affixPool": ["atk_flat", "speed", "crit"],
+  "affixPool": ["atk_flat", "crit"],
   "enhanceMax": 8,
   "sellValue": 14,
   "salvageYield": 3
@@ -172,19 +170,19 @@ Android 资源有一份镜像（需要同步）：
 
 ### 2) 伤害/数值缩放字段（`effects.scaling`）
 
-可用取值（与属性一致）：`ATK` / `DEF` / `HP` / `SPD`
+可用取值（与属性一致）：`ATK` / `DEF` / `HP`
 
 ### 3) 装备词条类型（`affixes.type`）
 
 当前词条类型来自 `data/affixes.json`：
 - `ATK` / `DEF` / `HP`
-- `CRIT` / `SPEED` / `HIT`
+- `CRIT` / `HIT`
 
 ### 4) 装备基础属性键（`baseStats` / `statScale`）
 
 可用键来自装备系统的属性类型：
-- `ATK` / `DEF` / `HP` / `SPEED`
-- `HIT` / `EVADE` / `CRIT` / `CRIT_RESIST`
+- `ATK` / `DEF` / `HP`
+- `HIT` / `EVADE` / `CRIT`
 
 如需扩展效果类型或词条类型，请同步更新逻辑侧与配置描述。
 

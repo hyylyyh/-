@@ -110,14 +110,12 @@ enum class StatType {
     HP,
     ATK,
     DEF,
-    SPEED,
     STR,
     INT,
     AGI,
     HIT,
     EVADE,
-    CRIT,
-    CRIT_RESIST
+    CRIT
 }
 
 @Serializable

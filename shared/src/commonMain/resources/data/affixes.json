@@ -3,7 +3,10 @@
     {
       "id": "atk_flat",
       "type": "ATK",
-      "valueRange": { "min": 2, "max": 6 },
+      "valueRange": {
+        "min": 2,
+        "max": 6
+      },
       "weight": 30,
       "rarityGate": 1,
       "stackRule": "UNIQUE"
@@ -11,7 +14,10 @@
     {
       "id": "def_flat",
       "type": "DEF",
-      "valueRange": { "min": 2, "max": 6 },
+      "valueRange": {
+        "min": 2,
+        "max": 6
+      },
       "weight": 30,
       "rarityGate": 1,
       "stackRule": "UNIQUE"
@@ -19,7 +25,10 @@
     {
       "id": "hp_flat",
       "type": "HP",
-      "valueRange": { "min": 8, "max": 18 },
+      "valueRange": {
+        "min": 8,
+        "max": 18
+      },
       "weight": 25,
       "rarityGate": 1,
       "stackRule": "UNIQUE"
@@ -27,15 +36,10 @@
     {
       "id": "crit",
       "type": "CRIT",
-      "valueRange": { "min": 1, "max": 4 },
-      "weight": 15,
-      "rarityGate": 2,
-      "stackRule": "UNIQUE"
-    },
-    {
-      "id": "speed",
-      "type": "SPEED",
-      "valueRange": { "min": 1, "max": 3 },
+      "valueRange": {
+        "min": 1,
+        "max": 4
+      },
       "weight": 15,
       "rarityGate": 2,
       "stackRule": "UNIQUE"
@@ -43,7 +47,10 @@
     {
       "id": "hit",
       "type": "HIT",
-      "valueRange": { "min": 1, "max": 3 },
+      "valueRange": {
+        "min": 1,
+        "max": 3
+      },
       "weight": 12,
       "rarityGate": 3,
       "stackRule": "UNIQUE"

@@ -196,12 +196,12 @@ class TurnBasedCombatEngine(private val rng: Random) {
             FirstStrikeRule.PLAYER -> CombatActorType.PLAYER
             FirstStrikeRule.ENEMY -> CombatActorType.ENEMY
             FirstStrikeRule.RANDOM -> if (rng.nextBoolean()) CombatActorType.PLAYER else CombatActorType.ENEMY
-            FirstStrikeRule.SPEED -> {
-                val playerSpeed = effectiveSpeed(player)
-                val enemySpeed = effectiveSpeed(enemy)
+            FirstStrikeRule.AGILITY -> {
+                val playerAgi = effectiveAgility(player)
+                val enemyAgi = effectiveAgility(enemy)
                 when {
-                    playerSpeed > enemySpeed -> CombatActorType.PLAYER
-                    enemySpeed > playerSpeed -> CombatActorType.ENEMY
+                    playerAgi > enemyAgi -> CombatActorType.PLAYER
+                    enemyAgi > playerAgi -> CombatActorType.ENEMY
                     else -> if (rng.nextBoolean()) CombatActorType.PLAYER else CombatActorType.ENEMY
                 }
             }
@@ -269,7 +269,7 @@ class TurnBasedCombatEngine(private val rng: Random) {
             )
         }
 
-        val critRate = critChance(attacker.stats.crit, target.stats.resist)
+        val critRate = critChance(attacker.stats.crit)
         val critRoll = rng.nextDouble()
         val isCrit = critRoll <= critRate
         val baseDamage = max(1, attacker.stats.atk - target.stats.def)
@@ -561,8 +561,8 @@ class TurnBasedCombatEngine(private val rng: Random) {
     }
 
     private fun resolveFleeAction(player: CombatActor, enemy: CombatActor): ActionResult {
-        val deltaSpeed = player.stats.speed - enemy.stats.speed
-        val baseChance = 0.6 + deltaSpeed * 0.02
+        val deltaAgi = player.stats.agility - enemy.stats.agility
+        val baseChance = 0.6 + deltaAgi * 0.02
         val chance = baseChance.coerceIn(0.2, 0.9)
         val roll = rng.nextDouble()
         val success = roll <= chance
@@ -654,16 +654,15 @@ class TurnBasedCombatEngine(private val rng: Random) {
         return raw.coerceIn(0.2, 0.95)
     }
 
-    private fun critChance(crit: Int, resist: Int): Double {
-        val effective = (crit - resist).coerceAtLeast(0)
-        return (effective / 100.0).coerceIn(0.0, 0.6)
+    private fun critChance(crit: Int): Double {
+        return (crit / 100.0).coerceIn(0.0, 0.6)
     }
 
-    private fun effectiveSpeed(actor: CombatActor): Int {
+    private fun effectiveAgility(actor: CombatActor): Int {
         val hasteStacks = actor.statuses.filter { it.type == StatusType.HASTE }.sumOf { it.stacks }
         val slowStacks = actor.statuses.filter { it.type == StatusType.SLOW }.sumOf { it.stacks }
         val multiplier = (1.0 + 0.2 * hasteStacks - 0.2 * slowStacks).coerceAtLeast(0.5)
-        return max(1, (actor.stats.speed * multiplier).toInt())
+        return max(1, (actor.stats.agility * multiplier).toInt())
     }
 
     private data class ActionResult(

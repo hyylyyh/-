@@ -1,4 +1,4 @@
-﻿package com.jungleadventure.shared
+package com.jungleadventure.shared
 
 import kotlinx.serialization.Serializable
 
@@ -26,7 +26,6 @@ data class CharacterStats(
     val hp: Int,
     val atk: Int,
     val def: Int,
-    val speed: Int,
     val perception: Int,
     val strength: Int = 0,
     val intelligence: Int = 0,
@@ -39,7 +38,6 @@ data class GrowthProfile(
     val mpMax: Int,
     val atk: Int,
     val def: Int,
-    val speed: Int,
     val strength: Int = 0,
     val intelligence: Int = 0,
     val agility: Int = 0
@@ -104,7 +102,6 @@ fun defaultRoles(): List<RoleProfile> = listOf(
             hp = 120,
             atk = 22,
             def = 14,
-            speed = 18,
             perception = 28,
             strength = 10,
             intelligence = 8,
@@ -165,7 +162,6 @@ fun defaultGrowthProfile(): GrowthProfile {
         mpMax = 4,
         atk = 3,
         def = 2,
-        speed = 1,
         strength = 1,
         intelligence = 1,
         agility = 1

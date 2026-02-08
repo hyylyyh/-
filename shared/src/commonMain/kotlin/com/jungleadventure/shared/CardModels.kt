@@ -54,7 +54,7 @@ class CardRepository {
             name = "迅捷步伐",
             quality = CardQuality.COMMON,
             description = "步伐更灵动，速度略升。",
-            effects = listOf(CardEffect(StatType.SPEED, 2)),
+            effects = listOf(CardEffect(StatType.AGI, 2)),
             isGood = true
         ),
         CardDefinition(
@@ -62,7 +62,7 @@ class CardRepository {
             name = "破烂绑腿",
             quality = CardQuality.COMMON,
             description = "动作受限，速度下降。",
-            effects = listOf(CardEffect(StatType.SPEED, -2)),
+            effects = listOf(CardEffect(StatType.AGI, -2)),
             isGood = false
         ),
         CardDefinition(
@@ -123,7 +123,7 @@ class CardRepository {
             description = "闪避提升，速度小幅提高。",
             effects = listOf(
                 CardEffect(StatType.EVADE, 4),
-                CardEffect(StatType.SPEED, 3)
+                CardEffect(StatType.AGI, 3)
             ),
             isGood = true
         ),
@@ -144,7 +144,7 @@ class CardRepository {
             quality = CardQuality.RARE,
             description = "速度与闪避下降。",
             effects = listOf(
-                CardEffect(StatType.SPEED, -3),
+                CardEffect(StatType.AGI, -3),
                 CardEffect(StatType.EVADE, -4)
             ),
             isGood = false
@@ -188,7 +188,7 @@ class CardRepository {
             quality = CardQuality.EPIC,
             description = "速度与闪避大幅下降。",
             effects = listOf(
-                CardEffect(StatType.SPEED, -5),
+                CardEffect(StatType.AGI, -5),
                 CardEffect(StatType.EVADE, -6)
             ),
             isGood = false
@@ -202,7 +202,7 @@ class CardRepository {
                 CardEffect(StatType.HP, 28),
                 CardEffect(StatType.ATK, 10),
                 CardEffect(StatType.DEF, 8),
-                CardEffect(StatType.SPEED, 6)
+                CardEffect(StatType.AGI, 6)
             ),
             isGood = true
         ),
@@ -227,7 +227,7 @@ class CardRepository {
                 CardEffect(StatType.HP, -26),
                 CardEffect(StatType.ATK, -10),
                 CardEffect(StatType.DEF, -8),
-                CardEffect(StatType.SPEED, -6)
+                CardEffect(StatType.AGI, -6)
             ),
             isGood = false
         ),

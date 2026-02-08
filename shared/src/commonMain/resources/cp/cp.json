@@ -10,15 +10,13 @@
         "hp": 120,
         "atk": 22,
         "def": 14,
-        "speed": 18,
         "perception": 28
       },
       "growth": {
         "hpMax": 12,
         "mpMax": 4,
         "atk": 3,
-        "def": 2,
-        "speed": 1
+        "def": 2
       },
       "passiveSkillId": "sk_pass_discover_ruins",
       "activeSkillIds": [
@@ -37,15 +35,13 @@
         "hp": 110,
         "atk": 26,
         "def": 12,
-        "speed": 24,
         "perception": 20
       },
       "growth": {
         "hpMax": 10,
         "mpMax": 3,
         "atk": 4,
-        "def": 1,
-        "speed": 2
+        "def": 1
       },
       "passiveSkillId": "sk_pass_mark_weakness",
       "activeSkillIds": [
@@ -64,15 +60,13 @@
         "hp": 130,
         "atk": 18,
         "def": 16,
-        "speed": 16,
         "perception": 22
       },
       "growth": {
         "hpMax": 13,
         "mpMax": 6,
         "atk": 2,
-        "def": 3,
-        "speed": 1
+        "def": 3
       },
       "passiveSkillId": "sk_pass_oracle_guard",
       "activeSkillIds": [
@@ -91,15 +85,13 @@
         "hp": 140,
         "atk": 20,
         "def": 20,
-        "speed": 12,
         "perception": 18
       },
       "growth": {
         "hpMax": 14,
         "mpMax": 3,
         "atk": 2,
-        "def": 3,
-        "speed": 0
+        "def": 3
       },
       "passiveSkillId": "sk_pass_salvage_plus",
       "activeSkillIds": [
@@ -118,15 +110,13 @@
         "hp": 105,
         "atk": 23,
         "def": 10,
-        "speed": 30,
         "perception": 24
       },
       "growth": {
         "hpMax": 10,
         "mpMax": 4,
         "atk": 3,
-        "def": 1,
-        "speed": 2
+        "def": 1
       },
       "passiveSkillId": "sk_pass_stealth",
       "activeSkillIds": [
@@ -145,15 +135,13 @@
         "hp": 160,
         "atk": 24,
         "def": 22,
-        "speed": 14,
         "perception": 14
       },
       "growth": {
         "hpMax": 16,
         "mpMax": 3,
         "atk": 3,
-        "def": 3,
-        "speed": 0
+        "def": 3
       },
       "passiveSkillId": "sk_pass_hardening",
       "activeSkillIds": [
@@ -173,7 +161,6 @@
             "hp": 120,
             "atk": 22,
             "def": 10,
-            "speed": 18,
             "perception": 12
           },
           "passive": "倒刺护体：被近战命中时20%反伤15%ATK",
@@ -192,7 +179,6 @@
             "hp": 115,
             "atk": 26,
             "def": 9,
-            "speed": 27,
             "perception": 16
           },
           "passive": "夜视：夜间场景命中+10%",
@@ -211,7 +197,6 @@
             "hp": 150,
             "atk": 24,
             "def": 16,
-            "speed": 10,
             "perception": 8
           },
           "passive": "木质硬壳：受到穿刺伤害-30%",
@@ -232,7 +217,6 @@
             "hp": 480,
             "atk": 62,
             "def": 38,
-            "speed": 22,
             "perception": 28
           },
           "passive": "瘴气皮膜：被近战命中30%使对手中毒3回合",
@@ -259,7 +243,6 @@
             "hp": 1800,
             "atk": 80,
             "def": 90,
-            "speed": 12,
             "perception": 35
           },
           "passive": "根系回生：每回合回复2%最大HP；被火系命中则回复停止1回合",
@@ -295,7 +278,6 @@
             "hp": 110,
             "atk": 20,
             "def": 8,
-            "speed": 24,
             "perception": 14
           },
           "passive": "湿滑：被物理命中时15%闪避下一次物理",
@@ -314,7 +296,6 @@
             "hp": 90,
             "atk": 21,
             "def": 5,
-            "speed": 30,
             "perception": 18
           },
           "passive": "蜂群躁动：被命中后ATK+5%，最多叠3层",
@@ -333,7 +314,6 @@
             "hp": 105,
             "atk": 19,
             "def": 7,
-            "speed": 26,
             "perception": 26
           },
           "passive": "雾影：战斗开始敌方全体迷雾1回合，命中率-10%",
@@ -354,7 +334,6 @@
             "hp": 430,
             "atk": 54,
             "def": 30,
-            "speed": 26,
             "perception": 30
           },
           "passive": "蛛丝陷阱：战斗开始随机束缚1名敌人1回合",
@@ -381,7 +360,6 @@
             "hp": 1650,
             "atk": 92,
             "def": 70,
-            "speed": 20,
             "perception": 30
           },
           "passive": "吞噬恐惧：敌方存在中毒目标时ATK+10%",
@@ -417,7 +395,6 @@
             "hp": 130,
             "atk": 23,
             "def": 14,
-            "speed": 16,
             "perception": 10
           },
           "passive": "砂盾：每3回合获得一次15%最大HP护盾",
@@ -436,7 +413,6 @@
             "hp": 140,
             "atk": 25,
             "def": 18,
-            "speed": 12,
             "perception": 10
           },
           "passive": "厚背：受到远程伤害-20%",
@@ -457,7 +433,6 @@
             "hp": 520,
             "atk": 58,
             "def": 42,
-            "speed": 18,
             "perception": 16
           },
           "passive": "怒踏：每受到3次攻击ATK+5%，最多叠4层",
@@ -487,7 +462,6 @@
             "hp": 125,
             "atk": 19,
             "def": 12,
-            "speed": 14,
             "perception": 12
           },
           "passive": "缠绕藤：被近战命中20%使对手束缚1回合",
@@ -506,7 +480,6 @@
             "hp": 100,
             "atk": 18,
             "def": 6,
-            "speed": 28,
             "perception": 22
           },
           "passive": "潜影：首回合受到伤害-20%",
@@ -527,7 +500,6 @@
             "hp": 600,
             "atk": 50,
             "def": 60,
-            "speed": 10,
             "perception": 14
           },
           "passive": "坚壳：单次伤害上限为最大HP的12%",
@@ -552,7 +524,6 @@
             "hp": 450,
             "atk": 70,
             "def": 28,
-            "speed": 30,
             "perception": 24
           },
           "passive": "嗜血：击中目标回复造成伤害的8%",
@@ -579,7 +550,6 @@
             "hp": 1900,
             "atk": 100,
             "def": 85,
-            "speed": 18,
             "perception": 22
           },
           "passive": "怒意爆发：HP低于40%时ATK+20%，速度+10%",

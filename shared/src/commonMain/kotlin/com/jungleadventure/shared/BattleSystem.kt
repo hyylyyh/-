@@ -26,8 +26,9 @@ class BattleSystem(
                 "玩家" -> FirstStrikeRule.PLAYER
                 "敌人" -> FirstStrikeRule.ENEMY
                 "随机" -> FirstStrikeRule.RANDOM
-                "速度" -> FirstStrikeRule.SPEED
-                else -> FirstStrikeRule.SPEED
+                "速度" -> FirstStrikeRule.AGILITY
+                "敏捷" -> FirstStrikeRule.AGILITY
+                else -> FirstStrikeRule.AGILITY
             }
         )
         val modifiers = event.battleModifiers ?: BattleModifiers()
@@ -36,7 +37,7 @@ class BattleSystem(
 
         GameLogger.info(
             "战斗",
-            "准备回合制战斗：敌人=${enemyDef.name} 数量=${group.count} 生命倍率=${modifiers.enemyHpMultiplier} 攻击倍率=${modifiers.enemyAtkMultiplier} 防御倍率=${modifiers.enemyDefMultiplier} 速度倍率=${modifiers.enemySpdMultiplier} 伤害倍率=$damageMultiplier"
+            "准备回合制战斗：敌人=${enemyDef.name} 数量=${group.count} 生命倍率=${modifiers.enemyHpMultiplier} 攻击倍率=${modifiers.enemyAtkMultiplier} 防御倍率=${modifiers.enemyDefMultiplier} 敏捷倍率=${modifiers.enemySpdMultiplier} 伤害倍率=$damageMultiplier"
         )
 
         return BattleContext(
@@ -67,8 +68,9 @@ class BattleSystem(
                 "玩家" -> FirstStrikeRule.PLAYER
                 "敌人" -> FirstStrikeRule.ENEMY
                 "随机" -> FirstStrikeRule.RANDOM
-                "速度" -> FirstStrikeRule.SPEED
-                else -> FirstStrikeRule.SPEED
+                "速度" -> FirstStrikeRule.AGILITY
+                "敏捷" -> FirstStrikeRule.AGILITY
+                else -> FirstStrikeRule.AGILITY
             }
         )
         val modifiers = event.battleModifiers ?: BattleModifiers()
@@ -77,7 +79,7 @@ class BattleSystem(
 
         GameLogger.log(
             "战斗",
-            "准备战斗：敌人=${enemyDef.name}，数量=${group.count}，生命倍率=${modifiers.enemyHpMultiplier} 攻击倍率=${modifiers.enemyAtkMultiplier} 防御倍率=${modifiers.enemyDefMultiplier} 速度倍率=${modifiers.enemySpdMultiplier} 伤害倍率=$damageMultiplier"
+            "准备战斗：敌人=${enemyDef.name}，数量=${group.count}，生命倍率=${modifiers.enemyHpMultiplier} 攻击倍率=${modifiers.enemyAtkMultiplier} 防御倍率=${modifiers.enemyDefMultiplier} 敏捷倍率=${modifiers.enemySpdMultiplier} 伤害倍率=$damageMultiplier"
         )
 
         val outcome = engine.simulateBattle(
@@ -119,22 +121,20 @@ data class BattleContext(
 )
 
 fun PlayerStats.toCombatActor(): CombatActor {
-    val hit = (70 + speed + hitBonus).coerceIn(50, 98)
-    val eva = (8 + speed / 2 + evaBonus).coerceIn(5, 45)
-    val crit = (6 + speed / 3 + critBonus).coerceIn(5, 40)
-    val resist = (3 + resistBonus).coerceIn(0, 50)
+    val hit = (70 + agility + hitBonus).coerceIn(50, 98)
+    val eva = (8 + agility / 2 + evaBonus).coerceIn(5, 45)
+    val crit = (6 + agility / 3 + critBonus).coerceIn(5, 40)
     val stats = CombatStats(
         hpMax = hpMax,
         atk = atk,
         def = def,
-        speed = speed,
+        agility = agility,
         hit = hit,
         eva = eva,
         crit = crit,
-        critDmg = 1.5,
-        resist = resist
+        critDmg = 1.5
     )
-    GameLogger.log("战斗", "玩家转化战斗属性：命中=$hit 闪避=$eva 暴击=$crit 抗暴=$resist")
+    GameLogger.log("战斗", "玩家转化战斗属性：命中=$hit 闪避=$eva 暴击=$crit")
     return CombatActor(
         id = "玩家",
         name = name,
@@ -149,17 +149,17 @@ private fun applyEnemyModifiers(actor: CombatActor, modifiers: BattleModifiers):
     val scaledHpMax = (actor.stats.hpMax * modifiers.enemyHpMultiplier).roundToInt().coerceAtLeast(1)
     val scaledAtk = (actor.stats.atk * modifiers.enemyAtkMultiplier).roundToInt().coerceAtLeast(1)
     val scaledDef = (actor.stats.def * modifiers.enemyDefMultiplier).roundToInt().coerceAtLeast(1)
-    val scaledSpd = (actor.stats.speed * modifiers.enemySpdMultiplier).roundToInt().coerceAtLeast(1)
+    val scaledAgi = (actor.stats.agility * modifiers.enemySpdMultiplier).roundToInt().coerceAtLeast(1)
     val nextStats = actor.stats.copy(
         hpMax = scaledHpMax,
         atk = scaledAtk,
         def = scaledDef,
-        speed = scaledSpd
+        agility = scaledAgi
     )
     val nextHp = actor.hp.coerceAtMost(scaledHpMax)
     GameLogger.info(
         "战斗",
-        "敌人属性倍率应用：生命 ${actor.stats.hpMax} -> $scaledHpMax 攻击 ${actor.stats.atk} -> $scaledAtk 防御 ${actor.stats.def} -> $scaledDef 速度 ${actor.stats.speed} -> $scaledSpd"
+        "敌人属性倍率应用：生命 ${actor.stats.hpMax} -> $scaledHpMax 攻击 ${actor.stats.atk} -> $scaledAtk 防御 ${actor.stats.def} -> $scaledDef 敏捷 ${actor.stats.agility} -> $scaledAgi"
     )
     return actor.copy(stats = nextStats, hp = nextHp)
 }
@@ -169,12 +169,10 @@ fun EnemyDefinition.toCombatActor(count: Int): CombatActor {
     val scaledHp = (stats.hp * multiplier).roundToInt().coerceAtLeast(1)
     val scaledAtk = (stats.atk * (1.0 + 0.2 * (count - 1))).roundToInt().coerceAtLeast(1)
     val scaledDef = (stats.def * (1.0 + 0.15 * (count - 1))).roundToInt().coerceAtLeast(1)
-    val scaledSpeed = (stats.spd * (1.0 + 0.05 * (count - 1))).roundToInt().coerceAtLeast(1)
     val (strength, intelligence, agility) = resolveEnemyAttributes(stats)
     val hpFromStr = strength * 2
     val atkFromStr = strength / 2
     val defFromAgi = agility / 2
-    val speedFromAgi = agility / 3
     val hitFromInt = intelligence / 3
     val critFromAgi = agility / 3
     val evaFromAgi = agility / 4
@@ -182,16 +180,15 @@ fun EnemyDefinition.toCombatActor(count: Int): CombatActor {
         hpMax = (scaledHp + hpFromStr).coerceAtLeast(1),
         atk = (scaledAtk + atkFromStr).coerceAtLeast(1),
         def = (scaledDef + defFromAgi).coerceAtLeast(0),
-        speed = (scaledSpeed + speedFromAgi).coerceAtLeast(1),
+        agility = agility.coerceAtLeast(1),
         hit = (stats.hit + hitFromInt).coerceIn(50, 98),
         eva = (stats.eva + evaFromAgi).coerceIn(5, 45),
         crit = (stats.crit + critFromAgi).coerceIn(5, 40),
-        critDmg = stats.critDmg,
-        resist = stats.resist
+        critDmg = stats.critDmg
     )
     GameLogger.log(
         "战斗",
-        "敌人转化战斗属性：$name 数量=$count，生命=${stats.hpMax} 攻击=${stats.atk} 防御=${stats.def} 速度=${stats.speed} 力量=$strength 智力=$intelligence 敏捷=$agility"
+        "敌人转化战斗属性：$name 数量=$count，生命=${stats.hpMax} 攻击=${stats.atk} 防御=${stats.def} 敏捷=${stats.agility} 力量=$strength 智力=$intelligence 敏捷=$agility"
     )
     return CombatActor(
         id = id,
@@ -206,7 +203,7 @@ fun EnemyDefinition.toCombatActor(count: Int): CombatActor {
 
 private fun resolveEnemyAttributes(stats: EnemyStats): Triple<Int, Int, Int> {
     val strength = if (stats.strength > 0) stats.strength else ((stats.atk + stats.def) / 4).coerceAtLeast(1)
-    val agility = if (stats.agility > 0) stats.agility else (stats.spd / 2).coerceAtLeast(1)
+    val agility = if (stats.agility > 0) stats.agility else (stats.eva / 2).coerceAtLeast(1)
     val intelligence = if (stats.intelligence > 0) stats.intelligence else (stats.hit / 20).coerceAtLeast(1)
     if (stats.strength == 0 || stats.intelligence == 0 || stats.agility == 0) {
         GameLogger.info(
