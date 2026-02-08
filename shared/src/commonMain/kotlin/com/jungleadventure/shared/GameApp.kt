@@ -236,11 +236,33 @@ private fun HeaderBar(
     val canOpenSettings = state.screen != GameScreen.SAVE_SELECT
     val roleIconLabel = if (state.screen == GameScreen.ROLE_DETAIL) "返" else "角"
     val settingsSelected = state.screen == GameScreen.SETTINGS
+    val stage = state.stage
+    val showChapterInfo = state.screen == GameScreen.ADVENTURE
+    val chapterTitle = when {
+        stage.name.isNotBlank() -> stage.name
+        state.chapter > 0 -> "第${state.chapter}章"
+        else -> "未知章节"
+    }
+    val chapterProgress = if (stage.total > 0) "${stage.visited}/${stage.total}" else "--/--"
+    LaunchedEffect(stage.name, stage.visited, stage.total, state.screen) {
+        if (showChapterInfo) {
+            GameLogger.info(
+                "HeaderBar",
+                "顶部章节信息刷新：标题=$chapterTitle 进度=$chapterProgress screen=${state.screen}"
+            )
+        }
+    }
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
+        if (showChapterInfo) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(text = chapterTitle, color = Color(0xFFE6DBC4), fontWeight = FontWeight.SemiBold)
+                Text(text = "关卡 $chapterProgress", color = Color(0xFF9A9487))
+            }
+        }
         Spacer(modifier = Modifier.weight(1f))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             HeaderIconButton(
