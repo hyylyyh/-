@@ -108,14 +108,6 @@ fun GameApp(
     }
 ) {
     val state by viewModel.state.collectAsState()
-    var showSettings by remember { mutableStateOf(false) }
-
-    LaunchedEffect(state.screen) {
-        if (state.screen != GameScreen.ADVENTURE && showSettings) {
-            showSettings = false
-            GameLogger.info("HeaderBar", "离开冒险界面，自动收起设置面板")
-        }
-    }
     CompositionLocalProvider(LocalResourceReader provides resourceReader) {
         MaterialTheme {
             Column(
@@ -127,15 +119,8 @@ fun GameApp(
             ) {
                 HeaderBar(
                     state = state,
-                    showSettings = showSettings,
                     onToggleRoleDetail = viewModel::onToggleRoleDetail,
-                    onToggleSettings = {
-                        showSettings = !showSettings
-                        GameLogger.info(
-                            "HeaderBar",
-                            "切换设置面板：showSettings=$showSettings screen=${state.screen}"
-                        )
-                    }
+                    onToggleSettings = viewModel::onToggleSettings
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -157,24 +142,21 @@ fun GameApp(
                         onToggleShopSellSelection = viewModel::onToggleShopSellSelection,
                         onShopBuySelected = viewModel::onShopBuySelected,
                         onShopBuyPotion = viewModel::onShopBuyPotion,
-                    onShopSellSelected = viewModel::onShopSellSelected,
-                    onShopLeave = viewModel::onShopLeave,
-                    onAssignBattleSkill = viewModel::onAssignBattleSkill,
-                    onClearBattleSkill = viewModel::onClearBattleSkill,
-                    showSkillFormula = state.showSkillFormula,
-                    onToggleShowSkillFormula = viewModel::onToggleShowSkillFormula
-                )
-                SidePanel(
-                    modifier = Modifier.weight(0.8f),
-                    state = state,
-                    onSelectCodexTab = viewModel::onSelectCodexTab,
-                    onEquipItem = viewModel::onEquipItem,
-                    onReturnToMain = viewModel::onReturnToMain,
-                    onOpenChapterSelect = viewModel::onOpenChapterSelect,
-                    showSettings = showSettings,
-                    showSkillFormula = state.showSkillFormula,
-                    onToggleShowSkillFormula = viewModel::onToggleShowSkillFormula
-                )
+                        onShopSellSelected = viewModel::onShopSellSelected,
+                        onShopLeave = viewModel::onShopLeave,
+                        onSelectCodexTab = viewModel::onSelectCodexTab,
+                        onReturnToMain = viewModel::onReturnToMain,
+                        onOpenChapterSelect = viewModel::onOpenChapterSelect,
+                        onAssignBattleSkill = viewModel::onAssignBattleSkill,
+                        onClearBattleSkill = viewModel::onClearBattleSkill,
+                        showSkillFormula = state.showSkillFormula,
+                        onToggleShowSkillFormula = viewModel::onToggleShowSkillFormula
+                    )
+                    SidePanel(
+                        modifier = Modifier.weight(0.8f),
+                        state = state,
+                        onEquipItem = viewModel::onEquipItem
+                    )
                 }
             }
         }
@@ -202,14 +184,18 @@ fun GameApp(
 @Composable
 private fun HeaderBar(
     state: GameUiState,
-    showSettings: Boolean,
     onToggleRoleDetail: () -> Unit,
     onToggleSettings: () -> Unit
 ) {
     val selectedRole = state.roles.firstOrNull { it.id == state.selectedRoleId && it.unlocked }
-    val canOpenRoleDetail = selectedRole != null && state.screen != GameScreen.SAVE_SELECT
-    val canOpenSettings = state.screen == GameScreen.ADVENTURE
+    val canOpenRoleDetail = selectedRole != null &&
+        state.screen != GameScreen.SAVE_SELECT &&
+        state.screen != GameScreen.SETTINGS
+    val canOpenSettings = state.screen == GameScreen.ADVENTURE ||
+        state.screen == GameScreen.ROLE_DETAIL ||
+        state.screen == GameScreen.SETTINGS
     val roleIconLabel = if (state.screen == GameScreen.ROLE_DETAIL) "返" else "角"
+    val settingsSelected = state.screen == GameScreen.SETTINGS
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -266,7 +252,7 @@ private fun HeaderBar(
             HeaderIconButton(
                 label = "设",
                 enabled = canOpenSettings,
-                selected = showSettings,
+                selected = settingsSelected,
                 onClick = onToggleSettings
             )
         }
@@ -292,6 +278,9 @@ private fun MainPanel(
     onShopBuyPotion: () -> Unit,
     onShopSellSelected: () -> Unit,
     onShopLeave: () -> Unit,
+    onSelectCodexTab: (CodexTab) -> Unit,
+    onReturnToMain: () -> Unit,
+    onOpenChapterSelect: () -> Unit,
     onAssignBattleSkill: (Int, String) -> Unit,
     onClearBattleSkill: (Int) -> Unit,
     showSkillFormula: Boolean,
@@ -356,6 +345,16 @@ private fun MainPanel(
                         )
                     }
                 }
+            }
+            GameScreen.SETTINGS -> {
+                SettingsPanelCard(
+                    showSkillFormula = showSkillFormula,
+                    onToggleShowSkillFormula = onToggleShowSkillFormula,
+                    codexState = state,
+                    onSelectCodexTab = onSelectCodexTab,
+                    onReturnToMain = onReturnToMain,
+                    onOpenChapterSelect = onOpenChapterSelect
+                )
             }
             GameScreen.ADVENTURE -> {
                 if (state.battle != null) {
@@ -882,13 +881,7 @@ private fun RoleAvatar(name: String, size: Dp, background: Color, textColor: Col
 private fun SidePanel(
     modifier: Modifier,
     state: GameUiState,
-    onSelectCodexTab: (CodexTab) -> Unit,
-    onEquipItem: (String) -> Unit,
-    onReturnToMain: () -> Unit,
-    onOpenChapterSelect: () -> Unit,
-    showSettings: Boolean,
-    showSkillFormula: Boolean,
-    onToggleShowSkillFormula: (Boolean) -> Unit
+    onEquipItem: (String) -> Unit
 ) {
     val scrollState = rememberScrollState()
     Column(
@@ -922,6 +915,17 @@ private fun SidePanel(
             }
             return
         }
+        if (state.screen == GameScreen.SETTINGS) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(text = "设置提示", fontWeight = FontWeight.Bold)
+                    Divider(modifier = Modifier.padding(vertical = 6.dp))
+                    Text(text = "已进入设置界面，可在左侧调整游戏设置。", color = Color(0xFFB8B2A6))
+                    Text(text = "点击顶部“设”返回上一个界面。", color = Color(0xFF7B756B))
+                }
+            }
+            return
+        }
         if (state.screen != GameScreen.ADVENTURE) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -932,59 +936,27 @@ private fun SidePanel(
             }
             return
         }
+        LaunchedEffect(state.enemyPreview?.name, state.enemyPreview?.level, state.enemyPreview?.count) {
+            val preview = state.enemyPreview
+            if (preview == null) {
+                GameLogger.info("SidePanel", "敌人情报为空")
+            } else {
+                GameLogger.info(
+                    "SidePanel",
+                    "刷新敌人情报：${preview.name} 等级=${preview.level} 数量=${preview.count}"
+                )
+            }
+        }
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(text = "敌人情报", fontWeight = FontWeight.Bold)
                 Divider(modifier = Modifier.padding(vertical = 4.dp))
-                HoverTooltipBox(
-                    logTag = "SidePanel",
-                    logName = "敌人情报悬浮窗",
-                    tooltip = {
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF182720)),
-                            border = BorderStroke(1.dp, Color(0xFF5DADE2)),
-                            modifier = Modifier
-                                .widthIn(max = 360.dp)
-                                .padding(6.dp)
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(10.dp),
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Text(text = "敌人情报", fontWeight = FontWeight.SemiBold)
-                                Divider(modifier = Modifier.padding(vertical = 4.dp))
-                                if (state.enemyPreview == null) {
-                                    Text("暂无敌人情报", color = Color(0xFFB8B2A6))
-                                } else {
-                                    EnemyPreviewPanel(preview = state.enemyPreview)
-                                }
-                            }
-                        }
-                    },
-                    content = { modifier ->
-                        Box(
-                            modifier = modifier
-                                .fillMaxWidth()
-                                .height(42.dp)
-                                .background(Color(0xFF1A2520), RoundedCornerShape(8.dp))
-                                .border(1.dp, Color(0xFF315241), RoundedCornerShape(8.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("悬浮查看敌人情报", color = Color(0xFFB8B2A6))
-                        }
-                    }
-                )
+                if (state.enemyPreview == null) {
+                    PlaceholderPanel("暂无敌人情报")
+                } else {
+                    EnemyPreviewPanel(preview = state.enemyPreview)
+                }
             }
-        }
-        if (showSettings) {
-            SettingsPanelCard(
-                showSkillFormula = showSkillFormula,
-                onToggleShowSkillFormula = onToggleShowSkillFormula,
-                codexState = state,
-                onSelectCodexTab = onSelectCodexTab,
-                onReturnToMain = onReturnToMain,
-                onOpenChapterSelect = onOpenChapterSelect
-            )
         }
     }
 }

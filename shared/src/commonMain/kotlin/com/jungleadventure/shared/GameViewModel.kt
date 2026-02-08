@@ -61,6 +61,7 @@ class GameViewModel(
     private var shopEventId: String? = null
     private var shopOffers: List<ShopOffer> = emptyList()
     private var roleDetailReturnScreen: GameScreen = GameScreen.ADVENTURE
+    private var settingsReturnScreen: GameScreen = GameScreen.ADVENTURE
     private var pendingNewSaveSlot: Int? = null
     private val autoSaveScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val autoSaveIntervalMs = 10_000L
@@ -346,6 +347,35 @@ class GameViewModel(
                 screen = GameScreen.ROLE_DETAIL,
                 lastAction = "打开角色详情",
                 log = state.log + "打开角色详情"
+            )
+        }
+    }
+
+    fun onToggleSettings() {
+        val current = _state.value
+        if (current.screen == GameScreen.SETTINGS) {
+            val target = settingsReturnScreen
+            GameLogger.info(logTag, "关闭设置界面，返回界面：${target.name}")
+            _state.update { state ->
+                state.copy(
+                    screen = target,
+                    lastAction = "返回${screenLabel(target)}",
+                    log = state.log + "返回${screenLabel(target)}"
+                )
+            }
+            return
+        }
+        if (current.screen != GameScreen.ADVENTURE && current.screen != GameScreen.ROLE_DETAIL) {
+            GameLogger.warn(logTag, "设置入口不可用：当前界面=${current.screen}")
+            return
+        }
+        settingsReturnScreen = current.screen
+        GameLogger.info(logTag, "进入设置界面")
+        _state.update { state ->
+            state.copy(
+                screen = GameScreen.SETTINGS,
+                lastAction = "打开设置",
+                log = state.log + "打开设置"
             )
         }
     }
@@ -3078,6 +3108,7 @@ class GameViewModel(
             GameScreen.ROLE_SELECT -> "角色选择"
             GameScreen.CHAPTER_SELECT -> "关卡选择"
             GameScreen.ROLE_DETAIL -> "角色详情"
+            GameScreen.SETTINGS -> "设置"
             GameScreen.ADVENTURE -> "冒险"
         }
     }

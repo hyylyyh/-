@@ -171,5 +171,6 @@ enum class GameScreen {
     ROLE_SELECT,
     CHAPTER_SELECT,
     ROLE_DETAIL,
+    SETTINGS,
     ADVENTURE
 }
