@@ -2,6 +2,7 @@ package com.jungleadventure.shared
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,6 +23,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -38,12 +40,15 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import kotlinx.coroutines.CancellationException
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.jungleadventure.shared.loot.EquipmentSlot
@@ -671,26 +676,9 @@ private fun RoleDetailPanel(
 
         Divider()
         Text(text = "技能组合", fontWeight = FontWeight.SemiBold)
-        SkillDetailCard(
-            title = "被动技能",
-            skill = selectedRole.passiveSkill,
-            showFormula = showSkillFormula
-        )
-        if (selectedRole.activeSkills.isEmpty()) {
-            Text(text = "主动技能：暂无", color = Color(0xFFB8B2A6))
-        } else {
-            selectedRole.activeSkills.forEachIndexed { index, skill ->
-                SkillDetailCard(
-                    title = "主动技能 ${index + 1}",
-                    skill = skill,
-                    showFormula = showSkillFormula
-                )
-            }
-        }
-        SkillDetailCard(
-            title = "终极技能",
-            skill = selectedRole.ultimateSkill,
-            showFormula = showSkillFormula
+        RoleSkillIconSection(
+            role = selectedRole,
+            showSkillFormula = showSkillFormula
         )
 
         if (!selectedRole.unlocked) {
@@ -1037,6 +1025,147 @@ private fun InventoryOverviewPanel(
     }
 }
 
+private data class SkillIconEntry(
+    val id: String,
+    val title: String,
+    val skill: RoleSkill
+)
+
+@Composable
+private fun RoleSkillIconSection(
+    role: RoleProfile,
+    showSkillFormula: Boolean
+) {
+    val entries = buildSkillIconEntries(role)
+    if (entries.isEmpty()) {
+        Text(text = "暂无技能信息", color = Color(0xFF7B756B))
+        return
+    }
+    SkillIconGrid(
+        entries = entries,
+        showSkillFormula = showSkillFormula
+    )
+}
+
+private fun buildSkillIconEntries(role: RoleProfile): List<SkillIconEntry> {
+    val entries = mutableListOf<SkillIconEntry>()
+    if (role.passiveSkill.name.isNotBlank()) {
+        entries += SkillIconEntry(
+            id = "passive_${role.passiveSkill.name}",
+            title = "被动技能",
+            skill = role.passiveSkill
+        )
+    }
+    role.activeSkills.forEachIndexed { index, skill ->
+        if (skill.name.isNotBlank()) {
+            entries += SkillIconEntry(
+                id = "active_${index}_${skill.name}",
+                title = "主动技能 ${index + 1}",
+                skill = skill
+            )
+        }
+    }
+    if (role.ultimateSkill.name.isNotBlank()) {
+        entries += SkillIconEntry(
+            id = "ultimate_${role.ultimateSkill.name}",
+            title = "终极技能",
+            skill = role.ultimateSkill
+        )
+    }
+    return entries
+}
+
+@Composable
+private fun SkillIconGrid(
+    entries: List<SkillIconEntry>,
+    showSkillFormula: Boolean
+) {
+    var expandedId by remember { mutableStateOf<String?>(null) }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(text = "点击图标展开技能详情", color = Color(0xFF7B756B))
+        entries.chunked(4).forEach { rowEntries ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                rowEntries.forEach { entry ->
+                    SkillIconCard(
+                        entry = entry,
+                        selected = expandedId == entry.id,
+                        onClick = {
+                            val nextId = if (expandedId == entry.id) null else entry.id
+                            val label = skillTypeLabel(entry.skill.type)
+                            GameLogger.info(
+                                "技能图标",
+                                "点击技能图标：${entry.skill.name} 类型=$label 展开=${nextId != null}"
+                            )
+                            expandedId = nextId
+                        }
+                    )
+                }
+                if (rowEntries.size < 4) {
+                    repeat(4 - rowEntries.size) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+        }
+        val expandedEntry = entries.firstOrNull { it.id == expandedId }
+        if (expandedEntry != null) {
+            SkillDetailCard(
+                title = expandedEntry.title,
+                skill = expandedEntry.skill,
+                showFormula = showSkillFormula
+            )
+        }
+    }
+}
+
+@Composable
+private fun SkillIconCard(
+    entry: SkillIconEntry,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val typeLabel = skillTypeLabel(entry.skill.type)
+    val iconText = entry.skill.name.take(1).ifBlank {
+        when (typeLabel) {
+            "被动" -> "被"
+            "主动" -> "主"
+            "终极" -> "终"
+            else -> typeLabel.take(1)
+        }
+    }
+    val baseColor = skillTypeColor(entry.skill.type)
+    val borderColor = if (selected) Color(0xFFE8C07D) else baseColor.copy(alpha = 0.7f)
+    val backgroundColor = baseColor.copy(alpha = if (selected) 0.25f else 0.18f)
+    Column(
+        modifier = Modifier.weight(1f),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(60.dp)
+                .border(2.dp, borderColor, RoundedCornerShape(14.dp))
+                .background(backgroundColor, RoundedCornerShape(14.dp))
+                .clickable { onClick() },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = iconText,
+                fontWeight = FontWeight.Bold,
+                color = baseColor
+            )
+        }
+        Text(
+            text = entry.skill.name,
+            color = Color(0xFFB8B2A6),
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
 @Composable
 private fun SkillCatalogSummary(role: RoleProfile?, showSkillFormula: Boolean) {
     if (role == null) {
@@ -1045,36 +1174,10 @@ private fun SkillCatalogSummary(role: RoleProfile?, showSkillFormula: Boolean) {
     }
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(text = "已解锁技能", fontWeight = FontWeight.SemiBold)
-        RoleSkillSummary(title = "被动", skill = role.passiveSkill, showSkillFormula = showSkillFormula)
-        role.activeSkills.forEachIndexed { index, skill ->
-            RoleSkillSummary(title = "主动 ${index + 1}", skill = skill, showSkillFormula = showSkillFormula)
-        }
-        RoleSkillSummary(title = "终极", skill = role.ultimateSkill, showSkillFormula = showSkillFormula)
-    }
-}
-
-@Composable
-private fun RoleSkillSummary(title: String, skill: RoleSkill, showSkillFormula: Boolean) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(text = "$title：${skill.name}", fontWeight = FontWeight.SemiBold)
-        Text(
-            text = "类型 ${skillTypeLabel(skill.type)}  目标 ${skill.target}",
-            color = Color(0xFFB8B2A6)
+        RoleSkillIconSection(
+            role = role,
+            showSkillFormula = showSkillFormula
         )
-        if (skill.cost != "-" || skill.cooldown != "-") {
-            val costText = if (skill.cost == "-") "无" else skill.cost
-            val cooldownText = if (skill.cooldown == "-") "无" else skill.cooldown
-            Text(text = "消耗 $costText  冷却 $cooldownText", color = Color(0xFFB8B2A6))
-        }
-        if (skill.description.isNotBlank()) {
-            Text(text = skill.description, color = Color(0xFFB8B2A6))
-        }
-        if (skill.effectLines.isNotEmpty()) {
-            Text(text = "效果 ${skill.effectLines.joinToString("、")}", color = Color(0xFF8DB38B))
-        }
-        if (showSkillFormula && skill.formulaLines.isNotEmpty()) {
-            Text(text = "公式 ${skill.formulaLines.joinToString("、")}", color = Color(0xFFD6B36A))
-        }
     }
 }
 
@@ -1337,57 +1440,141 @@ private fun SkillCatalogPanel(
     entries: List<SkillCatalogEntry>,
     unlockedRoleIds: Set<String>
 ) {
+    val unlockedSkillIds = entries.filter { entry ->
+        entry.sourceRoleIds.isEmpty() || entry.sourceRoleIds.any { unlockedRoleIds.contains(it) }
+    }.map { it.id }.toSet()
+    var selectedId by remember { mutableStateOf<String?>(null) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("已收录 ${entries.size} 个技能", color = Color(0xFFB8B2A6))
         if (entries.isEmpty()) {
             PlaceholderPanel("暂无技能图鉴数据")
             return
         }
+        Text(text = "点击图标查看技能详情", color = Color(0xFF7B756B))
+        val rows = entries.chunked(4)
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(240.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(entries, key = { it.id }) { entry ->
-                val unlocked = entry.sourceRoleIds.isEmpty() || entry.sourceRoleIds.any { unlockedRoleIds.contains(it) }
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(
-                            text = if (unlocked) "${entry.name}（${entry.type}）" else "未解锁技能",
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (unlocked) Color(0xFF8DB38B) else Color(0xFF8F8F8F)
+            items(rows) { rowEntries ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    rowEntries.forEach { entry ->
+                        val unlocked = unlockedSkillIds.contains(entry.id)
+                        SkillCatalogIconCard(
+                            entry = entry,
+                            unlocked = unlocked,
+                            selected = selectedId == entry.id,
+                            onClick = {
+                                val nextId = if (selectedId == entry.id) null else entry.id
+                                GameLogger.info(
+                                    "技能图鉴",
+                                    "点击技能图鉴图标：${entry.name} 解锁=$unlocked 展开=${nextId != null}"
+                                )
+                                selectedId = nextId
+                            }
                         )
-                        if (unlocked) {
-                            Text(
-                                text = "目标 ${entry.target} | 消耗 ${entry.cost} | 冷却 ${entry.cooldown}",
-                                color = Color(0xFFB8B2A6)
-                            )
-                            if (entry.description.isNotBlank()) {
-                                Text(text = entry.description, color = Color(0xFFB8B2A6))
-                            }
-                            if (entry.effects.isNotEmpty()) {
-                                Text(
-                                    text = "效果 ${formatSkillEffects(entry.effects)}",
-                                    color = Color(0xFF7B756B)
-                                )
-                            }
-                            if (entry.sourceRoleNames.isNotEmpty()) {
-                                Text(
-                                    text = "所属角色 ${entry.sourceRoleNames.joinToString("、")}",
-                                    color = Color(0xFF7B756B)
-                                )
-                            }
-                        } else {
-                            val roleHint = if (entry.sourceRoleNames.isEmpty()) {
-                                "解锁条件：解锁对应角色"
-                            } else {
-                                "解锁条件：解锁 ${entry.sourceRoleNames.joinToString("、")}"
-                            }
-                            Text(text = roleHint, color = Color(0xFF7B756B))
+                    }
+                    if (rowEntries.size < 4) {
+                        repeat(4 - rowEntries.size) {
+                            Spacer(modifier = Modifier.weight(1f))
                         }
                     }
                 }
+            }
+        }
+        val selectedEntry = entries.firstOrNull { it.id == selectedId }
+        if (selectedEntry != null) {
+            val unlocked = unlockedSkillIds.contains(selectedEntry.id)
+            SkillCatalogDetailCard(entry = selectedEntry, unlocked = unlocked)
+        }
+    }
+}
+
+@Composable
+private fun SkillCatalogIconCard(
+    entry: SkillCatalogEntry,
+    unlocked: Boolean,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val iconText = if (unlocked) {
+        entry.name.take(1).ifBlank { "技" }
+    } else {
+        "锁"
+    }
+    val baseColor = if (unlocked) skillTypeColor(entry.type) else Color(0xFF8F8F8F)
+    val borderColor = if (selected) Color(0xFFE8C07D) else baseColor.copy(alpha = 0.7f)
+    val backgroundColor = baseColor.copy(alpha = if (selected) 0.25f else 0.18f)
+    Column(
+        modifier = Modifier.weight(1f),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(56.dp)
+                .border(2.dp, borderColor, RoundedCornerShape(14.dp))
+                .background(backgroundColor, RoundedCornerShape(14.dp))
+                .clickable { onClick() },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = iconText,
+                fontWeight = FontWeight.Bold,
+                color = baseColor
+            )
+        }
+        Text(
+            text = if (unlocked) entry.name else "未解锁",
+            color = Color(0xFFB8B2A6),
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+private fun SkillCatalogDetailCard(entry: SkillCatalogEntry, unlocked: Boolean) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = if (unlocked) "${entry.name}（${skillTypeLabel(entry.type)}）" else "未解锁技能",
+                fontWeight = FontWeight.SemiBold,
+                color = if (unlocked) skillTypeColor(entry.type) else Color(0xFF8F8F8F)
+            )
+            if (unlocked) {
+                val costText = if (entry.cost <= 0) "无" else entry.cost.toString()
+                val cooldownText = if (entry.cooldown <= 0) "无" else "${entry.cooldown} 回合"
+                Text(
+                    text = "目标 ${entry.target} | 消耗 $costText | 冷却 $cooldownText",
+                    color = Color(0xFFB8B2A6)
+                )
+                if (entry.description.isNotBlank()) {
+                    Text(text = entry.description, color = Color(0xFFB8B2A6))
+                }
+                if (entry.effects.isNotEmpty()) {
+                    Text(
+                        text = "效果 ${formatSkillEffects(entry.effects)}",
+                        color = Color(0xFF7B756B)
+                    )
+                }
+                if (entry.sourceRoleNames.isNotEmpty()) {
+                    Text(
+                        text = "所属角色 ${entry.sourceRoleNames.joinToString("、")}",
+                        color = Color(0xFF7B756B)
+                    )
+                }
+            } else {
+                val roleHint = if (entry.sourceRoleNames.isEmpty()) {
+                    "解锁条件：解锁对应角色"
+                } else {
+                    "解锁条件：解锁 ${entry.sourceRoleNames.joinToString("、")}"
+                }
+                Text(text = roleHint, color = Color(0xFF7B756B))
             }
         }
     }
@@ -2066,6 +2253,15 @@ private fun skillTypeLabel(raw: String): String {
         "ACTIVE" -> "主动"
         "ULTIMATE" -> "终极"
         else -> raw
+    }
+}
+
+private fun skillTypeColor(raw: String): Color {
+    return when (raw.uppercase()) {
+        "PASSIVE" -> Color(0xFF6FBF73)
+        "ACTIVE" -> Color(0xFF5DADE2)
+        "ULTIMATE" -> Color(0xFFF39C12)
+        else -> Color(0xFF8DB38B)
     }
 }
 
