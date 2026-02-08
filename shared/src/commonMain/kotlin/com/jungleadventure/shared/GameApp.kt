@@ -951,11 +951,51 @@ private fun SidePanel(
             Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(text = "敌人情报", fontWeight = FontWeight.Bold)
                 Divider(modifier = Modifier.padding(vertical = 4.dp))
-                if (state.enemyPreview == null) {
-                    PlaceholderPanel("暂无敌人情报")
+                val preview = state.enemyPreview
+                val summaryText = if (preview == null) {
+                    "暂无敌人情报"
                 } else {
-                    EnemyPreviewPanel(preview = state.enemyPreview)
+                    "${preview.name} | 等级${preview.level} | 数量${preview.count}"
                 }
+                HoverTooltipBox(
+                    logTag = "SidePanel",
+                    logName = "敌人情报悬浮窗",
+                    tooltip = {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF182720)),
+                            border = BorderStroke(1.dp, Color(0xFF5DADE2)),
+                            modifier = Modifier
+                                .widthIn(max = 360.dp)
+                                .padding(6.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(text = "敌人情报", fontWeight = FontWeight.SemiBold)
+                                Divider(modifier = Modifier.padding(vertical = 4.dp))
+                                if (preview == null) {
+                                    Text("暂无敌人情报", color = Color(0xFFB8B2A6))
+                                } else {
+                                    EnemyPreviewPanel(preview = preview)
+                                }
+                            }
+                        }
+                    },
+                    content = { modifier ->
+                        Column(
+                            modifier = modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFF1A2520), RoundedCornerShape(8.dp))
+                                .border(1.dp, Color(0xFF315241), RoundedCornerShape(8.dp))
+                                .padding(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(text = summaryText, color = Color(0xFFB8B2A6))
+                            Text(text = "悬浮查看详情", color = Color(0xFF7B756B))
+                        }
+                    }
+                )
             }
         }
     }
