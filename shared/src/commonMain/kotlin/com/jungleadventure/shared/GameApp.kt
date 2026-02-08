@@ -145,7 +145,6 @@ fun GameApp(
                     modifier = Modifier.weight(0.8f),
                     state = state,
                     onSelectCodexTab = viewModel::onSelectCodexTab,
-                    onShowEquipmentDetail = viewModel::onShowEquipmentDetail,
                     onEquipItem = viewModel::onEquipItem,
                     onReturnToMain = viewModel::onReturnToMain,
                     onOpenChapterSelect = viewModel::onOpenChapterSelect,
@@ -851,7 +850,6 @@ private fun SidePanel(
     modifier: Modifier,
     state: GameUiState,
     onSelectCodexTab: (CodexTab) -> Unit,
-    onShowEquipmentDetail: (EquipmentItem?) -> Unit,
     onEquipItem: (String) -> Unit,
     onReturnToMain: () -> Unit,
     onOpenChapterSelect: () -> Unit,
@@ -868,10 +866,7 @@ private fun SidePanel(
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(text = "装备面板", fontWeight = FontWeight.Bold)
                     Divider(modifier = Modifier.padding(vertical = 6.dp))
-                    EquipmentOverviewPanel(
-                        player = state.player,
-                        onShowEquipmentDetail = onShowEquipmentDetail
-                    )
+                    EquipmentOverviewPanel(player = state.player)
                 }
             }
             Card(modifier = Modifier.fillMaxWidth()) {
@@ -1056,13 +1051,15 @@ private fun BattleOptionConfigPanel(
                 text = "拖动技能到槽位（${BattleSkillSlotCount} 个）",
                 color = Color(0xFF7B756B)
             )
+            val topSlotSize = 96.dp
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = Color(0xFF182720)),
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.size(topSlotSize, 48.dp)
                 ) {
                     Column(
-                        modifier = Modifier.padding(6.dp),
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(text = "普通攻击", fontWeight = FontWeight.SemiBold)
@@ -1075,10 +1072,11 @@ private fun BattleOptionConfigPanel(
                             containerColor = if (enabled) Color(0xFF182720) else Color(0xFF222B26)
                         ),
                         border = BorderStroke(1.dp, if (enabled) Color(0xFF3A5C4C) else Color(0xFF2C3B33)),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.size(topSlotSize, 48.dp)
                     ) {
                         Column(
-                            modifier = Modifier.padding(6.dp),
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.Center,
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(text = "药水${index + 1}", fontWeight = FontWeight.SemiBold)
@@ -1091,58 +1089,67 @@ private fun BattleOptionConfigPanel(
                 }
             }
             Text(text = "技能槽位", fontWeight = FontWeight.SemiBold)
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                slotIds.forEachIndexed { slotIndex, skillId ->
-                    val entry = sortedSkills.firstOrNull { it.id == skillId }
-                    val label = entry?.name ?: "空"
-                    val isEmpty = skillId.isBlank() || entry == null
-                    val highlight = draggingSkill != null &&
-                        slotBounds[slotIndex]?.contains(dragPosition) == true
-                    val borderColor = if (highlight) Color(0xFF8DB38B) else Color(0xFF2C3B33)
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .onGloballyPositioned { coords ->
-                                slotBounds[slotIndex] = coords.boundsInRoot()
-                            }
-                    ) {
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (highlight) Color(0xFF1D2D26) else Color(0xFF182720)
-                            ),
-                            border = BorderStroke(1.dp, borderColor),
-                            modifier = Modifier.fillMaxWidth()
+            val slotSize = 76.dp
+            val slotRows = slotIds.chunked(3)
+            slotRows.forEachIndexed { rowIndex, rowSlots ->
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    rowSlots.forEachIndexed { columnIndex, skillId ->
+                        val slotIndex = rowIndex * 3 + columnIndex
+                        val entry = sortedSkills.firstOrNull { it.id == skillId }
+                        val label = entry?.name ?: "空"
+                        val isEmpty = skillId.isBlank() || entry == null
+                        val highlight = draggingSkill != null &&
+                            slotBounds[slotIndex]?.contains(dragPosition) == true
+                        val borderColor = if (highlight) Color(0xFF8DB38B) else Color(0xFF2C3B33)
+                        Box(
+                            modifier = Modifier
+                                .size(slotSize, 48.dp)
+                                .onGloballyPositioned { coords ->
+                                    slotBounds[slotIndex] = coords.boundsInRoot()
+                                }
                         ) {
-                            Column(
-                                modifier = Modifier.padding(6.dp),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (highlight) Color(0xFF1D2D26) else Color(0xFF182720)
+                                ),
+                                border = BorderStroke(1.dp, borderColor),
+                                modifier = Modifier.fillMaxSize()
                             ) {
+                                Column(
+                                    modifier = Modifier.padding(6.dp),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Text(
+                                        text = "槽${slotIndex + 1}",
+                                        color = Color(0xFF7B756B)
+                                    )
+                                    Text(
+                                        text = label,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = if (isEmpty) Color(0xFF7B756B) else Color(0xFFECE8D9),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                            if (!isEmpty) {
                                 Text(
-                                    text = "槽${slotIndex + 1}",
-                                    color = Color(0xFF7B756B)
-                                )
-                                Text(
-                                    text = label,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = if (isEmpty) Color(0xFF7B756B) else Color(0xFFECE8D9),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    text = "×",
+                                    color = Color(0xFFD6B36A),
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(4.dp)
+                                        .clickable {
+                                            GameLogger.info("战斗配置", "点击清空技能槽位：槽位=${slotIndex + 1}")
+                                            onClearBattleSkill(slotIndex)
+                                        }
                                 )
                             }
                         }
-                        if (!isEmpty) {
-                            Text(
-                                text = "×",
-                                color = Color(0xFFD6B36A),
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .padding(4.dp)
-                                    .clickable {
-                                        GameLogger.info("战斗配置", "点击清空技能槽位：槽位=${slotIndex + 1}")
-                                        onClearBattleSkill(slotIndex)
-                                    }
-                            )
-                        }
+                    }
+                    val missing = 3 - rowSlots.size
+                    repeat(missing) {
+                        Spacer(modifier = Modifier.size(slotSize, 48.dp))
                     }
                 }
             }
@@ -1159,8 +1166,7 @@ private fun BattleOptionConfigPanel(
                                 colors = CardDefaults.cardColors(containerColor = Color(0xFF182720)),
                                 border = BorderStroke(1.dp, Color(0xFF2C3B33)),
                                 modifier = Modifier
-                                    .weight(1f)
-                                    .heightIn(min = 52.dp)
+                                    .size(112.dp, 52.dp)
                                     .onGloballyPositioned { coords -> coordinates = coords }
                                     .pointerInput(skill.id) {
                                         detectDragGestures(
@@ -1204,8 +1210,8 @@ private fun BattleOptionConfigPanel(
                             }
                         }
                         val missing = 3 - rowSkills.size
-                        if (missing > 0) {
-                            Spacer(modifier = Modifier.weight(missing.toFloat()))
+                        repeat(missing) {
+                            Spacer(modifier = Modifier.size(112.dp, 52.dp))
                         }
                     }
                 }
