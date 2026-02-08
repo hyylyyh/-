@@ -109,10 +109,11 @@ fun GameApp(
     CompositionLocalProvider(LocalResourceReader provides resourceReader) {
         MaterialTheme {
             val isBattleFullScreen = state.screen == GameScreen.ADVENTURE && state.battle != null
-            LaunchedEffect(isBattleFullScreen) {
+            val isShopFullScreen = state.screen == GameScreen.ADVENTURE && isShopEventUi(state.currentEvent)
+            LaunchedEffect(isBattleFullScreen, isShopFullScreen) {
                 GameLogger.info(
                     "GameApp",
-                    "布局模式切换：战斗全屏=${isBattleFullScreen} screen=${state.screen}"
+                    "布局模式切换：战斗全屏=${isBattleFullScreen} 商店全屏=${isShopFullScreen} screen=${state.screen}"
                 )
             }
             Column(
@@ -127,7 +128,7 @@ fun GameApp(
                     onToggleRoleDetail = viewModel::onToggleRoleDetail,
                     onToggleSettings = viewModel::onToggleSettings
                 )
-                if (isBattleFullScreen) {
+                if (isBattleFullScreen || isShopFullScreen) {
                     MainPanel(
                         modifier = Modifier.fillMaxWidth(),
                         state = state,
