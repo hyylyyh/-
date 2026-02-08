@@ -108,7 +108,14 @@ fun GameApp(
     }
 ) {
     val state by viewModel.state.collectAsState()
+    var showSettings by remember { mutableStateOf(false) }
 
+    LaunchedEffect(state.screen) {
+        if (state.screen != GameScreen.ADVENTURE && showSettings) {
+            showSettings = false
+            GameLogger.info("HeaderBar", "离开冒险界面，自动收起设置面板")
+        }
+    }
     CompositionLocalProvider(LocalResourceReader provides resourceReader) {
         MaterialTheme {
             Column(
@@ -118,7 +125,18 @@ fun GameApp(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                HeaderBar(state, onToggleRoleDetail = viewModel::onToggleRoleDetail)
+                HeaderBar(
+                    state = state,
+                    showSettings = showSettings,
+                    onToggleRoleDetail = viewModel::onToggleRoleDetail,
+                    onToggleSettings = {
+                        showSettings = !showSettings
+                        GameLogger.info(
+                            "HeaderBar",
+                            "切换设置面板：showSettings=$showSettings screen=${state.screen}"
+                        )
+                    }
+                )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -153,6 +171,7 @@ fun GameApp(
                     onEquipItem = viewModel::onEquipItem,
                     onReturnToMain = viewModel::onReturnToMain,
                     onOpenChapterSelect = viewModel::onOpenChapterSelect,
+                    showSettings = showSettings,
                     showSkillFormula = state.showSkillFormula,
                     onToggleShowSkillFormula = viewModel::onToggleShowSkillFormula
                 )
@@ -183,10 +202,14 @@ fun GameApp(
 @Composable
 private fun HeaderBar(
     state: GameUiState,
-    onToggleRoleDetail: () -> Unit
+    showSettings: Boolean,
+    onToggleRoleDetail: () -> Unit,
+    onToggleSettings: () -> Unit
 ) {
     val selectedRole = state.roles.firstOrNull { it.id == state.selectedRoleId && it.unlocked }
     val canOpenRoleDetail = selectedRole != null && state.screen != GameScreen.SAVE_SELECT
+    val canOpenSettings = state.screen == GameScreen.ADVENTURE
+    val roleIconLabel = if (state.screen == GameScreen.ROLE_DETAIL) "返" else "角"
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -228,9 +251,24 @@ private fun HeaderBar(
                 text = state.lastAction.ifBlank { "准备行动" },
                 color = Color(0xFF8DB38B)
             )
-            Button(onClick = onToggleRoleDetail, enabled = canOpenRoleDetail) {
-                Text(text = if (state.screen == GameScreen.ROLE_DETAIL) "返回" else "角色详情")
-            }
+            HeaderIconButton(
+                label = roleIconLabel,
+                enabled = canOpenRoleDetail,
+                selected = state.screen == GameScreen.ROLE_DETAIL,
+                onClick = {
+                    GameLogger.info(
+                        "HeaderBar",
+                        "点击角色详情图标：screen=${state.screen} roleId=${state.selectedRoleId}"
+                    )
+                    onToggleRoleDetail()
+                }
+            )
+            HeaderIconButton(
+                label = "设",
+                enabled = canOpenSettings,
+                selected = showSettings,
+                onClick = onToggleSettings
+            )
         }
     }
 }
@@ -848,12 +886,11 @@ private fun SidePanel(
     onEquipItem: (String) -> Unit,
     onReturnToMain: () -> Unit,
     onOpenChapterSelect: () -> Unit,
+    showSettings: Boolean,
     showSkillFormula: Boolean,
     onToggleShowSkillFormula: (Boolean) -> Unit
 ) {
     val scrollState = rememberScrollState()
-    var showSettings by remember { mutableStateOf(false) }
-    val logTag = "SidePanel"
     Column(
         modifier = modifier.verticalScroll(scrollState),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -900,7 +937,7 @@ private fun SidePanel(
                 Text(text = "敌人情报", fontWeight = FontWeight.Bold)
                 Divider(modifier = Modifier.padding(vertical = 4.dp))
                 HoverTooltipBox(
-                    logTag = logTag,
+                    logTag = "SidePanel",
                     logName = "敌人情报悬浮窗",
                     tooltip = {
                         Card(
@@ -937,33 +974,6 @@ private fun SidePanel(
                         }
                     }
                 )
-            }
-        }
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(text = "设置入口", fontWeight = FontWeight.Bold)
-                        Text(text = "点击图标展开设置面板", color = Color(0xFFB8B2A6))
-                    }
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(Color(0xFF1A2520), CircleShape)
-                            .border(1.dp, Color(0xFF8DB38B), CircleShape)
-                            .clickable {
-                                showSettings = !showSettings
-                                GameLogger.info(logTag, "设置面板切换：showSettings=$showSettings")
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(text = "⚙", fontWeight = FontWeight.Bold, color = Color(0xFFECE8D9))
-                    }
-                }
             }
         }
         if (showSettings) {
@@ -3059,6 +3069,32 @@ private fun BattleSkillTile(
                 overflow = TextOverflow.Ellipsis
             )
         }
+    }
+}
+
+@Composable
+private fun HeaderIconButton(
+    label: String,
+    enabled: Boolean,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val borderColor = when {
+        selected -> Color(0xFF8DB38B)
+        enabled -> Color(0xFF315241)
+        else -> Color(0xFF2C3B33)
+    }
+    val backgroundColor = if (enabled) Color(0xFF1A2520) else Color(0xFF1A2520).copy(alpha = 0.5f)
+    val labelColor = if (enabled) Color(0xFFECE8D9) else Color(0xFF7B756B)
+    Box(
+        modifier = Modifier
+            .size(36.dp)
+            .background(backgroundColor, CircleShape)
+            .border(1.dp, borderColor, CircleShape)
+            .clickable(enabled = enabled) { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text = label, fontWeight = FontWeight.Bold, color = labelColor)
     }
 }
 
