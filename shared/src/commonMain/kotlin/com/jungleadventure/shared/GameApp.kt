@@ -398,7 +398,6 @@ private fun MainPanel(
                         onChoice = onChoice
                     )
                 } else if (isShopEventUi(state.currentEvent)) {
-                    StageInfoPanel(state = state)
                     ShopPanel(
                         state = state,
                         onToggleShopOfferSelection = onToggleShopOfferSelection,
@@ -409,7 +408,6 @@ private fun MainPanel(
                         onShopLeave = onShopLeave
                     )
                 } else {
-                    StageInfoPanel(state = state)
                     EventActionPanel(
                         choices = state.choices,
                         onChoice = onChoice,
