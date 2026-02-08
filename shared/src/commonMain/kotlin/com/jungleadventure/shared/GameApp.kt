@@ -2579,11 +2579,32 @@ private fun ShopPanel(
     val selectedOfferIds = state.shopSelectedOfferIds
     val selectedSellIds = state.shopSelectedSellIds
     val inventory = state.player.inventory
+    val logTag = "ShopPanel"
+    LaunchedEffect(
+        offers.size,
+        selectedOfferIds.size,
+        selectedSellIds.size,
+        inventory.items.size,
+        state.shopBuyTotal,
+        state.shopSellTotal,
+        state.player.gold
+    ) {
+        GameLogger.info(
+            logTag,
+            "商店面板刷新：商品数=${offers.size} 选中购买=${selectedOfferIds.size} " +
+                "选中出售=${selectedSellIds.size} 背包=${inventory.items.size}/${inventory.capacity} " +
+                "买入合计=${state.shopBuyTotal} 卖出合计=${state.shopSellTotal} 金币=${state.player.gold}"
+        )
+    }
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Card(modifier = Modifier.weight(1f)) {
+        Card(
+            modifier = Modifier
+                .weight(1.25f)
+                .heightIn(min = 420.dp)
+        ) {
             Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(text = "商品展示区", fontWeight = FontWeight.Bold)
                 Divider(modifier = Modifier.padding(vertical = 4.dp))
@@ -2592,11 +2613,11 @@ private fun ShopPanel(
                 } else {
                     val rows = offers.chunked(2)
                     LazyColumn(
-                        modifier = Modifier.heightIn(max = 320.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier.heightIn(max = 420.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         items(rows) { rowItems ->
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 rowItems.forEach { offer ->
                                     val selected = selectedOfferIds.contains(offer.id)
                                     ShopOfferCard(
@@ -2615,7 +2636,11 @@ private fun ShopPanel(
                 }
             }
         }
-        Card(modifier = Modifier.weight(0.9f)) {
+        Card(
+            modifier = Modifier
+                .weight(1.05f)
+                .heightIn(min = 420.dp)
+        ) {
             Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(text = "交易操作区", fontWeight = FontWeight.Bold)
                 Divider(modifier = Modifier.padding(vertical = 4.dp))
@@ -2651,7 +2676,11 @@ private fun ShopPanel(
                 }
             }
         }
-        Card(modifier = Modifier.weight(1f)) {
+        Card(
+            modifier = Modifier
+                .weight(1.15f)
+                .heightIn(min = 420.dp)
+        ) {
             Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(text = "背包物品区", fontWeight = FontWeight.Bold)
                 Divider(modifier = Modifier.padding(vertical = 4.dp))
@@ -2667,7 +2696,7 @@ private fun ShopPanel(
                         items = inventory.items,
                         selectedIds = selectedSellIds,
                         columns = 4,
-                        iconSize = 36.dp,
+                        iconSize = 44.dp,
                         onToggleSelected = onToggleShopSellSelection
                     )
                 }
