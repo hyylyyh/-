@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -49,13 +50,20 @@ import kotlinx.coroutines.CancellationException
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.input.pointer.pointerMoveFilter
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import com.jungleadventure.shared.loot.EquipmentSlot
 import com.jungleadventure.shared.loot.StatType
 
@@ -1103,6 +1111,7 @@ private fun SkillIconGrid(
                     SkillIconCard(
                         entry = entry,
                         selected = expandedId == entry.id,
+                        showSkillFormula = showSkillFormula,
                         onClick = {
                             val nextId = if (expandedId == entry.id) null else entry.id
                             val label = skillTypeLabel(entry.skill.type)
@@ -1136,6 +1145,7 @@ private fun SkillIconGrid(
 private fun SkillIconCard(
     entry: SkillIconEntry,
     selected: Boolean,
+    showSkillFormula: Boolean,
     onClick: () -> Unit
 ) {
     val typeLabel = skillTypeLabel(entry.skill.type)
@@ -1157,26 +1167,38 @@ private fun SkillIconCard(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .size(60.dp)
-                .border(2.dp, borderColor, RoundedCornerShape(14.dp))
-                .background(backgroundColor, RoundedCornerShape(14.dp))
-                .clickable { onClick() },
-            contentAlignment = Alignment.Center
-        ) {
-            if (painter == null) {
-                Text(
-                    text = fallbackText,
-                    fontWeight = FontWeight.Bold,
-                    color = baseColor
+        HoverTooltipBox(
+            logTag = "技能图标",
+            logName = entry.skill.name,
+            tooltip = {
+                SkillDetailCard(
+                    title = entry.title,
+                    skill = entry.skill,
+                    showFormula = showSkillFormula
                 )
-            } else {
-                Image(
-                    painter = painter,
-                    contentDescription = entry.skill.name,
-                    modifier = Modifier.size(38.dp)
-                )
+            }
+        ) { baseModifier ->
+            Box(
+                modifier = baseModifier
+                    .size(60.dp)
+                    .border(2.dp, borderColor, RoundedCornerShape(14.dp))
+                    .background(backgroundColor, RoundedCornerShape(14.dp))
+                    .clickable { onClick() },
+                contentAlignment = Alignment.Center
+            ) {
+                if (painter == null) {
+                    Text(
+                        text = fallbackText,
+                        fontWeight = FontWeight.Bold,
+                        color = baseColor
+                    )
+                } else {
+                    Image(
+                        painter = painter,
+                        contentDescription = entry.skill.name,
+                        modifier = Modifier.size(38.dp)
+                    )
+                }
             }
         }
         Text(
@@ -1538,26 +1560,34 @@ private fun SkillCatalogIconCard(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .size(56.dp)
-                .border(2.dp, borderColor, RoundedCornerShape(14.dp))
-                .background(backgroundColor, RoundedCornerShape(14.dp))
-                .clickable { onClick() },
-            contentAlignment = Alignment.Center
-        ) {
-            if (painter == null) {
-                Text(
-                    text = fallbackText,
-                    fontWeight = FontWeight.Bold,
-                    color = baseColor
-                )
-            } else {
-                Image(
-                    painter = painter,
-                    contentDescription = entry.name,
-                    modifier = Modifier.size(36.dp)
-                )
+        HoverTooltipBox(
+            logTag = "技能图鉴",
+            logName = entry.name,
+            tooltip = {
+                SkillCatalogDetailCard(entry = entry, unlocked = unlocked)
+            }
+        ) { baseModifier ->
+            Box(
+                modifier = baseModifier
+                    .size(56.dp)
+                    .border(2.dp, borderColor, RoundedCornerShape(14.dp))
+                    .background(backgroundColor, RoundedCornerShape(14.dp))
+                    .clickable { onClick() },
+                contentAlignment = Alignment.Center
+            ) {
+                if (painter == null) {
+                    Text(
+                        text = fallbackText,
+                        fontWeight = FontWeight.Bold,
+                        color = baseColor
+                    )
+                } else {
+                    Image(
+                        painter = painter,
+                        contentDescription = entry.name,
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
             }
         }
         Text(
@@ -2323,6 +2353,55 @@ private fun rememberSkillIconPainter(path: String, logTag: String): Painter? {
     }
     val image = remember(path, bytes) { bytes?.let { decodeImageBitmap(it) } }
     return image?.let { remember(path) { BitmapPainter(it) } }
+}
+
+@Composable
+private fun HoverTooltipBox(
+    logTag: String,
+    logName: String,
+    tooltip: @Composable () -> Unit,
+    content: @Composable (Modifier) -> Unit
+) {
+    var hovered by remember { mutableStateOf(false) }
+    var anchor by remember { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
+    val density = LocalDensity.current
+    Box(
+        modifier = Modifier
+            .onGloballyPositioned { coordinates -> anchor = coordinates }
+            .pointerMoveFilter(
+                onEnter = {
+                    if (!hovered) {
+                        GameLogger.info(logTag, "鼠标进入：$logName")
+                    }
+                    hovered = true
+                    false
+                },
+                onExit = {
+                    if (hovered) {
+                        GameLogger.info(logTag, "鼠标离开：$logName")
+                    }
+                    hovered = false
+                    false
+                }
+            )
+    ) {
+        content(Modifier)
+    }
+    val target = anchor
+    if (hovered && target != null) {
+        val position = target.positionInWindow()
+        val offsetY = position.y + target.size.height + with(density) { 6.dp.toPx() }
+        val offset = IntOffset(position.x.toInt(), offsetY.toInt())
+        Popup(
+            alignment = Alignment.TopStart,
+            offset = offset,
+            properties = PopupProperties(focusable = false)
+        ) {
+            Box(modifier = Modifier.widthIn(max = 320.dp)) {
+                tooltip()
+            }
+        }
+    }
 }
 
 private fun nodeTypeLabel(raw: String): String {
