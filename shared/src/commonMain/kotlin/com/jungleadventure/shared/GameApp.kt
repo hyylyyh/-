@@ -68,6 +68,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
@@ -1045,23 +1046,21 @@ private fun BattleOptionConfigPanel(
                 containerOffset = coords.positionInRoot()
             }
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
-                text = "拖动技能到下方槽位，最多配置 ${BattleSkillSlotCount} 个技能。",
+                text = "拖动技能到槽位（${BattleSkillSlotCount} 个）",
                 color = Color(0xFF7B756B)
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = Color(0xFF182720)),
                     modifier = Modifier.weight(1f)
                 ) {
                     Column(
-                        modifier = Modifier.padding(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.padding(6.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(text = "普通攻击", fontWeight = FontWeight.SemiBold)
-                        Text(text = "默认可用", color = Color(0xFF7B756B))
                     }
                 }
                 repeat(BattlePotionSlotCount) { index ->
@@ -1074,11 +1073,10 @@ private fun BattleOptionConfigPanel(
                         modifier = Modifier.weight(1f)
                     ) {
                         Column(
-                            modifier = Modifier.padding(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.padding(6.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(text = "药水槽${index + 1}", fontWeight = FontWeight.SemiBold)
+                            Text(text = "药水${index + 1}", fontWeight = FontWeight.SemiBold)
                             Text(
                                 text = "剩余 $potionCount",
                                 color = if (enabled) Color(0xFF8DB38B) else Color(0xFF7B756B)
@@ -1087,57 +1085,59 @@ private fun BattleOptionConfigPanel(
                     }
                 }
             }
-            Text(text = "战斗技能槽位", fontWeight = FontWeight.SemiBold)
-            val rows = slotIds.chunked(3)
-            rows.forEachIndexed { rowIndex, rowSlots ->
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    rowSlots.forEachIndexed { columnIndex, skillId ->
-                        val slotIndex = rowIndex * 3 + columnIndex
-                        val entry = sortedSkills.firstOrNull { it.id == skillId }
-                        val label = entry?.name ?: "空槽"
-                        val isEmpty = skillId.isBlank() || entry == null
-                        val highlight = draggingSkill != null &&
-                            slotBounds[slotIndex]?.contains(dragPosition) == true
-                        val borderColor = if (highlight) Color(0xFF8DB38B) else Color(0xFF2C3B33)
+            Text(text = "技能槽位", fontWeight = FontWeight.SemiBold)
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                slotIds.forEachIndexed { slotIndex, skillId ->
+                    val entry = sortedSkills.firstOrNull { it.id == skillId }
+                    val label = entry?.name ?: "空"
+                    val isEmpty = skillId.isBlank() || entry == null
+                    val highlight = draggingSkill != null &&
+                        slotBounds[slotIndex]?.contains(dragPosition) == true
+                    val borderColor = if (highlight) Color(0xFF8DB38B) else Color(0xFF2C3B33)
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .onGloballyPositioned { coords ->
+                                slotBounds[slotIndex] = coords.boundsInRoot()
+                            }
+                    ) {
                         Card(
                             colors = CardDefaults.cardColors(
                                 containerColor = if (highlight) Color(0xFF1D2D26) else Color(0xFF182720)
                             ),
                             border = BorderStroke(1.dp, borderColor),
-                            modifier = Modifier
-                                .weight(1f)
-                                .onGloballyPositioned { coords ->
-                                    slotBounds[slotIndex] = coords.boundsInRoot()
-                                }
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
-                                modifier = Modifier.padding(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
+                                modifier = Modifier.padding(6.dp),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
                             ) {
-                                Text(text = "槽位 ${slotIndex + 1}", color = Color(0xFF7B756B))
+                                Text(
+                                    text = "槽${slotIndex + 1}",
+                                    color = Color(0xFF7B756B)
+                                )
                                 Text(
                                     text = label,
                                     fontWeight = FontWeight.SemiBold,
                                     color = if (isEmpty) Color(0xFF7B756B) else Color(0xFFECE8D9),
-                                    textAlign = TextAlign.Center
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
-                                if (!isEmpty) {
-                                    Text(
-                                        text = "清空",
-                                        color = Color(0xFFD6B36A),
-                                        modifier = Modifier.clickable {
-                                            GameLogger.info("战斗配置", "点击清空技能槽位：槽位=${slotIndex + 1}")
-                                            onClearBattleSkill(slotIndex)
-                                        }
-                                    )
-                                }
                             }
                         }
-                    }
-                    val missing = 3 - rowSlots.size
-                    if (missing > 0) {
-                        Spacer(modifier = Modifier.weight(missing.toFloat()))
+                        if (!isEmpty) {
+                            Text(
+                                text = "×",
+                                color = Color(0xFFD6B36A),
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(4.dp)
+                                    .clickable {
+                                        GameLogger.info("战斗配置", "点击清空技能槽位：槽位=${slotIndex + 1}")
+                                        onClearBattleSkill(slotIndex)
+                                    }
+                            )
+                        }
                     }
                 }
             }
@@ -1145,9 +1145,9 @@ private fun BattleOptionConfigPanel(
             if (sortedSkills.isEmpty()) {
                 PlaceholderPanel("暂无可配置技能")
             } else {
-                val skillRows = sortedSkills.chunked(2)
+                val skillRows = sortedSkills.chunked(3)
                 skillRows.forEach { rowSkills ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         rowSkills.forEach { skill ->
                             var coordinates by remember(skill.id) { mutableStateOf<LayoutCoordinates?>(null) }
                             Card(
@@ -1155,6 +1155,7 @@ private fun BattleOptionConfigPanel(
                                 border = BorderStroke(1.dp, Color(0xFF2C3B33)),
                                 modifier = Modifier
                                     .weight(1f)
+                                    .heightIn(min = 52.dp)
                                     .onGloballyPositioned { coords -> coordinates = coords }
                                     .pointerInput(skill.id) {
                                         detectDragGestures(
@@ -1179,27 +1180,31 @@ private fun BattleOptionConfigPanel(
                                     }
                             ) {
                                 Column(
-                                    modifier = Modifier.padding(8.dp),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    modifier = Modifier.padding(6.dp),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
                                 ) {
-                                    Text(text = skill.name, fontWeight = FontWeight.SemiBold)
                                     Text(
-                                        text = "类型 ${skillTypeLabel(skill.type)} | 消耗 ${skill.cost} | 冷却 ${skill.cooldown}",
-                                        color = Color(0xFF7B756B)
+                                        text = skill.name,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = "消耗${skill.cost} 冷却${skill.cooldown}",
+                                        color = Color(0xFF7B756B),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                             }
                         }
-                        if (rowSkills.size < 2) {
-                            Spacer(modifier = Modifier.weight(1f))
+                        val missing = 3 - rowSkills.size
+                        if (missing > 0) {
+                            Spacer(modifier = Modifier.weight(missing.toFloat()))
                         }
                     }
                 }
             }
-            Text(
-                text = "药水可在商店购买，战斗中消耗后立即生效。",
-                color = Color(0xFF7B756B)
-            )
         }
         if (draggingSkill != null) {
             val localOffset = dragPosition - containerOffset + Offset(12f, 12f)
@@ -2696,7 +2701,9 @@ private fun BattleOperationPanel(
                             Button(
                                 onClick = { choice?.let { onChoice(it.id) } },
                                 enabled = choice?.enabled == true,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(36.dp)
                             ) {
                                 Text(choice?.label ?: "空槽")
                             }
@@ -2746,8 +2753,8 @@ private fun RowScope.ActionIconButton(
         onClick = onClick,
         enabled = enabled,
         modifier = Modifier
-            .width(96.dp)
-            .height(44.dp)
+            .width(80.dp)
+            .height(36.dp)
     ) {
         Text(label)
     }
