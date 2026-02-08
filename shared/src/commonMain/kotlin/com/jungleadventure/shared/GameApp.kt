@@ -59,6 +59,7 @@ import androidx.compose.ui.input.pointer.pointerMoveFilter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -1291,6 +1292,23 @@ private fun InventoryOverviewPanel(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
+                    HoverTooltipBox(
+                        logTag = "背包装备",
+                        logName = item.name,
+                        tooltip = {
+                            EquipmentTooltipCard(
+                                slot = item.slot,
+                                item = item
+                            )
+                        }
+                    ) { baseModifier ->
+                        EquipmentRarityIcon(
+                            label = equipmentSlotShortLabel(item.slot),
+                            color = rarityColor,
+                            size = 40.dp,
+                            modifier = baseModifier
+                        )
+                    }
                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
                             text = "${item.name}（${item.rarityName}）",
@@ -1367,8 +1385,6 @@ private fun EquipmentIconCard(
     val slotName = slotLabel(slot)
     val baseColor = item?.let { equipmentRarityColor(it.rarityTier, it.rarityId) }
         ?: equipmentSlotColor(slot)
-    val borderColor = baseColor.copy(alpha = 0.7f)
-    val backgroundColor = baseColor.copy(alpha = 0.18f)
     val fallbackText = equipmentSlotShortLabel(slot)
     val label = item?.name ?: "${slotName}空"
     Column(
@@ -1386,24 +1402,45 @@ private fun EquipmentIconCard(
                 )
             }
         ) { baseModifier ->
-            Box(
+            EquipmentRarityIcon(
+                label = fallbackText,
+                color = baseColor,
+                size = 60.dp,
                 modifier = baseModifier
-                    .size(60.dp)
-                    .border(2.dp, borderColor, RoundedCornerShape(14.dp))
-                    .background(backgroundColor, RoundedCornerShape(14.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = fallbackText,
-                    fontWeight = FontWeight.Bold,
-                    color = baseColor
-                )
-            }
+            )
         }
         Text(
             text = label,
             color = if (item == null) Color(0xFF7B756B) else Color(0xFFB8B2A6),
             textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+private fun EquipmentRarityIcon(
+    label: String,
+    color: Color,
+    size: Dp = 44.dp,
+    modifier: Modifier = Modifier
+) {
+    val gradient = Brush.linearGradient(
+        listOf(
+            color.copy(alpha = 0.45f),
+            color.copy(alpha = 0.18f)
+        )
+    )
+    Box(
+        modifier = modifier
+            .size(size)
+            .border(2.dp, color.copy(alpha = 0.8f), RoundedCornerShape(12.dp))
+            .background(gradient, RoundedCornerShape(12.dp)),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            fontWeight = FontWeight.Bold,
+            color = color
         )
     }
 }
@@ -1439,6 +1476,40 @@ private fun EquipmentTooltipCard(
             if (item.source.isNotBlank()) {
                 Text(text = "来源 ${item.source}", color = Color(0xFF7B756B))
             }
+        }
+    }
+}
+
+@Composable
+private fun EquipmentCatalogTooltipCard(
+    entry: EquipmentCatalogEntry,
+    unlocked: Boolean
+) {
+    val rarityColor = equipmentRarityColor(entry.rarityTier, entry.rarityId)
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF182720))
+    ) {
+        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(text = "装备图鉴详情", fontWeight = FontWeight.SemiBold)
+            if (!unlocked) {
+                Text(text = "该装备尚未解锁", color = Color(0xFF7B756B))
+                Text(text = "解锁条件：获得该装备", color = Color(0xFF7B756B))
+                return@Column
+            }
+            Text(
+                text = "${entry.name}（${entry.rarityName}）",
+                fontWeight = FontWeight.SemiBold,
+                color = rarityColor
+            )
+            Text(
+                text = "部位 ${slotLabel(entry.slot)} | 等级需求 ${entry.levelReq} | 强化上限 ${entry.enhanceMax}",
+                color = Color(0xFFB8B2A6)
+            )
+            Text(text = "基础属性 ${formatStats(entry.baseStats)}", color = Color(0xFFB8B2A6))
+            Text(
+                text = "词条数量 ${entry.affixMin}-${entry.affixMax} | 卖价 ${entry.sellValue} | 分解产出 ${entry.salvageYield}",
+                color = Color(0xFF7B756B)
+            )
         }
     }
 }
@@ -1848,27 +1919,50 @@ private fun EquipmentCatalogPanel(
                 val rarityColor = equipmentRarityColor(entry.rarityTier, entry.rarityId)
                 val unlocked = unlockedIds.contains(entry.id)
                 Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(
-                            text = if (unlocked) "${entry.name}（${entry.rarityName}）" else "未解锁装备",
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (unlocked) rarityColor else Color(0xFF8F8F8F)
-                        )
-                        if (unlocked) {
-                            Text(
-                                text = "部位 ${slotLabel(entry.slot)} | 等级需求 ${entry.levelReq} | 强化上限 ${entry.enhanceMax}",
-                                color = Color(0xFFB8B2A6)
+                    Row(
+                        modifier = Modifier.padding(10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        HoverTooltipBox(
+                            logTag = "装备图鉴",
+                            logName = entry.name,
+                            tooltip = {
+                                EquipmentCatalogTooltipCard(
+                                    entry = entry,
+                                    unlocked = unlocked
+                                )
+                            }
+                        ) { baseModifier ->
+                            EquipmentRarityIcon(
+                                label = if (unlocked) equipmentSlotShortLabel(entry.slot) else "?",
+                                color = rarityColor.copy(alpha = if (unlocked) 1f else 0.35f),
+                                size = 40.dp,
+                                modifier = baseModifier
                             )
+                        }
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(
-                                text = "基础属性 ${formatStats(entry.baseStats)}",
-                                color = Color(0xFFB8B2A6)
+                                text = if (unlocked) "${entry.name}（${entry.rarityName}）" else "未解锁装备",
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (unlocked) rarityColor else Color(0xFF8F8F8F)
                             )
-                            Text(
-                                text = "词条数量 ${entry.affixMin}-${entry.affixMax} | 卖价 ${entry.sellValue} | 分解产出 ${entry.salvageYield}",
-                                color = Color(0xFF7B756B)
-                            )
-                        } else {
-                            Text(text = "解锁条件：获得该装备", color = Color(0xFF7B756B))
+                            if (unlocked) {
+                                Text(
+                                    text = "部位 ${slotLabel(entry.slot)} | 等级需求 ${entry.levelReq} | 强化上限 ${entry.enhanceMax}",
+                                    color = Color(0xFFB8B2A6)
+                                )
+                                Text(
+                                    text = "基础属性 ${formatStats(entry.baseStats)}",
+                                    color = Color(0xFFB8B2A6)
+                                )
+                                Text(
+                                    text = "词条数量 ${entry.affixMin}-${entry.affixMax} | 卖价 ${entry.sellValue} | 分解产出 ${entry.salvageYield}",
+                                    color = Color(0xFF7B756B)
+                                )
+                            } else {
+                                Text(text = "解锁条件：获得该装备", color = Color(0xFF7B756B))
+                            }
                         }
                     }
                 }
@@ -2110,29 +2204,52 @@ private fun InventoryPanel(
                 val rarityColor = equipmentRarityColor(item.rarityTier, item.rarityId)
                 val levelColor = equipmentLevelColor(item.level)
                 Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(
-                            text = "${item.name}（${item.rarityName}）",
-                            fontWeight = FontWeight.SemiBold,
-                            color = rarityColor
-                        )
-                        Text(
-                            text = "部位 ${slotLabel(item.slot)} | 等级 ${item.level} | 评分 ${item.score}",
-                            color = rarityColor
-                        )
-                        Text(text = "等级 ${item.level}", color = levelColor)
-                        Text(text = "属性 ${formatStats(item.totalStats())}", color = Color(0xFFB8B2A6))
-                        if (item.affixes.isNotEmpty()) {
-                            Text(text = "词条", fontWeight = FontWeight.SemiBold)
-                            item.affixes.forEach { affix ->
-                                Text(
-                                    text = formatAffixLine(affix),
-                                    color = equipmentAffixColor(item.rarityTier, item.rarityId)
+                    Row(
+                        modifier = Modifier.padding(10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        HoverTooltipBox(
+                            logTag = "背包装备",
+                            logName = item.name,
+                            tooltip = {
+                                EquipmentTooltipCard(
+                                    slot = item.slot,
+                                    item = item
                                 )
                             }
+                        ) { baseModifier ->
+                            EquipmentRarityIcon(
+                                label = equipmentSlotShortLabel(item.slot),
+                                color = rarityColor,
+                                size = 42.dp,
+                                modifier = baseModifier
+                            )
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = { onEquipItem(item.uid) }) { Text("装备") }
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "${item.name}（${item.rarityName}）",
+                                fontWeight = FontWeight.SemiBold,
+                                color = rarityColor
+                            )
+                            Text(
+                                text = "部位 ${slotLabel(item.slot)} | 等级 ${item.level} | 评分 ${item.score}",
+                                color = rarityColor
+                            )
+                            Text(text = "等级 ${item.level}", color = levelColor)
+                            Text(text = "属性 ${formatStats(item.totalStats())}", color = Color(0xFFB8B2A6))
+                            if (item.affixes.isNotEmpty()) {
+                                Text(text = "词条", fontWeight = FontWeight.SemiBold)
+                                item.affixes.forEach { affix ->
+                                    Text(
+                                        text = formatAffixLine(affix),
+                                        color = equipmentAffixColor(item.rarityTier, item.rarityId)
+                                    )
+                                }
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(onClick = { onEquipItem(item.uid) }) { Text("装备") }
+                            }
                         }
                     }
                 }
@@ -2370,6 +2487,23 @@ private fun ShopPanel(
                                         checked = checked,
                                         onCheckedChange = { onToggleShopSellSelection(item.uid) }
                                     )
+                                    HoverTooltipBox(
+                                        logTag = "商店背包",
+                                        logName = item.name,
+                                        tooltip = {
+                                            EquipmentTooltipCard(
+                                                slot = item.slot,
+                                                item = item
+                                            )
+                                        }
+                                    ) { baseModifier ->
+                                        EquipmentRarityIcon(
+                                            label = equipmentSlotShortLabel(item.slot),
+                                            color = rarityColor,
+                                            size = 36.dp,
+                                            modifier = baseModifier
+                                        )
+                                    }
                                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                         Text(
                                             text = "${item.name}（${item.rarityName}）",
@@ -2413,38 +2547,61 @@ private fun ShopOfferCard(
         colors = CardDefaults.cardColors(containerColor = Color(0xFF182720)),
         border = BorderStroke(1.dp, borderColor)
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .padding(8.dp)
                 .background(Color.Transparent)
                 .heightIn(min = 84.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "${offer.item.name}（${offer.item.rarityName}）",
-                fontWeight = FontWeight.SemiBold,
-                color = rarityColor.copy(alpha = cardAlpha)
-            )
-            Text(
-                text = "价格 ${offer.price} 金币",
-                color = Color(0xFFB8B2A6).copy(alpha = cardAlpha)
-            )
-            val stockLabel = if (offer.stock > 0) "库存 ${offer.stock}" else "已售罄"
-            Text(
-                text = stockLabel,
-                color = Color(0xFF7B756B).copy(alpha = cardAlpha)
-            )
-            if (offer.lockedReason.isNotBlank()) {
-                Text(
-                    text = offer.lockedReason,
-                    color = Color(0xFFD6B36A).copy(alpha = cardAlpha)
+            HoverTooltipBox(
+                logTag = "商店装备",
+                logName = offer.item.name,
+                tooltip = {
+                    EquipmentTooltipCard(
+                        slot = offer.item.slot,
+                        item = offer.item
+                    )
+                }
+            ) { baseModifier ->
+                EquipmentRarityIcon(
+                    label = equipmentSlotShortLabel(offer.item.slot),
+                    color = rarityColor,
+                    size = 40.dp,
+                    modifier = baseModifier
                 )
             }
-            if (selected) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
                 Text(
-                    text = "已选中",
-                    color = Color(0xFF8DB38B)
+                    text = "${offer.item.name}（${offer.item.rarityName}）",
+                    fontWeight = FontWeight.SemiBold,
+                    color = rarityColor.copy(alpha = cardAlpha)
                 )
+                Text(
+                    text = "价格 ${offer.price} 金币",
+                    color = Color(0xFFB8B2A6).copy(alpha = cardAlpha)
+                )
+                val stockLabel = if (offer.stock > 0) "库存 ${offer.stock}" else "已售罄"
+                Text(
+                    text = stockLabel,
+                    color = Color(0xFF7B756B).copy(alpha = cardAlpha)
+                )
+                if (offer.lockedReason.isNotBlank()) {
+                    Text(
+                        text = offer.lockedReason,
+                        color = Color(0xFFD6B36A).copy(alpha = cardAlpha)
+                    )
+                }
+                if (selected) {
+                    Text(
+                        text = "已选中",
+                        color = Color(0xFF8DB38B)
+                    )
+                }
             }
         }
     }
