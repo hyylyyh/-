@@ -88,6 +88,7 @@ fun GameApp(
                     onOpenEquipment = viewModel::onOpenEquipment,
                     onOpenInventory = viewModel::onOpenInventory,
                     onOpenCards = viewModel::onOpenCards,
+                    onShowEquipmentDetail = viewModel::onShowEquipmentDetail,
                     onToggleShopOfferSelection = viewModel::onToggleShopOfferSelection,
                     onToggleShopSellSelection = viewModel::onToggleShopSellSelection,
                     onShopBuySelected = viewModel::onShopBuySelected,
@@ -134,6 +135,8 @@ private fun HeaderBar(
     state: GameUiState,
     onToggleRoleDetail: () -> Unit
 ) {
+    val selectedRole = state.roles.firstOrNull { it.id == state.selectedRoleId && it.unlocked }
+    val canOpenRoleDetail = selectedRole != null && state.screen != GameScreen.SAVE_SELECT
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -175,8 +178,8 @@ private fun HeaderBar(
                 text = state.lastAction.ifBlank { "准备行动" },
                 color = Color(0xFF8DB38B)
             )
-            Button(onClick = onToggleRoleDetail) {
-                Text(text = if (state.showRoleDetail) "关闭角色详情" else "角色详情")
+            Button(onClick = onToggleRoleDetail, enabled = canOpenRoleDetail) {
+                Text(text = if (state.screen == GameScreen.ROLE_DETAIL) "返回" else "角色详情")
             }
         }
     }
@@ -199,6 +202,7 @@ private fun MainPanel(
     onOpenEquipment: () -> Unit,
     onOpenInventory: () -> Unit,
     onOpenCards: () -> Unit,
+    onShowEquipmentDetail: (EquipmentItem?) -> Unit,
     onToggleShopOfferSelection: (String) -> Unit,
     onToggleShopSellSelection: (String) -> Unit,
     onShopBuySelected: () -> Unit,
@@ -252,6 +256,19 @@ private fun MainPanel(
                     onSelectDifficulty = onSelectDifficulty,
                     onConfirmChapterSelection = onConfirmChapterSelection
                 )
+            }
+            GameScreen.ROLE_DETAIL -> {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(text = "角色详情", fontWeight = FontWeight.Bold)
+                        Divider(modifier = Modifier.padding(vertical = 8.dp))
+                        RoleDetailPanel(
+                            state = state,
+                            onShowEquipmentDetail = onShowEquipmentDetail,
+                            showSkillFormula = showSkillFormula
+                        )
+                    }
+                }
             }
             GameScreen.ADVENTURE -> {
                 if (state.battle != null) {
@@ -802,6 +819,16 @@ private fun SidePanel(
         modifier = modifier.verticalScroll(scrollState),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        if (state.screen == GameScreen.ROLE_DETAIL) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(text = "角色详情", fontWeight = FontWeight.Bold)
+                    Divider(modifier = Modifier.padding(vertical = 6.dp))
+                    Text("当前为角色详情界面，仅展示角色信息。", color = Color(0xFFB8B2A6))
+                }
+            }
+            return
+        }
         if (state.screen != GameScreen.ADVENTURE) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -824,19 +851,6 @@ private fun SidePanel(
                 Text("需要切换章节时可进入关卡选择。", color = Color(0xFFB8B2A6))
                 Button(onClick = onOpenChapterSelect, modifier = Modifier.fillMaxWidth()) {
                     Text("关卡选择")
-                }
-            }
-        }
-        if (state.showRoleDetail) {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(text = "角色详情", fontWeight = FontWeight.Bold)
-                    Divider(modifier = Modifier.padding(vertical = 8.dp))
-                    RoleDetailPanel(
-                        state = state,
-                        onShowEquipmentDetail = onShowEquipmentDetail,
-                        showSkillFormula = showSkillFormula
-                    )
                 }
             }
         }

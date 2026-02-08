@@ -60,6 +60,7 @@ class GameViewModel(
     private var battleEventId: String? = null
     private var shopEventId: String? = null
     private var shopOffers: List<ShopOffer> = emptyList()
+    private var roleDetailReturnScreen: GameScreen = GameScreen.ADVENTURE
     private var pendingNewSaveSlot: Int? = null
     private val autoSaveScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val autoSaveIntervalMs = 10_000L
@@ -319,14 +320,32 @@ class GameViewModel(
     }
 
     fun onToggleRoleDetail() {
-        val next = !_state.value.showRoleDetail
-        val label = if (next) "打开角色详情" else "关闭角色详情"
-        GameLogger.info(logTag, "角色详情面板切换：$label")
+        val current = _state.value
+        val roleId = current.selectedRoleId
+        val roleSelected = roleId.isNotBlank() && roles.any { it.id == roleId && it.unlocked }
+        if (!roleSelected) {
+            GameLogger.warn(logTag, "角色详情按钮不可用：未选择角色或角色未解锁")
+            return
+        }
+        if (current.screen == GameScreen.ROLE_DETAIL) {
+            val target = roleDetailReturnScreen
+            GameLogger.info(logTag, "关闭角色详情，返回界面：${target.name}")
+            _state.update { state ->
+                state.copy(
+                    screen = target,
+                    lastAction = "返回${screenLabel(target)}",
+                    log = state.log + "返回${screenLabel(target)}"
+                )
+            }
+            return
+        }
+        roleDetailReturnScreen = current.screen
+        GameLogger.info(logTag, "进入角色详情界面")
         _state.update { state ->
             state.copy(
-                showRoleDetail = next,
-                lastAction = label,
-                log = state.log + label
+                screen = GameScreen.ROLE_DETAIL,
+                lastAction = "打开角色详情",
+                log = state.log + "打开角色详情"
             )
         }
     }
@@ -2823,6 +2842,16 @@ class GameViewModel(
             CodexTab.SKILL -> "技能"
             CodexTab.EQUIPMENT -> "装备"
             CodexTab.MONSTER -> "怪物"
+        }
+    }
+
+    private fun screenLabel(screen: GameScreen): String {
+        return when (screen) {
+            GameScreen.SAVE_SELECT -> "存档选择"
+            GameScreen.ROLE_SELECT -> "角色选择"
+            GameScreen.CHAPTER_SELECT -> "关卡选择"
+            GameScreen.ROLE_DETAIL -> "角色详情"
+            GameScreen.ADVENTURE -> "冒险"
         }
     }
 
