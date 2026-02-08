@@ -54,8 +54,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.input.pointer.pointerMoveFilter
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
@@ -3329,26 +3329,35 @@ private fun HoverTooltipBox(
     }
     Box(
         modifier = Modifier
-            .pointerMoveFilter(
-                onMove = { offset ->
-                    cursorOffset = offset
-                    false
-                },
-                onEnter = {
-                    if (!hovered) {
-                        GameLogger.info(logTag, "鼠标进入：$logName")
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val position = event.changes.firstOrNull()?.position
+                        if (position != null) {
+                            cursorOffset = position
+                        }
+                        when (event.type) {
+                            PointerEventType.Enter -> {
+                                if (!hovered) {
+                                    GameLogger.info(logTag, "鼠标进入：$logName")
+                                }
+                                hovered = true
+                            }
+                            PointerEventType.Exit -> {
+                                if (hovered) {
+                                    GameLogger.info(logTag, "鼠标离开：$logName")
+                                }
+                                hovered = false
+                            }
+                            PointerEventType.Move -> {
+                                // 鼠标移动只更新位置，已在上方处理
+                            }
+                            else -> Unit
+                        }
                     }
-                    hovered = true
-                    false
-                },
-                onExit = {
-                    if (hovered) {
-                        GameLogger.info(logTag, "鼠标离开：$logName")
-                    }
-                    hovered = false
-                    false
                 }
-            )
+            }
     ) {
         content(Modifier)
     }
