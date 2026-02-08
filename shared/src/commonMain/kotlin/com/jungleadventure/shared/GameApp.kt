@@ -2584,17 +2584,19 @@ private fun HoverTooltipBox(
         content(Modifier)
     }
     if (hovered || pinned) {
-        Popup(
-            popupPositionProvider = positionProvider,
-            properties = PopupProperties(focusable = false)
-        ) {
-            Box(
-                modifier = Modifier
-                    .widthIn(max = 320.dp)
-                    .heightIn(max = 260.dp)
-                    .verticalScroll(rememberScrollState())
+        Box(modifier = Modifier.size(0.dp)) {
+            Popup(
+                popupPositionProvider = positionProvider,
+                properties = PopupProperties(focusable = false)
             ) {
-                tooltip()
+                Box(
+                    modifier = Modifier
+                        .widthIn(max = 320.dp)
+                        .heightIn(max = 260.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    tooltip()
+                }
             }
         }
     }
