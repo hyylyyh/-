@@ -1580,7 +1580,8 @@ private fun ShopPanel(
                                     ShopOfferCard(
                                         offer = offer,
                                         selected = selected,
-                                        onToggle = { onToggleShopOfferSelection(offer.id) }
+                                        onToggle = { onToggleShopOfferSelection(offer.id) },
+                                        modifier = Modifier.weight(1f)
                                     )
                                 }
                                 if (rowItems.size < 2) {
@@ -1669,15 +1670,15 @@ private fun ShopPanel(
 private fun ShopOfferCard(
     offer: ShopOfferUiState,
     selected: Boolean,
-    onToggle: () -> Unit
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val available = offer.stock > 0 && offer.lockedReason.isBlank()
     val borderColor = if (selected) Color(0xFF8DB38B) else Color(0xFF2C3B33)
     val rarityColor = equipmentRarityColor(offer.item.rarityTier, offer.item.rarityId)
     val cardAlpha = if (available) 1f else 0.5f
     Card(
-        modifier = Modifier
-            .weight(1f)
+        modifier = modifier
             .alpha(cardAlpha)
             .clickable(enabled = available) { onToggle() },
         colors = CardDefaults.cardColors(containerColor = Color(0xFF182720)),
