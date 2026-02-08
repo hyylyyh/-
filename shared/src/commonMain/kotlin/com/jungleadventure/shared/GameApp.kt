@@ -84,11 +84,6 @@ fun GameApp(
                     onConfirmChapterSelection = viewModel::onConfirmChapterSelection,
                     onCreateNewSave = viewModel::onCreateNewSave,
                     onLoadSave = viewModel::onLoad,
-                    onOpenStatus = viewModel::onOpenStatus,
-                    onOpenEquipment = viewModel::onOpenEquipment,
-                    onOpenInventory = viewModel::onOpenInventory,
-                    onOpenCards = viewModel::onOpenCards,
-                    onShowEquipmentDetail = viewModel::onShowEquipmentDetail,
                     onToggleShopOfferSelection = viewModel::onToggleShopOfferSelection,
                     onToggleShopSellSelection = viewModel::onToggleShopSellSelection,
                     onShopBuySelected = viewModel::onShopBuySelected,
@@ -198,11 +193,6 @@ private fun MainPanel(
     onConfirmChapterSelection: () -> Unit,
     onCreateNewSave: (Int) -> Unit,
     onLoadSave: (Int) -> Unit,
-    onOpenStatus: () -> Unit,
-    onOpenEquipment: () -> Unit,
-    onOpenInventory: () -> Unit,
-    onOpenCards: () -> Unit,
-    onShowEquipmentDetail: (EquipmentItem?) -> Unit,
     onToggleShopOfferSelection: (String) -> Unit,
     onToggleShopSellSelection: (String) -> Unit,
     onShopBuySelected: () -> Unit,
@@ -264,7 +254,6 @@ private fun MainPanel(
                         Divider(modifier = Modifier.padding(vertical = 8.dp))
                         RoleDetailPanel(
                             state = state,
-                            onShowEquipmentDetail = onShowEquipmentDetail,
                             showSkillFormula = showSkillFormula
                         )
                     }
@@ -822,9 +811,22 @@ private fun SidePanel(
         if (state.screen == GameScreen.ROLE_DETAIL) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(text = "角色详情", fontWeight = FontWeight.Bold)
+                    Text(text = "装备面板", fontWeight = FontWeight.Bold)
                     Divider(modifier = Modifier.padding(vertical = 6.dp))
-                    Text("当前为角色详情界面，仅展示角色信息。", color = Color(0xFFB8B2A6))
+                    EquipmentOverviewPanel(
+                        player = state.player,
+                        onShowEquipmentDetail = onShowEquipmentDetail
+                    )
+                }
+            }
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(text = "背包面板", fontWeight = FontWeight.Bold)
+                    Divider(modifier = Modifier.padding(vertical = 6.dp))
+                    InventoryOverviewPanel(
+                        player = state.player,
+                        onShowEquipmentDetail = onShowEquipmentDetail
+                    )
                 }
             }
             return
@@ -885,7 +887,6 @@ private fun SidePanel(
 @Composable
 private fun RoleDetailPanel(
     state: GameUiState,
-    onShowEquipmentDetail: (EquipmentItem?) -> Unit,
     showSkillFormula: Boolean
 ) {
     val player = state.player
@@ -898,44 +899,31 @@ private fun RoleDetailPanel(
     val critDmg = 1.5
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(text = "装备与基础属性", fontWeight = FontWeight.SemiBold)
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            EquipmentSlot.values().forEach { slot ->
-                val item = player.equipment.slots[slot]
-                EquipmentInfoRow(
-                    slot = slot,
-                    item = item,
-                    onShowDetail = { onShowEquipmentDetail(item) }
-                )
-            }
-        }
-        Divider(modifier = Modifier.padding(vertical = 4.dp))
         Text(text = "基础属性", fontWeight = FontWeight.SemiBold)
-        Text(
-            text = "生命 ${player.hp}/${player.hpMax}  能量 ${player.mp}/${player.mpMax}",
-            color = Color(0xFFB8B2A6)
-        )
-        Text(
-            text = "攻击 ${player.atk}  防御 ${player.def}  速度 ${player.speed}",
-            color = Color(0xFFB8B2A6)
-        )
-        Text(
-            text = "暴击率 ${crit}%  命中 ${hit}%  闪避 ${eva}%",
-            color = Color(0xFFB8B2A6)
+        InfoGrid(
+            items = listOf(
+                "生命" to "${player.hp}/${player.hpMax}",
+                "能量" to "${player.mp}/${player.mpMax}",
+                "攻击" to "${player.atk}",
+                "防御" to "${player.def}",
+                "速度" to "${player.speed}",
+                "命中" to "${hit}%",
+                "闪避" to "${eva}%",
+                "暴击率" to "${crit}%"
+            )
         )
         Divider(modifier = Modifier.padding(vertical = 4.dp))
         Text(text = "战斗属性与技能", fontWeight = FontWeight.SemiBold)
-        Text(
-            text = "力量 ${player.strength}  智力 ${player.intelligence}  敏捷 ${player.agility}",
-            color = Color(0xFFB8B2A6)
-        )
-        Text(
-            text = "法术强度 ${player.intelligence}  法术抗性 ${resist}",
-            color = Color(0xFFB8B2A6)
-        )
-        Text(
-            text = "暴击伤害 ${(critDmg * 100).toInt()}%  抗暴 ${resist}%",
-            color = Color(0xFFB8B2A6)
+        InfoGrid(
+            items = listOf(
+                "力量" to "${player.strength}",
+                "智力" to "${player.intelligence}",
+                "敏捷" to "${player.agility}",
+                "法术强度" to "${player.intelligence}",
+                "法术抗性" to "${resist}",
+                "暴击伤害" to "${(critDmg * 100).toInt()}%",
+                "抗暴" to "${resist}%"
+            )
         )
         SkillCatalogSummary(role = role, showSkillFormula = showSkillFormula)
         Divider(modifier = Modifier.padding(vertical = 4.dp))
@@ -979,6 +967,72 @@ private fun EquipmentInfoRow(
         }
         OutlinedButton(onClick = onShowDetail, enabled = item != null) {
             Text("详情")
+        }
+    }
+}
+
+@Composable
+private fun EquipmentOverviewPanel(
+    player: PlayerStats,
+    onShowEquipmentDetail: (EquipmentItem?) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        EquipmentSlot.values().forEach { slot ->
+            val item = player.equipment.slots[slot]
+            EquipmentInfoRow(
+                slot = slot,
+                item = item,
+                onShowDetail = { onShowEquipmentDetail(item) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun InventoryOverviewPanel(
+    player: PlayerStats,
+    onShowEquipmentDetail: (EquipmentItem?) -> Unit
+) {
+    val inventory = player.inventory
+    Text("容量 ${inventory.items.size}/${inventory.capacity}", color = Color(0xFFB8B2A6))
+    if (inventory.items.isEmpty()) {
+        PlaceholderPanel("背包空空如也")
+        return
+    }
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(240.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(inventory.items, key = { it.uid }) { item ->
+            val rarityColor = equipmentRarityColor(item.rarityTier, item.rarityId)
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.padding(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = "${item.name}（${item.rarityName}）",
+                            fontWeight = FontWeight.SemiBold,
+                            color = rarityColor
+                        )
+                        Text(
+                            text = "部位 ${slotLabel(item.slot)} | 等级 ${item.level} | 评分 ${item.score}",
+                            color = Color(0xFFB8B2A6)
+                        )
+                        Text(
+                            text = "属性 ${formatStats(item.totalStats())}",
+                            color = Color(0xFF7B756B)
+                        )
+                    }
+                    OutlinedButton(onClick = { onShowEquipmentDetail(item) }) {
+                        Text("详情")
+                    }
+                }
+            }
         }
     }
 }
@@ -2168,5 +2222,48 @@ private fun PlaceholderPanel(text: String) {
         contentAlignment = Alignment.Center
     ) {
         Text(text, color = Color(0xFF7B756B))
+    }
+}
+
+@Composable
+private fun InfoGrid(items: List<Pair<String, String>>) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        items.chunked(2).forEach { rowItems ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                rowItems.forEach { (label, value) ->
+                    InfoCell(
+                        label = label,
+                        value = value,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                if (rowItems.size == 1) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InfoCell(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.width(76.dp),
+            color = Color(0xFF7B756B)
+        )
+        Text(text = value, color = Color(0xFFB8B2A6))
     }
 }
