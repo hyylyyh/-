@@ -6,12 +6,14 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -90,6 +92,12 @@ private const val BattlePotionSlotCount = 2
 private const val InventoryGridColumns = 6
 private const val InventoryGridRows = 9
 private const val InventoryGridSize = InventoryGridColumns * InventoryGridRows
+private val BattleBaseTileWidth = 112.dp
+private val BattleBaseTileHeight = 56.dp
+private val BattleSkillTileWidth = 124.dp
+private val BattleSkillTileHeight = 64.dp
+private val BattleUtilityTileWidth = 120.dp
+private val BattleUtilityTileHeight = 44.dp
 
 @Composable
 fun GameApp(
@@ -2796,61 +2804,121 @@ private fun BattleOperationPanel(
     onChoice: (String) -> Unit
 ) {
     val choiceMap = choices.associateBy { it.id }
+    val logTag = "BattleOperationPanel"
+    val slotIds = normalizeBattleSkillSlotsForUi(player.battleSkillSlots)
+    LaunchedEffect(choices, player.potionCount, player.battleSkillSlots) {
+        val attackEnabled = choiceMap[BATTLE_CHOICE_ATTACK]?.enabled == true
+        val potion1Enabled = choiceMap[BATTLE_CHOICE_POTION_1]?.enabled == true
+        val potion2Enabled = choiceMap[BATTLE_CHOICE_POTION_2]?.enabled == true
+        val skillCount = slotIds.count { it.isNotBlank() }
+        GameLogger.info(
+            logTag,
+            "战斗选项刷新：攻击=$attackEnabled 药水1=$potion1Enabled 药水2=$potion2Enabled 药水剩余=${player.potionCount} 技能槽=$skillCount"
+        )
+    }
+    val onBattleChoiceClick: (GameChoice) -> Unit = { choice ->
+        GameLogger.info(logTag, "点击战斗选项：id=${choice.id} label=${choice.label}")
+        onChoice(choice.id)
+    }
     Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
             Text(text = "战斗操作", fontWeight = FontWeight.Bold)
             Divider(modifier = Modifier.padding(vertical = 8.dp))
-            Text(text = "战斗选项", fontWeight = FontWeight.SemiBold)
-            Spacer(modifier = Modifier.height(4.dp))
+            Text(text = "基础动作", fontWeight = FontWeight.SemiBold)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 val attack = choiceMap[BATTLE_CHOICE_ATTACK]
-                ActionIconButton(
-                    label = "攻击",
+                BattleOptionTile(
+                    title = "攻击",
+                    subtitle = "普通攻击",
                     enabled = attack?.enabled == true,
-                    onClick = { onChoice(BATTLE_CHOICE_ATTACK) }
+                    accent = Color(0xFFE0A25E),
+                    modifier = Modifier.size(BattleBaseTileWidth, BattleBaseTileHeight),
+                    onClick = {
+                        attack?.let(onBattleChoiceClick)
+                    }
                 )
                 val potion1 = choiceMap[BATTLE_CHOICE_POTION_1]
-                ActionIconButton(
-                    label = "药水1",
+                val (potion1Title, potion1Detail) = splitChoiceLabel(potion1?.label ?: "药水1")
+                BattleOptionTile(
+                    title = potion1Title.ifBlank { "药水1" },
+                    subtitle = potion1Detail ?: "剩余${player.potionCount}",
                     enabled = potion1?.enabled == true,
-                    onClick = { onChoice(BATTLE_CHOICE_POTION_1) }
+                    accent = Color(0xFF6FBF73),
+                    modifier = Modifier.size(BattleBaseTileWidth, BattleBaseTileHeight),
+                    onClick = {
+                        potion1?.let(onBattleChoiceClick)
+                    }
                 )
                 val potion2 = choiceMap[BATTLE_CHOICE_POTION_2]
-                ActionIconButton(
-                    label = "药水2",
+                val (potion2Title, potion2Detail) = splitChoiceLabel(potion2?.label ?: "药水2")
+                BattleOptionTile(
+                    title = potion2Title.ifBlank { "药水2" },
+                    subtitle = potion2Detail ?: "剩余${player.potionCount}",
                     enabled = potion2?.enabled == true,
-                    onClick = { onChoice(BATTLE_CHOICE_POTION_2) }
+                    accent = Color(0xFF5DADE2),
+                    modifier = Modifier.size(BattleBaseTileWidth, BattleBaseTileHeight),
+                    onClick = {
+                        potion2?.let(onBattleChoiceClick)
+                    }
                 )
             }
-            Text(text = "药水剩余：${player.potionCount}", color = Color(0xFF7B756B))
-            Spacer(modifier = Modifier.height(6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                val equipChoice = choiceMap[BATTLE_CHOICE_EQUIP]
+                val (_, equipDetail) = splitChoiceLabel(equipChoice?.label ?: "换装备")
+                BattleOptionTile(
+                    title = "换装",
+                    subtitle = equipDetail?.let { "模式$it" } ?: "装备切换",
+                    enabled = equipChoice?.enabled == true,
+                    accent = Color(0xFF8DB38B),
+                    modifier = Modifier.size(BattleUtilityTileWidth, BattleUtilityTileHeight),
+                    onClick = {
+                        equipChoice?.let(onBattleChoiceClick)
+                    }
+                )
+                val fleeChoice = choiceMap[BATTLE_CHOICE_FLEE]
+                BattleOptionTile(
+                    title = "撤离",
+                    subtitle = "退出战斗",
+                    enabled = fleeChoice?.enabled == true,
+                    accent = Color(0xFFD16A6A),
+                    modifier = Modifier.size(BattleUtilityTileWidth, BattleUtilityTileHeight),
+                    onClick = {
+                        fleeChoice?.let(onBattleChoiceClick)
+                    }
+                )
+            }
             Text(text = "技能栏", fontWeight = FontWeight.SemiBold)
-            Spacer(modifier = Modifier.height(4.dp))
-            val slotIds = normalizeBattleSkillSlotsForUi(player.battleSkillSlots)
             if (slotIds.all { it.isBlank() }) {
                 PlaceholderPanel("未配置战斗技能")
             } else {
-                slotIds.chunked(2).forEach { rowSlots ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        rowSlots.forEach { skillId ->
-                            val choice = if (skillId.isNotBlank()) {
-                                choiceMap[buildBattleSkillChoiceId(skillId)]
-                            } else {
-                                null
-                            }
-                            Button(
-                                onClick = { choice?.let { onChoice(it.id) } },
-                                enabled = choice?.enabled == true,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(36.dp)
-                            ) {
-                                Text(choice?.label ?: "空槽")
-                            }
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    slotIds.forEach { skillId ->
+                        val choice = if (skillId.isNotBlank()) {
+                            choiceMap[buildBattleSkillChoiceId(skillId)]
+                        } else {
+                            null
                         }
-                        if (rowSlots.size < 2) {
-                            Spacer(modifier = Modifier.weight(1f))
+                        val (skillTitle, skillDetail) = if (choice != null) {
+                            splitSkillChoiceLabel(choice.label)
+                        } else {
+                            "空" to "未配置"
                         }
+                        val detailText = skillDetail ?: if (choice == null) "未配置" else "就绪"
+                        BattleSkillTile(
+                            title = skillTitle.ifBlank { "空" },
+                            detail = detailText,
+                            enabled = choice?.enabled == true,
+                            modifier = Modifier.size(BattleSkillTileWidth, BattleSkillTileHeight),
+                            onClick = {
+                                choice?.let(onBattleChoiceClick)
+                            }
+                        )
                     }
                 }
             }
@@ -2859,19 +2927,87 @@ private fun BattleOperationPanel(
 }
 
 @Composable
-private fun RowScope.ActionIconButton(
-    label: String,
+private fun BattleOptionTile(
+    title: String,
+    subtitle: String,
     enabled: Boolean,
+    accent: Color,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    Button(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier
-            .width(80.dp)
-            .height(36.dp)
+    val background = if (enabled) Color(0xFF1A2A22) else Color(0xFF151C18)
+    val borderColor = if (enabled) accent else Color(0xFF3A3A3A)
+    val titleColor = if (enabled) Color(0xFFECE8D9) else Color(0xFF7B756B)
+    val subtitleColor = if (enabled) Color(0xFFB8B2A6) else Color(0xFF5D5D5D)
+    Card(
+        colors = CardDefaults.cardColors(containerColor = background),
+        border = BorderStroke(1.dp, borderColor),
+        modifier = modifier
+            .clickable(enabled = enabled, onClick = onClick)
     ) {
-        Text(label)
+        Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(4.dp)
+                    .background(accent.copy(alpha = if (enabled) 0.9f else 0.35f))
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(start = 10.dp, end = 8.dp),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(text = title, fontWeight = FontWeight.SemiBold, color = titleColor)
+                Text(
+                    text = subtitle,
+                    color = subtitleColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BattleSkillTile(
+    title: String,
+    detail: String,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val background = if (enabled) Color(0xFF192B30) else Color(0xFF151C18)
+    val borderColor = if (enabled) Color(0xFF5DADE2) else Color(0xFF3A3A3A)
+    val titleColor = if (enabled) Color(0xFFE6EFF7) else Color(0xFF7B756B)
+    val detailColor = if (enabled) Color(0xFFB8B2A6) else Color(0xFF5D5D5D)
+    Card(
+        colors = CardDefaults.cardColors(containerColor = background),
+        border = BorderStroke(1.dp, borderColor),
+        modifier = modifier
+            .clickable(enabled = enabled, onClick = onClick)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = title,
+                fontWeight = FontWeight.SemiBold,
+                color = titleColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = detail,
+                color = detailColor,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 
@@ -3171,6 +3307,23 @@ private fun isShopEventUi(event: EventDefinition?): Boolean {
     if (event == null) return false
     val type = event.type.lowercase()
     return type.contains("shop") || event.type.contains("商店")
+}
+
+private fun splitChoiceLabel(raw: String): Pair<String, String?> {
+    val label = raw.trim()
+    val openIndex = label.indexOf('（')
+    val closeIndex = label.lastIndexOf('）')
+    if (openIndex >= 0 && closeIndex > openIndex) {
+        val title = label.substring(0, openIndex).trim()
+        val detail = label.substring(openIndex + 1, closeIndex).trim()
+        return title to detail
+    }
+    return label to null
+}
+
+private fun splitSkillChoiceLabel(raw: String): Pair<String, String?> {
+    val cleaned = raw.removePrefix("技能：").trim()
+    return splitChoiceLabel(cleaned)
 }
 
 private fun slotLabel(slot: EquipmentSlot): String {
