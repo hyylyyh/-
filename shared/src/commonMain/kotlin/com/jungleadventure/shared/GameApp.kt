@@ -131,18 +131,13 @@ fun GameApp(
                         onToggleShopSellSelection = viewModel::onToggleShopSellSelection,
                         onShopBuySelected = viewModel::onShopBuySelected,
                         onShopBuyPotion = viewModel::onShopBuyPotion,
-                        onShopSellSelected = viewModel::onShopSellSelected,
-                        onShopLeave = viewModel::onShopLeave,
-                        onOpenStatus = viewModel::onOpenStatus,
-                        onOpenEquipment = viewModel::onOpenEquipment,
-                        onOpenInventory = viewModel::onOpenInventory,
-                        onOpenCards = viewModel::onOpenCards,
-                        onOpenSkills = viewModel::onOpenSkills,
-                        onAssignBattleSkill = viewModel::onAssignBattleSkill,
-                        onClearBattleSkill = viewModel::onClearBattleSkill,
-                        showSkillFormula = state.showSkillFormula,
-                        onToggleShowSkillFormula = viewModel::onToggleShowSkillFormula
-                    )
+                    onShopSellSelected = viewModel::onShopSellSelected,
+                    onShopLeave = viewModel::onShopLeave,
+                    onAssignBattleSkill = viewModel::onAssignBattleSkill,
+                    onClearBattleSkill = viewModel::onClearBattleSkill,
+                    showSkillFormula = state.showSkillFormula,
+                    onToggleShowSkillFormula = viewModel::onToggleShowSkillFormula
+                )
                 SidePanel(
                     modifier = Modifier.weight(0.8f),
                     state = state,
@@ -251,11 +246,6 @@ private fun MainPanel(
     onShopBuyPotion: () -> Unit,
     onShopSellSelected: () -> Unit,
     onShopLeave: () -> Unit,
-    onOpenStatus: () -> Unit,
-    onOpenEquipment: () -> Unit,
-    onOpenInventory: () -> Unit,
-    onOpenCards: () -> Unit,
-    onOpenSkills: () -> Unit,
     onAssignBattleSkill: (Int, String) -> Unit,
     onClearBattleSkill: (Int) -> Unit,
     showSkillFormula: Boolean,
@@ -382,12 +372,7 @@ private fun MainPanel(
                     BattleOperationPanel(
                         player = state.player,
                         choices = state.choices,
-                        onChoice = onChoice,
-                        onOpenStatus = onOpenStatus,
-                        onOpenEquipment = onOpenEquipment,
-                        onOpenInventory = onOpenInventory,
-                        onOpenCards = onOpenCards,
-                        onOpenSkills = onOpenSkills
+                        onChoice = onChoice
                     )
                 } else if (isShopEventUi(state.currentEvent)) {
                     ShopPanel(
@@ -2808,12 +2793,7 @@ private fun BattleInfoPanel(
 private fun BattleOperationPanel(
     player: PlayerStats,
     choices: List<GameChoice>,
-    onChoice: (String) -> Unit,
-    onOpenStatus: () -> Unit,
-    onOpenEquipment: () -> Unit,
-    onOpenInventory: () -> Unit,
-    onOpenCards: () -> Unit,
-    onOpenSkills: () -> Unit
+    onChoice: (String) -> Unit
 ) {
     val choiceMap = choices.associateBy { it.id }
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -2873,31 +2853,6 @@ private fun BattleOperationPanel(
                         }
                     }
                 }
-            }
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
-            Text(text = "其他操作", fontWeight = FontWeight.SemiBold)
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ActionIconButton(
-                    label = "换装",
-                    enabled = choiceMap[BATTLE_CHOICE_EQUIP]?.enabled == true,
-                    onClick = { onChoice(BATTLE_CHOICE_EQUIP) }
-                )
-                ActionIconButton(
-                    label = "撤离",
-                    enabled = choiceMap[BATTLE_CHOICE_FLEE]?.enabled == true,
-                    onClick = { onChoice(BATTLE_CHOICE_FLEE) }
-                )
-            }
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
-            Text(text = "快捷面板", fontWeight = FontWeight.SemiBold)
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ActionIconButton(label = "状态", enabled = true, onClick = onOpenStatus)
-                ActionIconButton(label = "装备", enabled = true, onClick = onOpenEquipment)
-                ActionIconButton(label = "背包", enabled = true, onClick = onOpenInventory)
-                ActionIconButton(label = "卡牌", enabled = true, onClick = onOpenCards)
-                ActionIconButton(label = "技能", enabled = true, onClick = onOpenSkills)
             }
         }
     }
