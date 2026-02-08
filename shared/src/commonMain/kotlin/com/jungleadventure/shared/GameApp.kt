@@ -852,6 +852,8 @@ private fun SidePanel(
     onToggleShowSkillFormula: (Boolean) -> Unit
 ) {
     val scrollState = rememberScrollState()
+    var showSettings by remember { mutableStateOf(false) }
+    val logTag = "SidePanel"
     Column(
         modifier = modifier.verticalScroll(scrollState),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -895,36 +897,85 @@ private fun SidePanel(
         }
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(text = "主界面", fontWeight = FontWeight.Bold)
-                Divider(modifier = Modifier.padding(vertical = 6.dp))
-                Text("返回主界面可以重新选择存档与角色。", color = Color(0xFFB8B2A6))
-                Button(onClick = onReturnToMain, modifier = Modifier.fillMaxWidth()) {
-                    Text("返回主界面")
-                }
-                Spacer(modifier = Modifier.height(6.dp))
-                Text("需要切换章节时可进入关卡选择。", color = Color(0xFFB8B2A6))
-                Button(onClick = onOpenChapterSelect, modifier = Modifier.fillMaxWidth()) {
-                    Text("关卡选择")
-                }
+                Text(text = "敌人情报", fontWeight = FontWeight.Bold)
+                Divider(modifier = Modifier.padding(vertical = 4.dp))
+                HoverTooltipBox(
+                    logTag = logTag,
+                    logName = "敌人情报悬浮窗",
+                    tooltip = {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF182720)),
+                            border = BorderStroke(1.dp, Color(0xFF5DADE2)),
+                            modifier = Modifier
+                                .widthIn(max = 360.dp)
+                                .padding(6.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(text = "敌人情报", fontWeight = FontWeight.SemiBold)
+                                Divider(modifier = Modifier.padding(vertical = 4.dp))
+                                if (state.enemyPreview == null) {
+                                    Text("暂无敌人情报", color = Color(0xFFB8B2A6))
+                                } else {
+                                    EnemyPreviewPanel(preview = state.enemyPreview)
+                                }
+                            }
+                        }
+                    },
+                    content = { modifier ->
+                        Box(
+                            modifier = modifier
+                                .fillMaxWidth()
+                                .height(42.dp)
+                                .background(Color(0xFF1A2520), RoundedCornerShape(8.dp))
+                                .border(1.dp, Color(0xFF315241), RoundedCornerShape(8.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("悬浮查看敌人情报", color = Color(0xFFB8B2A6))
+                        }
+                    }
+                )
             }
         }
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(text = "敌人情报", fontWeight = FontWeight.Bold)
-                Divider(modifier = Modifier.padding(vertical = 4.dp))
-                if (state.enemyPreview == null) {
-                    PlaceholderPanel("暂无敌人情报")
-                } else {
-                    EnemyPreviewPanel(preview = state.enemyPreview)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(text = "设置入口", fontWeight = FontWeight.Bold)
+                        Text(text = "点击图标展开设置面板", color = Color(0xFFB8B2A6))
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(Color(0xFF1A2520), CircleShape)
+                            .border(1.dp, Color(0xFF8DB38B), CircleShape)
+                            .clickable {
+                                showSettings = !showSettings
+                                GameLogger.info(logTag, "设置面板切换：showSettings=$showSettings")
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "⚙", fontWeight = FontWeight.Bold, color = Color(0xFFECE8D9))
+                    }
                 }
             }
         }
-        SettingsPanelCard(
-            showSkillFormula = showSkillFormula,
-            onToggleShowSkillFormula = onToggleShowSkillFormula,
-            codexState = state,
-            onSelectCodexTab = onSelectCodexTab
-        )
+        if (showSettings) {
+            SettingsPanelCard(
+                showSkillFormula = showSkillFormula,
+                onToggleShowSkillFormula = onToggleShowSkillFormula,
+                codexState = state,
+                onSelectCodexTab = onSelectCodexTab,
+                onReturnToMain = onReturnToMain,
+                onOpenChapterSelect = onOpenChapterSelect
+            )
+        }
     }
 }
 
@@ -3135,12 +3186,26 @@ private fun SettingsPanelCard(
     showSkillFormula: Boolean,
     onToggleShowSkillFormula: (Boolean) -> Unit,
     codexState: GameUiState? = null,
-    onSelectCodexTab: ((CodexTab) -> Unit)? = null
+    onSelectCodexTab: ((CodexTab) -> Unit)? = null,
+    onReturnToMain: (() -> Unit)? = null,
+    onOpenChapterSelect: (() -> Unit)? = null
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(text = "设置面板", fontWeight = FontWeight.Bold)
             Divider(modifier = Modifier.padding(vertical = 6.dp))
+            if (onReturnToMain != null && onOpenChapterSelect != null) {
+                Text(text = "主界面操作", fontWeight = FontWeight.SemiBold)
+                Text("返回主界面可重新选择存档与角色。", color = Color(0xFFB8B2A6))
+                Button(onClick = onReturnToMain, modifier = Modifier.fillMaxWidth()) {
+                    Text("返回主界面")
+                }
+                Text("切换章节时可进入关卡选择。", color = Color(0xFFB8B2A6))
+                Button(onClick = onOpenChapterSelect, modifier = Modifier.fillMaxWidth()) {
+                    Text("关卡选择")
+                }
+                Divider(modifier = Modifier.padding(vertical = 4.dp))
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
