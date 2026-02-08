@@ -87,6 +87,9 @@ private val LocalResourceReader = staticCompositionLocalOf<ResourceReader> {
 
 private const val BattleSkillSlotCount = 5
 private const val BattlePotionSlotCount = 2
+private const val InventoryGridColumns = 6
+private const val InventoryGridRows = 9
+private const val InventoryGridSize = InventoryGridColumns * InventoryGridRows
 
 @Composable
 fun GameApp(
@@ -876,6 +879,13 @@ private fun SidePanel(
                         player = state.player,
                         onEquipItem = onEquipItem
                     )
+                }
+            }
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(text = "卡牌面板", fontWeight = FontWeight.Bold)
+                    Divider(modifier = Modifier.padding(vertical = 6.dp))
+                    CardGridPanel(cards = state.player.cards)
                 }
             }
             return
@@ -2289,20 +2299,35 @@ private fun InventoryPanel(
     onEquipItem: (String) -> Unit
 ) {
     val inventory = player.inventory
+    val slots = buildGridSlots(inventory.items)
+    val rows = slots.chunked(InventoryGridColumns)
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("容量 ${inventory.items.size}/${inventory.capacity}", color = Color(0xFFB8B2A6))
-        if (inventory.items.isEmpty()) {
-            PlaceholderPanel("背包空空如也")
-            return
-        }
+        Text(
+            "容量 ${inventory.items.size}/${inventory.capacity} | 网格 ${InventoryGridColumns}x${InventoryGridRows}",
+            color = Color(0xFFB8B2A6)
+        )
         Text(text = "悬浮查看详情，点击图标即可装备", color = Color(0xFF7B756B))
-        InventoryIconGrid(
-            items = inventory.items,
-            columns = 4,
-            iconSize = 42.dp,
-            logTag = "背包面板"
-        ) { item ->
-            onEquipItem(item.uid)
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 360.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(rows.size) { rowIndex ->
+                val rowItems = rows[rowIndex]
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    rowItems.forEach { item ->
+                        InventoryGridCell(
+                            item = item,
+                            modifier = Modifier.weight(1f),
+                            onEquipItem = onEquipItem
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -2312,27 +2337,164 @@ private fun CardPanel(player: PlayerStats) {
     val cards = player.cards
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("已获得卡牌 ${cards.size}", color = Color(0xFFB8B2A6))
-        if (cards.isEmpty()) {
-            PlaceholderPanel("暂无卡牌")
-            return
-        }
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(220.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(cards, key = { it.uid }) { card ->
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(text = "${card.name}（${cardQualityLabel(card.quality)}）", fontWeight = FontWeight.SemiBold)
-                        Text(text = card.description, color = Color(0xFFB8B2A6))
-                        Text(
-                            text = "类型 ${if (card.isGood) "厉害" else "垃圾"} | 效果 ${formatCardEffects(card.effects)}",
-                            color = Color(0xFF8DB38B)
-                        )
-                    }
+        CardGridPanel(cards = cards)
+    }
+}
+
+private fun buildGridSlots(items: List<EquipmentItem>): List<EquipmentItem?> {
+    val trimmed = items.take(InventoryGridSize).map { it as EquipmentItem? }
+    if (trimmed.size >= InventoryGridSize) return trimmed
+    val slots = trimmed.toMutableList()
+    repeat(InventoryGridSize - slots.size) {
+        slots.add(null)
+    }
+    return slots
+}
+
+private fun buildCardGridSlots(cards: List<CardInstance>): List<CardInstance?> {
+    val trimmed = cards.take(InventoryGridSize).map { it as CardInstance? }
+    if (trimmed.size >= InventoryGridSize) return trimmed
+    val slots = trimmed.toMutableList()
+    repeat(InventoryGridSize - slots.size) {
+        slots.add(null)
+    }
+    return slots
+}
+
+@Composable
+private fun InventoryGridCell(
+    item: EquipmentItem?,
+    modifier: Modifier = Modifier,
+    onEquipItem: (String) -> Unit
+) {
+    val color = item?.let { equipmentRarityColor(it.rarityTier, it.rarityId) } ?: Color(0xFF4A4A4A)
+    val label = item?.let { equipmentSlotShortLabel(it.slot) } ?: "空"
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        if (item == null) {
+            EquipmentRarityIcon(
+                label = label,
+                color = color,
+                size = 40.dp
+            )
+        } else {
+            HoverTooltipBox(
+                logTag = "背包网格",
+                logName = item.name,
+                tooltip = {
+                    EquipmentTooltipCard(
+                        slot = item.slot,
+                        item = item
+                    )
                 }
+            ) { baseModifier ->
+                val clickableModifier = baseModifier.clickable {
+                    GameLogger.info("背包网格", "点击装备格：${item.name} uid=${item.uid}")
+                    onEquipItem(item.uid)
+                }
+                EquipmentRarityIcon(
+                    label = label,
+                    color = color,
+                    size = 40.dp,
+                    modifier = clickableModifier
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CardGridPanel(cards: List<CardInstance>) {
+    val slots = buildCardGridSlots(cards)
+    val rows = slots.chunked(InventoryGridColumns)
+    Text(
+        text = "网格 ${InventoryGridColumns}x${InventoryGridRows}，悬浮查看卡牌详情",
+        color = Color(0xFF7B756B)
+    )
+    if (cards.isEmpty()) {
+        Text(text = "暂无卡牌", color = Color(0xFF7B756B))
+    }
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 360.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(rows.size) { rowIndex ->
+            val rowItems = rows[rowIndex]
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                rowItems.forEach { card ->
+                    CardGridCell(
+                        card = card,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CardGridCell(
+    card: CardInstance?,
+    modifier: Modifier = Modifier
+) {
+    val color = card?.let { cardQualityColor(it.quality) } ?: Color(0xFF4A4A4A)
+    val label = card?.name?.take(1)?.ifBlank { "卡" } ?: "空"
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        if (card == null) {
+            EquipmentRarityIcon(
+                label = label,
+                color = color,
+                size = 40.dp
+            )
+        } else {
+            HoverTooltipBox(
+                logTag = "卡牌网格",
+                logName = card.name,
+                tooltip = {
+                    CardTooltipCard(card = card)
+                }
+            ) { baseModifier ->
+                EquipmentRarityIcon(
+                    label = label,
+                    color = color,
+                    size = 40.dp,
+                    modifier = baseModifier
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CardTooltipCard(card: CardInstance) {
+    val qualityColor = cardQualityColor(card.quality)
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = "${card.name}（${cardQualityLabel(card.quality)}）",
+                fontWeight = FontWeight.SemiBold,
+                color = qualityColor
+            )
+            Text(
+                text = "类型 ${if (card.isGood) "厉害" else "垃圾"}",
+                color = Color(0xFFB8B2A6)
+            )
+            if (card.description.isNotBlank()) {
+                Text(text = card.description, color = Color(0xFFB8B2A6))
+            }
+            val effectText = formatCardEffects(card.effects)
+            if (effectText.isNotBlank()) {
+                Text(text = "效果 $effectText", color = Color(0xFF8DB38B))
             }
         }
     }
