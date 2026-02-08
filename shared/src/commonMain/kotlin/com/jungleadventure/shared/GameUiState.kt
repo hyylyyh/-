@@ -22,6 +22,11 @@ data class GameUiState(
     val playerStatuses: List<StatusInstance> = emptyList(),
     val log: List<String> = listOf("请选择存档：读取已有存档或创建新存档"),
     val choices: List<GameChoice> = listOf(),
+    val shopOffers: List<ShopOfferUiState> = emptyList(),
+    val shopSelectedOfferIds: Set<String> = emptySet(),
+    val shopSelectedSellIds: Set<String> = emptySet(),
+    val shopBuyTotal: Int = 0,
+    val shopSellTotal: Int = 0,
     val activePanel: GamePanel = GamePanel.STATUS,
     val equipmentCatalog: List<EquipmentCatalogEntry> = emptyList(),
     val skillCatalog: List<SkillCatalogEntry> = emptyList(),
@@ -111,6 +116,14 @@ data class GameChoice(
     val id: String,
     val label: String,
     val enabled: Boolean = true
+)
+
+data class ShopOfferUiState(
+    val id: String,
+    val item: EquipmentItem,
+    val price: Int,
+    val stock: Int,
+    val lockedReason: String = ""
 )
 
 data class EnemyPreviewUiState(

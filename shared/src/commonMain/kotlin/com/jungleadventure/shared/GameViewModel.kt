@@ -350,6 +350,298 @@ class GameViewModel(
         _state.update { it.copy(activePanel = GamePanel.SKILLS, lastAction = "查看技能") }
     }
 
+    fun onToggleShopOfferSelection(offerId: String) {
+        val current = _state.value
+        val event = current.currentEvent
+        if (event == null || !isShopEvent(event)) {
+            GameLogger.warn("商店系统", "当前事件不是商店，忽略商品选择")
+            return
+        }
+        val offer = shopOffers.firstOrNull { it.offerId == offerId }
+        if (offer == null) {
+            GameLogger.warn("商店系统", "未找到商店商品：$offerId")
+            return
+        }
+        if (offer.stock <= 0) {
+            GameLogger.warn("商店系统", "商品已售罄，无法选择：${offer.item.name}")
+            _state.update { state ->
+                val updated = applyShopUiState(state, state.player, state.shopSelectedOfferIds, state.shopSelectedSellIds)
+                updated.copy(
+                    lastAction = "商品已售罄",
+                    log = updated.log + "商品已售罄：${offer.item.name}"
+                )
+            }
+            return
+        }
+        if (offer.lockedReason.isNotBlank()) {
+            GameLogger.warn("商店系统", "商品不可购买：${offer.item.name} 原因=${offer.lockedReason}")
+            _state.update { state ->
+                val updated = applyShopUiState(state, state.player, state.shopSelectedOfferIds, state.shopSelectedSellIds)
+                updated.copy(
+                    lastAction = "商品不可购买",
+                    log = updated.log + "商品不可购买：${offer.item.name}（${offer.lockedReason}）"
+                )
+            }
+            return
+        }
+        val selection = current.shopSelectedOfferIds.toMutableSet()
+        val selecting = if (selection.contains(offerId)) {
+            selection.remove(offerId)
+            false
+        } else {
+            selection.add(offerId)
+            true
+        }
+        GameLogger.info("商店系统", "商品选择切换：${offer.item.name} 选中=$selecting")
+        _state.update { state ->
+            val updated = applyShopUiState(state, state.player, selection, state.shopSelectedSellIds)
+            updated.copy(
+                lastAction = if (selecting) "已选中 ${offer.item.name}" else "已取消 ${offer.item.name}"
+            )
+        }
+    }
+
+    fun onToggleShopSellSelection(itemId: String) {
+        val current = _state.value
+        val event = current.currentEvent
+        if (event == null || !isShopEvent(event)) {
+            GameLogger.warn("商店系统", "当前事件不是商店，忽略出售选择")
+            return
+        }
+        val item = current.player.inventory.items.firstOrNull { it.uid == itemId }
+        if (item == null) {
+            GameLogger.warn("商店系统", "未找到背包物品：$itemId")
+            return
+        }
+        val selection = current.shopSelectedSellIds.toMutableSet()
+        val selecting = if (selection.contains(itemId)) {
+            selection.remove(itemId)
+            false
+        } else {
+            selection.add(itemId)
+            true
+        }
+        GameLogger.info("商店系统", "出售选择切换：${item.name} 选中=$selecting")
+        _state.update { state ->
+            val updated = applyShopUiState(state, state.player, state.shopSelectedOfferIds, selection)
+            updated.copy(
+                lastAction = if (selecting) "已勾选 ${item.name}" else "已取消 ${item.name}"
+            )
+        }
+    }
+
+    fun onShopBuySelected() {
+        val current = _state.value
+        val event = current.currentEvent
+        if (event == null || !isShopEvent(event)) {
+            GameLogger.warn("商店系统", "当前事件不是商店，忽略购买")
+            return
+        }
+        val selectedIds = current.shopSelectedOfferIds
+        if (selectedIds.isEmpty()) {
+            GameLogger.warn("商店系统", "未选择商品，无法购买")
+            _state.update { state ->
+                val updated = applyShopUiState(state, state.player, state.shopSelectedOfferIds, state.shopSelectedSellIds)
+                updated.copy(
+                    lastAction = "未选择商品",
+                    log = updated.log + "未选择商品，无法购买"
+                )
+            }
+            return
+        }
+        val selectedOffers = shopOffers.filter { selectedIds.contains(it.offerId) }
+        if (selectedOffers.isEmpty()) {
+            GameLogger.warn("商店系统", "选中的商品已失效，无法购买")
+            _state.update { state ->
+                val updated = applyShopUiState(state, state.player, emptySet(), state.shopSelectedSellIds)
+                updated.copy(
+                    lastAction = "选中的商品已失效",
+                    log = updated.log + "选中的商品已失效，已清空选择"
+                )
+            }
+            return
+        }
+        val availableOffers = selectedOffers.filter { it.stock > 0 && it.lockedReason.isBlank() }
+        if (availableOffers.isEmpty()) {
+            GameLogger.warn("商店系统", "选中的商品不可购买")
+            _state.update { state ->
+                val updated = applyShopUiState(state, state.player, emptySet(), state.shopSelectedSellIds)
+                updated.copy(
+                    lastAction = "选中的商品不可购买",
+                    log = updated.log + "选中的商品不可购买"
+                )
+            }
+            return
+        }
+        val duplicateOffers = availableOffers.filter { isDuplicateEquipment(current.player, it.item) }
+        if (duplicateOffers.isNotEmpty()) {
+            val duplicateIds = duplicateOffers.map { it.offerId }.toSet()
+            GameLogger.warn("商店系统", "选中商品包含重复装备，已标记不可购买：数量=${duplicateIds.size}")
+            shopOffers = shopOffers.map { offer ->
+                if (duplicateIds.contains(offer.offerId)) {
+                    offer.copy(lockedReason = "已拥有同类装备")
+                } else {
+                    offer
+                }
+            }
+            _state.update { state ->
+                val updated = applyShopUiState(
+                    state,
+                    state.player,
+                    selectedIds - duplicateIds,
+                    state.shopSelectedSellIds
+                )
+                updated.copy(
+                    lastAction = "已拥有同类装备",
+                    log = updated.log + "已拥有同类装备，相关商品已标记不可购买"
+                )
+            }
+            return
+        }
+        val totalPrice = availableOffers.sumOf { it.price }
+        val inventory = current.player.inventory
+        val capacityNeeded = availableOffers.size
+        if (inventory.items.size + capacityNeeded > inventory.capacity) {
+            GameLogger.warn("商店系统", "背包容量不足，无法购买：需要=$capacityNeeded 容量=${inventory.capacity}")
+            _state.update { state ->
+                val updated = applyShopUiState(state, state.player, state.shopSelectedOfferIds, state.shopSelectedSellIds)
+                updated.copy(
+                    lastAction = "背包容量不足",
+                    log = updated.log + "背包容量不足，无法购买选中商品"
+                )
+            }
+            return
+        }
+        if (current.player.gold < totalPrice) {
+            GameLogger.warn("商店系统", "金币不足，无法购买：需要=$totalPrice 当前=${current.player.gold}")
+            _state.update { state ->
+                val updated = applyShopUiState(state, state.player, state.shopSelectedOfferIds, state.shopSelectedSellIds)
+                updated.copy(
+                    lastAction = "金币不足",
+                    log = updated.log + "金币不足，无法购买选中商品"
+                )
+            }
+            return
+        }
+        var player = current.player.copy(gold = current.player.gold - totalPrice)
+        val logs = mutableListOf<String>()
+        val purchasedIds = mutableSetOf<String>()
+        availableOffers.forEach { offer ->
+            val added = addEquipmentToInventoryFromShop(player, offer.item)
+            player = added.player
+            purchasedIds += offer.offerId
+            logs += "购买 ${offer.item.name}（${offer.item.rarityName}） -${offer.price} 金币"
+            logs += added.logs
+            GameLogger.info(
+                "商店系统",
+                "购买完成：${offer.item.name} 价格=${offer.price} 剩余金币=${player.gold}"
+            )
+        }
+        shopOffers = shopOffers.map { offer ->
+            if (purchasedIds.contains(offer.offerId)) {
+                offer.copy(stock = (offer.stock - 1).coerceAtLeast(0))
+            } else {
+                offer
+            }
+        }
+        val remainingSelection = selectedIds - purchasedIds
+        val summary = "购买完成：${purchasedIds.size} 件，花费 $totalPrice 金币"
+        logs += summary
+        val newChoices = buildShopChoices(
+            event,
+            current.chapter,
+            current.selectedDifficulty,
+            current.turn,
+            player
+        )
+        _state.update { state ->
+            val updated = applyShopUiState(
+                state.copy(player = player, choices = newChoices),
+                player,
+                remainingSelection,
+                state.shopSelectedSellIds
+            )
+            updated.copy(
+                lastAction = summary,
+                log = updated.log + logs
+            )
+        }
+    }
+
+    fun onShopSellSelected() {
+        val current = _state.value
+        val event = current.currentEvent
+        if (event == null || !isShopEvent(event)) {
+            GameLogger.warn("商店系统", "当前事件不是商店，忽略出售")
+            return
+        }
+        val selectedIds = current.shopSelectedSellIds
+        if (selectedIds.isEmpty()) {
+            GameLogger.warn("商店系统", "未勾选物品，无法出售")
+            _state.update { state ->
+                val updated = applyShopUiState(state, state.player, state.shopSelectedOfferIds, state.shopSelectedSellIds)
+                updated.copy(
+                    lastAction = "未勾选物品",
+                    log = updated.log + "未勾选物品，无法出售"
+                )
+            }
+            return
+        }
+        val inventory = current.player.inventory
+        val sellItems = inventory.items.filter { selectedIds.contains(it.uid) }
+        if (sellItems.isEmpty()) {
+            GameLogger.warn("商店系统", "选中的物品已不存在，出售取消")
+            _state.update { state ->
+                val updated = applyShopUiState(state, state.player, state.shopSelectedOfferIds, emptySet())
+                updated.copy(
+                    lastAction = "选中的物品已不存在",
+                    log = updated.log + "选中的物品已不存在，已清空勾选"
+                )
+            }
+            return
+        }
+        val total = sellItems.sumOf { estimateEquipmentSellValue(it) }
+        val remaining = inventory.items.filterNot { selectedIds.contains(it.uid) }
+        val updatedPlayer = current.player.copy(
+            gold = current.player.gold + total,
+            inventory = inventory.copy(items = remaining)
+        )
+        val logs = sellItems.map { item ->
+            val value = estimateEquipmentSellValue(item)
+            "卖出 ${item.name}（${item.rarityName}） +$value 金币"
+        }.toMutableList()
+        val summary = "卖出完成：${sellItems.size} 件，获得 $total 金币"
+        logs += summary
+        GameLogger.info("商店系统", summary)
+        _state.update { state ->
+            val updated = applyShopUiState(state.copy(player = updatedPlayer), updatedPlayer, state.shopSelectedOfferIds, emptySet())
+            updated.copy(
+                lastAction = summary,
+                log = updated.log + logs
+            )
+        }
+    }
+
+    fun onShopLeave() {
+        val current = _state.value
+        val event = current.currentEvent
+        if (event == null || !isShopEvent(event)) {
+            GameLogger.warn("商店系统", "当前事件不是商店，忽略离开")
+            return
+        }
+        GameLogger.info("商店系统", "离开商店")
+        shopEventId = null
+        shopOffers = emptyList()
+        _state.update { state ->
+            val cleared = clearShopUiState(state)
+            cleared.copy(
+                lastAction = "离开商店",
+                log = cleared.log + "离开商店"
+            )
+        }
+        advanceToNextNode(incrementTurn = true)
+    }
+
     fun onToggleShowSkillFormula(enabled: Boolean) {
         val status = if (enabled) "显示" else "隐藏"
         GameLogger.info(logTag, "设置变更：技能伤害公式=$status")
@@ -591,10 +883,12 @@ class GameViewModel(
         pendingNewSaveSlot = slot
         battleSession = null
         battleEventId = null
+        shopEventId = null
+        shopOffers = emptyList()
         stageRuntime = null
         val initialRole = roles.firstOrNull { it.unlocked }
         _state.update { current ->
-            current.copy(
+            val base = current.copy(
                 screen = GameScreen.ROLE_SELECT,
                 selectedSaveSlot = slot,
                 selectedRoleId = initialRole?.id ?: "",
@@ -619,6 +913,7 @@ class GameViewModel(
                 pendingCardLevels = emptyList(),
                 pendingCardReasons = emptyList()
             )
+            clearShopUiState(base)
         }
     }
 
@@ -626,11 +921,13 @@ class GameViewModel(
         GameLogger.info(logTag, "返回主界面并重新选择角色")
         battleSession = null
         battleEventId = null
+        shopEventId = null
+        shopOffers = emptyList()
         stageRuntime = null
         pendingNewSaveSlot = null
         val initialRole = roles.firstOrNull { it.unlocked }
         _state.update { current ->
-            current.copy(
+            val base = current.copy(
                 screen = GameScreen.SAVE_SELECT,
                 selectedSaveSlot = null,
                 selectedRoleId = initialRole?.id ?: "",
@@ -658,6 +955,7 @@ class GameViewModel(
                 pendingCardLevels = emptyList(),
                 pendingCardReasons = emptyList()
             )
+            clearShopUiState(base)
         }
         refreshSaveSlots()
     }
@@ -774,7 +1072,7 @@ class GameViewModel(
 
         _state.update { state ->
             val enemyPreview = buildEnemyPreview(nextEvent, state.player)
-            state.copy(
+            val base = state.copy(
                 turn = nextTurn,
                 chapter = chapter,
                 completedChapters = completionUpdate.first,
@@ -788,6 +1086,11 @@ class GameViewModel(
                     listOfNotNull(commandLog, guardianLog, nextEvent?.introText) +
                     completionUpdate.second
             )
+            if (nextEvent != null && isShopEvent(nextEvent)) {
+                applyShopUiState(base, base.player, emptySet(), emptySet())
+            } else {
+                clearShopUiState(base)
+            }
         }
         if (nextEvent != null && isBattleEvent(nextEvent)) {
             startBattleSession(nextEvent)
@@ -852,7 +1155,7 @@ class GameViewModel(
 
         _state.update { current ->
             val enemyPreview = buildEnemyPreview(event, normalizedPlayer)
-            current.copy(
+            val base = current.copy(
                 turn = saveGame.turn,
                 chapter = saveGame.chapter,
                 selectedChapter = saveGame.chapter,
@@ -878,6 +1181,11 @@ class GameViewModel(
                 log = saveGame.log + "已读取槽位 $slot",
                 saveSlots = current.saveSlots
             )
+            if (event != null && isShopEvent(event)) {
+                applyShopUiState(base, normalizedPlayer, emptySet(), emptySet())
+            } else {
+                clearShopUiState(base)
+            }
         }
         if (event != null && isBattleEvent(event)) {
             startBattleSession(event)
@@ -926,7 +1234,7 @@ class GameViewModel(
         )
         _state.update { current ->
             val enemyPreview = buildEnemyPreview(event, current.player)
-            current.copy(
+            val base = current.copy(
                 turn = turn,
                 chapter = chapter,
                 selectedDifficulty = difficulty,
@@ -939,6 +1247,11 @@ class GameViewModel(
                 choices = choices,
                 log = current.log + listOf(stageLog) + listOfNotNull(commandLog, guardianLog, event?.introText)
             )
+            if (event != null && isShopEvent(event)) {
+                applyShopUiState(base, base.player, emptySet(), emptySet())
+            } else {
+                clearShopUiState(base)
+            }
         }
         if (event != null && isBattleEvent(event)) {
             startBattleSession(event)
@@ -1293,7 +1606,7 @@ class GameViewModel(
     ): LootApplication {
         val inventory = player.inventory
         if (isDuplicateEquipment(player, item)) {
-            val gold = estimateSellValue(item)
+            val gold = estimateEquipmentSellValue(item)
             GameLogger.warn(
                 "掉落系统",
                 "已拥有同类装备，自动折算：${item.name} 模板=${item.templateId} -> 金币+$gold"
@@ -1305,7 +1618,7 @@ class GameViewModel(
             )
         }
         return if (inventory.items.size >= inventory.capacity) {
-            val gold = estimateSellValue(item)
+            val gold = estimateEquipmentSellValue(item)
             GameLogger.warn(
                 "掉落系统",
                 "背包已满，装备自动折算：${item.name} -> 金币+$gold"
@@ -1325,6 +1638,38 @@ class GameViewModel(
                 logs = discovery.logs + "获得装备：${item.name}（${item.rarityName}）"
             )
         }
+    }
+
+    private fun addEquipmentToInventoryFromShop(
+        player: PlayerStats,
+        item: EquipmentItem
+    ): LootApplication {
+        val inventory = player.inventory
+        if (isDuplicateEquipment(player, item)) {
+            GameLogger.warn(
+                "商店系统",
+                "商店购买出现重复装备，拒绝入包：${item.name} 模板=${item.templateId}"
+            )
+            return LootApplication(
+                player = player,
+                logs = listOf("已拥有同类装备，${item.name} 未加入背包")
+            )
+        }
+        if (inventory.items.size >= inventory.capacity) {
+            GameLogger.warn("商店系统", "商店购买背包已满，无法入包：${item.name}")
+            return LootApplication(
+                player = player,
+                logs = listOf("背包已满，${item.name} 未加入背包")
+            )
+        }
+        GameLogger.info("商店系统", "商店购买入包：${item.name}（${item.rarityName}）")
+        val discovery = recordEquipmentDiscovery(player, item, "商店购买")
+        return LootApplication(
+            player = discovery.player.copy(
+                inventory = inventory.copy(items = inventory.items + item)
+            ),
+            logs = discovery.logs + "获得装备：${item.name}（${item.rarityName}）"
+        )
     }
 
     private fun ownedEquipmentTemplateIds(player: PlayerStats): Set<String> {
@@ -1377,10 +1722,6 @@ class GameViewModel(
             player = updated,
             logs = listOf("怪物图鉴解锁：$enemyName")
         )
-    }
-
-    private fun estimateSellValue(item: EquipmentItem): Int {
-        return (4 + item.rarityTier * 4 + item.level).coerceAtLeast(1)
     }
 
     private fun buildEquipmentDetailMessage(item: EquipmentItem): String {
@@ -1586,7 +1927,7 @@ class GameViewModel(
         grouped.forEach { (templateId, items) ->
             if (equippedTemplates.contains(templateId)) {
                 items.forEach { item ->
-                    val gold = estimateSellValue(item)
+                    val gold = estimateEquipmentSellValue(item)
                     goldGain += gold
                     GameLogger.warn(
                         "装备系统",
@@ -1599,7 +1940,7 @@ class GameViewModel(
             keptItems += best
             equippedTemplates += templateId
             items.filter { it.uid != best.uid }.forEach { item ->
-                val gold = estimateSellValue(item)
+                val gold = estimateEquipmentSellValue(item)
                 goldGain += gold
                 GameLogger.warn(
                     "装备系统",
@@ -2550,8 +2891,11 @@ class GameViewModel(
     }
 
     private data class ShopOffer(
+        val offerId: String,
         val item: EquipmentItem,
-        val price: Int
+        val price: Int,
+        val stock: Int = 1,
+        val lockedReason: String = ""
     )
 
     private fun buildForcedEvent(
@@ -2631,11 +2975,16 @@ class GameViewModel(
             choices += GameChoice("shop_leave", "商店暂无商品，离开")
             return choices
         }
-        val totalPrice = shopOffers.sumOf { it.price }
+        val totalPrice = shopOffers
+            .filter { it.stock > 0 && it.lockedReason.isBlank() }
+            .sumOf { it.price }
         choices += GameChoice("shop_buy_all", "一键购买可买装备（总价 $totalPrice 金币）")
         shopOffers.forEachIndexed { index, offer ->
-            val label = "购买 ${offer.item.name}（${offer.item.rarityName}） 价格 ${offer.price} 金币"
-            choices += GameChoice("shop_buy_$index", label)
+            val stockLabel = if (offer.stock > 0) "库存 ${offer.stock}" else "已售罄"
+            val reasonLabel = if (offer.lockedReason.isBlank()) "" else "（${offer.lockedReason}）"
+            val label = "购买 ${offer.item.name}（${offer.item.rarityName}） 价格 ${offer.price} 金币 | $stockLabel$reasonLabel"
+            val enabled = offer.stock > 0 && offer.lockedReason.isBlank()
+            choices += GameChoice("shop_buy_$index", label, enabled = enabled)
         }
         choices += GameChoice("shop_leave", "离开商店")
         return choices
@@ -2678,11 +3027,18 @@ class GameViewModel(
             val item = generateShopEquipment(tier, turn, blockedTemplates)
             if (item != null) {
                 val price = estimateShopPrice(item)
-                offers += ShopOffer(item, price)
+                val offer = ShopOffer(
+                    offerId = item.uid,
+                    item = item,
+                    price = price,
+                    stock = 1,
+                    lockedReason = ""
+                )
+                offers += offer
                 blockedTemplates += item.templateId
                 GameLogger.info(
                     "商店系统",
-                    "商品上架：${item.name}（${item.rarityName}） 价格=$price 金币"
+                    "商品上架：${item.name}（${item.rarityName}） 价格=$price 金币 库存=${offer.stock}"
                 )
             }
         }
@@ -2733,9 +3089,85 @@ class GameViewModel(
     }
 
     private fun estimateShopPrice(item: EquipmentItem): Int {
-        val base = estimateSellValue(item)
+        val base = estimateEquipmentSellValue(item)
         val price = base * 4 + item.rarityTier * 8 + item.level * 2
         return price.coerceAtLeast(10)
+    }
+
+    private fun mapShopOffersToUi(): List<ShopOfferUiState> {
+        return shopOffers.map { offer ->
+            ShopOfferUiState(
+                id = offer.offerId,
+                item = offer.item,
+                price = offer.price,
+                stock = offer.stock,
+                lockedReason = offer.lockedReason
+            )
+        }
+    }
+
+    private fun sanitizeShopOfferSelections(selectedOfferIds: Set<String>): Set<String> {
+        val validIds = shopOffers
+            .filter { it.stock > 0 && it.lockedReason.isBlank() }
+            .map { it.offerId }
+            .toSet()
+        return selectedOfferIds.intersect(validIds)
+    }
+
+    private fun sanitizeShopSellSelections(
+        selectedSellIds: Set<String>,
+        player: PlayerStats
+    ): Set<String> {
+        val validIds = player.inventory.items.map { it.uid }.toSet()
+        return selectedSellIds.intersect(validIds)
+    }
+
+    private fun computeShopBuyTotal(selectedOfferIds: Set<String>): Int {
+        return shopOffers
+            .filter { selectedOfferIds.contains(it.offerId) && it.stock > 0 && it.lockedReason.isBlank() }
+            .sumOf { it.price }
+    }
+
+    private fun computeShopSellTotal(
+        selectedSellIds: Set<String>,
+        player: PlayerStats
+    ): Int {
+        val itemMap = player.inventory.items.associateBy { it.uid }
+        var total = 0
+        selectedSellIds.forEach { id ->
+            val item = itemMap[id]
+            if (item != null) {
+                total += estimateEquipmentSellValue(item)
+            }
+        }
+        return total
+    }
+
+    private fun applyShopUiState(
+        state: GameUiState,
+        player: PlayerStats,
+        offerSelection: Set<String>,
+        sellSelection: Set<String>
+    ): GameUiState {
+        val sanitizedOffers = sanitizeShopOfferSelections(offerSelection)
+        val sanitizedSell = sanitizeShopSellSelections(sellSelection, player)
+        return state.copy(
+            shopOffers = mapShopOffersToUi(),
+            shopSelectedOfferIds = sanitizedOffers,
+            shopSelectedSellIds = sanitizedSell,
+            shopBuyTotal = computeShopBuyTotal(sanitizedOffers),
+            shopSellTotal = computeShopSellTotal(sanitizedSell, player)
+        )
+    }
+
+    private fun clearShopUiState(state: GameUiState): GameUiState {
+        return state.copy(
+            shopOffers = emptyList(),
+            shopSelectedOfferIds = emptySet(),
+            shopSelectedSellIds = emptySet(),
+            shopBuyTotal = 0,
+            shopSellTotal = 0
+        )
     }
 
     private fun handleShopChoice(choiceId: String, event: EventDefinition) {
@@ -2745,14 +3177,7 @@ class GameViewModel(
             return
         }
         if (choiceId == "shop_leave") {
-            GameLogger.info("商店系统", "离开商店")
-            _state.update { state ->
-                state.copy(
-                    lastAction = "离开商店",
-                    log = state.log + "离开商店"
-                )
-            }
-            advanceToNextNode(incrementTurn = true)
+            onShopLeave()
             return
         }
         if (choiceId == "shop_buy_all") {
@@ -2769,9 +3194,37 @@ class GameViewModel(
             return
         }
         val offer = shopOffers[index]
+        if (offer.stock <= 0) {
+            GameLogger.warn("商店系统", "商品已售罄，无法购买：${offer.item.name}")
+            _state.update { state ->
+                val updated = applyShopUiState(state, state.player, state.shopSelectedOfferIds, state.shopSelectedSellIds)
+                updated.copy(
+                    lastAction = "商品已售罄",
+                    log = updated.log + "商品已售罄，无法购买 ${offer.item.name}"
+                )
+            }
+            return
+        }
+        if (offer.lockedReason.isNotBlank()) {
+            GameLogger.warn("商店系统", "商品不可购买：${offer.item.name} 原因=${offer.lockedReason}")
+            _state.update { state ->
+                val updated = applyShopUiState(state, state.player, state.shopSelectedOfferIds, state.shopSelectedSellIds)
+                updated.copy(
+                    lastAction = "商品不可购买",
+                    log = updated.log + "商品不可购买：${offer.item.name}（${offer.lockedReason}）"
+                )
+            }
+            return
+        }
         if (isDuplicateEquipment(current.player, offer.item)) {
             GameLogger.warn("商店系统", "已拥有同类装备，无法重复购买：${offer.item.name}")
-            shopOffers = shopOffers.toMutableList().also { it.removeAt(index) }
+            shopOffers = shopOffers.mapIndexed { i, existing ->
+                if (i == index) {
+                    existing.copy(lockedReason = "已拥有同类装备")
+                } else {
+                    existing
+                }
+            }
             val newChoices = buildShopChoices(
                 event,
                 current.chapter,
@@ -2780,10 +3233,16 @@ class GameViewModel(
                 current.player
             )
             _state.update { state ->
-                state.copy(
+                val base = state.copy(
                     choices = newChoices,
                     lastAction = "已拥有同类装备，无法重复购买",
-                    log = state.log + "已拥有同类装备，${offer.item.name} 已下架"
+                    log = state.log + "已拥有同类装备，${offer.item.name} 已标记不可购买"
+                )
+                applyShopUiState(
+                    base,
+                    base.player,
+                    state.shopSelectedOfferIds - offer.offerId,
+                    state.shopSelectedSellIds
                 )
             }
             return
@@ -2809,8 +3268,14 @@ class GameViewModel(
             return
         }
         val paidPlayer = current.player.copy(gold = current.player.gold - offer.price)
-        val added = addEquipmentToInventory(paidPlayer, offer.item)
-        shopOffers = shopOffers.toMutableList().also { it.removeAt(index) }
+        val added = addEquipmentToInventoryFromShop(paidPlayer, offer.item)
+        shopOffers = shopOffers.mapIndexed { i, existing ->
+            if (i == index) {
+                existing.copy(stock = (existing.stock - 1).coerceAtLeast(0))
+            } else {
+                existing
+            }
+        }
         val newChoices = buildShopChoices(
             event,
             current.chapter,
@@ -2823,11 +3288,17 @@ class GameViewModel(
             "购买完成：${offer.item.name} 价格=${offer.price} 剩余金币=${added.player.gold}"
         )
         _state.update { state ->
-            state.copy(
+            val base = state.copy(
                 player = added.player,
                 choices = newChoices,
                 lastAction = "已购买 ${offer.item.name}",
                 log = state.log + "购买 ${offer.item.name}（${offer.item.rarityName}） -${offer.price} 金币" + added.logs
+            )
+            applyShopUiState(
+                base,
+                added.player,
+                state.shopSelectedOfferIds - offer.offerId,
+                state.shopSelectedSellIds
             )
         }
     }
@@ -2850,32 +3321,33 @@ class GameViewModel(
         }
         var player = current.player
         val logs = mutableListOf<String>()
-        val remaining = mutableListOf<ShopOffer>()
-        var purchased = 0
+        val purchasedIds = mutableSetOf<String>()
+        val lockedIds = mutableSetOf<String>()
         var spent = 0
-        for (index in shopOffers.indices) {
-            val offer = shopOffers[index]
+        for (offer in shopOffers) {
+            if (offer.stock <= 0 || offer.lockedReason.isNotBlank()) {
+                continue
+            }
             if (isDuplicateEquipment(player, offer.item)) {
                 GameLogger.warn("商店系统", "批量购买跳过重复装备：${offer.item.name}")
                 logs += "已有同类装备，${offer.item.name} 已跳过"
+                lockedIds += offer.offerId
                 continue
             }
             if (player.inventory.items.size >= player.inventory.capacity) {
                 GameLogger.warn("商店系统", "批量购买中断：背包已满")
                 logs += "背包已满，批量购买中断"
-                remaining.addAll(shopOffers.drop(index))
                 break
             }
             if (player.gold < offer.price) {
                 GameLogger.warn("商店系统", "批量购买跳过：金币不足 ${offer.item.name}")
                 logs += "金币不足，跳过 ${offer.item.name}"
-                remaining += offer
                 continue
             }
             val paidPlayer = player.copy(gold = player.gold - offer.price)
-            val added = addEquipmentToInventory(paidPlayer, offer.item)
+            val added = addEquipmentToInventoryFromShop(paidPlayer, offer.item)
             player = added.player
-            purchased += 1
+            purchasedIds += offer.offerId
             spent += offer.price
             logs += "购买 ${offer.item.name}（${offer.item.rarityName}） -${offer.price} 金币"
             logs += added.logs
@@ -2884,11 +3356,19 @@ class GameViewModel(
                 "批量购买完成单件：${offer.item.name} 价格=${offer.price} 剩余金币=${player.gold}"
             )
         }
-        if (purchased == 0 && remaining.isEmpty()) {
+        if (purchasedIds.isEmpty()) {
             GameLogger.warn("商店系统", "批量购买未成交：金币不足或重复装备过多")
             logs += "批量购买未成交"
         }
-        shopOffers = remaining
+        shopOffers = shopOffers.map { offer ->
+            when {
+                purchasedIds.contains(offer.offerId) ->
+                    offer.copy(stock = (offer.stock - 1).coerceAtLeast(0))
+                lockedIds.contains(offer.offerId) ->
+                    offer.copy(lockedReason = "已拥有同类装备")
+                else -> offer
+            }
+        }
         val newChoices = buildShopChoices(
             event,
             current.chapter,
@@ -2896,20 +3376,21 @@ class GameViewModel(
             current.turn,
             player
         )
-        val summary = if (purchased > 0) {
-            "批量购买完成：${purchased} 件，花费 $spent 金币"
+        val summary = if (purchasedIds.isNotEmpty()) {
+            "批量购买完成：${purchasedIds.size} 件，花费 $spent 金币"
         } else {
             "批量购买未成交"
         }
         GameLogger.info("商店系统", summary)
         logs += summary
         _state.update { state ->
-            state.copy(
+            val base = state.copy(
                 player = player,
                 choices = newChoices,
                 lastAction = summary,
                 log = state.log + logs
             )
+            applyShopUiState(base, player, emptySet(), state.shopSelectedSellIds)
         }
     }
 
@@ -2928,7 +3409,7 @@ class GameViewModel(
             "商店出现：章节=${current.chapter} 回合=${current.turn} 事件=${shopEvent.eventId}"
         )
         _state.update { state ->
-            state.copy(
+            val base = state.copy(
                 currentEvent = shopEvent,
                 enemyPreview = null,
                 battle = null,
@@ -2937,6 +3418,7 @@ class GameViewModel(
                 lastAction = "商店出现",
                 log = state.log + listOf("精英/首领战后出现商店", shopEvent.introText)
             )
+            applyShopUiState(base, base.player, emptySet(), emptySet())
         }
     }
 

@@ -2,6 +2,7 @@ package com.jungleadventure.shared
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +27,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -39,6 +41,7 @@ import androidx.compose.runtime.remember
 import kotlinx.coroutines.CancellationException
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -85,6 +88,11 @@ fun GameApp(
                     onOpenEquipment = viewModel::onOpenEquipment,
                     onOpenInventory = viewModel::onOpenInventory,
                     onOpenCards = viewModel::onOpenCards,
+                    onToggleShopOfferSelection = viewModel::onToggleShopOfferSelection,
+                    onToggleShopSellSelection = viewModel::onToggleShopSellSelection,
+                    onShopBuySelected = viewModel::onShopBuySelected,
+                    onShopSellSelected = viewModel::onShopSellSelected,
+                    onShopLeave = viewModel::onShopLeave,
                     showSkillFormula = state.showSkillFormula,
                     onToggleShowSkillFormula = viewModel::onToggleShowSkillFormula
                 )
@@ -183,6 +191,11 @@ private fun MainPanel(
     onOpenEquipment: () -> Unit,
     onOpenInventory: () -> Unit,
     onOpenCards: () -> Unit,
+    onToggleShopOfferSelection: (String) -> Unit,
+    onToggleShopSellSelection: (String) -> Unit,
+    onShopBuySelected: () -> Unit,
+    onShopSellSelected: () -> Unit,
+    onShopLeave: () -> Unit,
     showSkillFormula: Boolean,
     onToggleShowSkillFormula: (Boolean) -> Unit
 ) {
@@ -290,11 +303,22 @@ private fun MainPanel(
                     }
                 }
                 if (state.battle == null) {
-                    EventActionPanel(
-                        choices = state.choices,
-                        onChoice = onChoice,
-                        onAdvance = onAdvance
-                    )
+                    if (isShopEventUi(state.currentEvent)) {
+                        ShopPanel(
+                            state = state,
+                            onToggleShopOfferSelection = onToggleShopOfferSelection,
+                            onToggleShopSellSelection = onToggleShopSellSelection,
+                            onShopBuySelected = onShopBuySelected,
+                            onShopSellSelected = onShopSellSelected,
+                            onShopLeave = onShopLeave
+                        )
+                    } else {
+                        EventActionPanel(
+                            choices = state.choices,
+                            onChoice = onChoice,
+                            onAdvance = onAdvance
+                        )
+                    }
                 }
             }
         }
@@ -1521,6 +1545,182 @@ private fun EventActionPanel(
 }
 
 @Composable
+private fun ShopPanel(
+    state: GameUiState,
+    onToggleShopOfferSelection: (String) -> Unit,
+    onToggleShopSellSelection: (String) -> Unit,
+    onShopBuySelected: () -> Unit,
+    onShopSellSelected: () -> Unit,
+    onShopLeave: () -> Unit
+) {
+    val offers = state.shopOffers
+    val selectedOfferIds = state.shopSelectedOfferIds
+    val selectedSellIds = state.shopSelectedSellIds
+    val inventory = state.player.inventory
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Card(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(text = "商品展示区", fontWeight = FontWeight.Bold)
+                Divider(modifier = Modifier.padding(vertical = 4.dp))
+                if (offers.isEmpty()) {
+                    PlaceholderPanel("暂无可购买商品")
+                } else {
+                    val rows = offers.chunked(2)
+                    LazyColumn(
+                        modifier = Modifier.heightIn(max = 320.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(rows) { rowItems ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                rowItems.forEach { offer ->
+                                    val selected = selectedOfferIds.contains(offer.id)
+                                    ShopOfferCard(
+                                        offer = offer,
+                                        selected = selected,
+                                        onToggle = { onToggleShopOfferSelection(offer.id) }
+                                    )
+                                }
+                                if (rowItems.size < 2) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Card(modifier = Modifier.weight(0.9f)) {
+            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(text = "交易操作区", fontWeight = FontWeight.Bold)
+                Divider(modifier = Modifier.padding(vertical = 4.dp))
+                Text(text = "购买合计：${state.shopBuyTotal} 金币", color = Color(0xFFB8B2A6))
+                Text(text = "出售合计：${state.shopSellTotal} 金币", color = Color(0xFFB8B2A6))
+                Text(text = "当前金币：${state.player.gold}", color = Color(0xFF8DB38B))
+                Divider(modifier = Modifier.padding(vertical = 4.dp))
+                Button(onClick = onShopBuySelected, modifier = Modifier.fillMaxWidth()) {
+                    Text("购买选中")
+                }
+                Button(onClick = onShopSellSelected, modifier = Modifier.fillMaxWidth()) {
+                    Text("卖出选中")
+                }
+                OutlinedButton(onClick = onShopLeave, modifier = Modifier.fillMaxWidth()) {
+                    Text("离开商店")
+                }
+            }
+        }
+        Card(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(text = "背包物品区", fontWeight = FontWeight.Bold)
+                Divider(modifier = Modifier.padding(vertical = 4.dp))
+                Text(
+                    text = "容量 ${inventory.items.size}/${inventory.capacity}",
+                    color = Color(0xFFB8B2A6)
+                )
+                if (inventory.items.isEmpty()) {
+                    PlaceholderPanel("背包空空如也")
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.heightIn(max = 320.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(inventory.items, key = { it.uid }) { item ->
+                            val checked = selectedSellIds.contains(item.uid)
+                            val rarityColor = equipmentRarityColor(item.rarityTier, item.rarityId)
+                            val sellValue = estimateEquipmentSellValue(item)
+                            Card(modifier = Modifier.fillMaxWidth()) {
+                                Row(
+                                    modifier = Modifier.padding(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Checkbox(
+                                        checked = checked,
+                                        onCheckedChange = { onToggleShopSellSelection(item.uid) }
+                                    )
+                                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Text(
+                                            text = "${item.name}（${item.rarityName}）",
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = rarityColor
+                                        )
+                                        Text(
+                                            text = "部位 ${slotLabel(item.slot)} | 等级 ${item.level}",
+                                            color = Color(0xFFB8B2A6)
+                                        )
+                                        Text(
+                                            text = "售出 +$sellValue 金币",
+                                            color = Color(0xFF8DB38B)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ShopOfferCard(
+    offer: ShopOfferUiState,
+    selected: Boolean,
+    onToggle: () -> Unit
+) {
+    val available = offer.stock > 0 && offer.lockedReason.isBlank()
+    val borderColor = if (selected) Color(0xFF8DB38B) else Color(0xFF2C3B33)
+    val rarityColor = equipmentRarityColor(offer.item.rarityTier, offer.item.rarityId)
+    val cardAlpha = if (available) 1f else 0.5f
+    Card(
+        modifier = Modifier
+            .weight(1f)
+            .alpha(cardAlpha)
+            .clickable(enabled = available) { onToggle() },
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF182720)),
+        border = BorderStroke(1.dp, borderColor)
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(8.dp)
+                .background(Color.Transparent)
+                .heightIn(min = 84.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = "${offer.item.name}（${offer.item.rarityName}）",
+                fontWeight = FontWeight.SemiBold,
+                color = rarityColor.copy(alpha = cardAlpha)
+            )
+            Text(
+                text = "价格 ${offer.price} 金币",
+                color = Color(0xFFB8B2A6).copy(alpha = cardAlpha)
+            )
+            val stockLabel = if (offer.stock > 0) "库存 ${offer.stock}" else "已售罄"
+            Text(
+                text = stockLabel,
+                color = Color(0xFF7B756B).copy(alpha = cardAlpha)
+            )
+            if (offer.lockedReason.isNotBlank()) {
+                Text(
+                    text = offer.lockedReason,
+                    color = Color(0xFFD6B36A).copy(alpha = cardAlpha)
+                )
+            }
+            if (selected) {
+                Text(
+                    text = "已选中",
+                    color = Color(0xFF8DB38B)
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun BattleInfoPanel(
     player: PlayerStats,
     battle: BattleUiState?,
@@ -1799,6 +1999,12 @@ private fun nodeTypeLabel(raw: String): String {
         "REST" -> "休息"
         else -> raw
     }
+}
+
+private fun isShopEventUi(event: EventDefinition?): Boolean {
+    if (event == null) return false
+    val type = event.type.lowercase()
+    return type.contains("shop") || event.type.contains("商店")
 }
 
 private fun slotLabel(slot: EquipmentSlot): String {

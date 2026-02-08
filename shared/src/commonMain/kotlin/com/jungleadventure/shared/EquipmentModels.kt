@@ -60,3 +60,7 @@ fun EquipmentItem.totalStats(): Map<StatType, Int> {
     }
     return totals
 }
+
+fun estimateEquipmentSellValue(item: EquipmentItem): Int {
+    return (4 + item.rarityTier * 4 + item.level).coerceAtLeast(1)
+}
