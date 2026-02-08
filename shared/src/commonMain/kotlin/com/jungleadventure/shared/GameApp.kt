@@ -2393,9 +2393,14 @@ private fun HoverTooltipBox(
     }
     val target = anchor
     if (hovered && target != null) {
-        val position = target.localToRoot(Offset.Zero)
+        val position = target.localToWindow(Offset.Zero)
         val offsetY = position.y + target.size.height + with(density) { 6.dp.toPx() }
-        val offset = IntOffset(position.x.toInt(), offsetY.toInt())
+        val offsetX = position.x
+        val offset = IntOffset(offsetX.toInt(), offsetY.toInt())
+        GameLogger.info(
+            logTag,
+            "悬浮提示定位：$logName x=${offsetX.toInt()} y=${offsetY.toInt()} 宽=${target.size.width} 高=${target.size.height}"
+        )
         Popup(
             alignment = Alignment.TopStart,
             offset = offset,
