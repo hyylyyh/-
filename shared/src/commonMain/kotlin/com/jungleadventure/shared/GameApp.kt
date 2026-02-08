@@ -676,7 +676,6 @@ private fun RoleCard(
                 RoleStat(label = "生命", value = role.stats.hp)
                 RoleStat(label = "攻击", value = role.stats.atk)
                 RoleStat(label = "防御", value = role.stats.def)
-                RoleStat(label = "速度", value = role.stats.speed)
             }
             if (!role.unlocked && role.unlock.isNotBlank()) {
                 Text(text = "解锁条件：${role.unlock}", color = Color(0xFFD6B36A))
@@ -735,7 +734,6 @@ private fun RoleDetailPanel(
             RoleStat(label = "生命", value = selectedRole.stats.hp)
             RoleStat(label = "攻击", value = selectedRole.stats.atk)
             RoleStat(label = "防御", value = selectedRole.stats.def)
-            RoleStat(label = "速度", value = selectedRole.stats.speed)
             RoleStat(label = "感知", value = selectedRole.stats.perception)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -751,7 +749,6 @@ private fun RoleDetailPanel(
             RoleStat(label = "能量", value = selectedRole.growth.mpMax)
             RoleStat(label = "攻击", value = selectedRole.growth.atk)
             RoleStat(label = "防御", value = selectedRole.growth.def)
-            RoleStat(label = "速度", value = selectedRole.growth.speed)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             RoleStat(label = "力量", value = selectedRole.growth.strength)
@@ -820,7 +817,6 @@ private fun EnemyPreviewPanel(preview: EnemyPreviewUiState) {
             RoleStat(label = "生命", value = preview.hp)
             RoleStat(label = "攻击", value = preview.atk)
             RoleStat(label = "防御", value = preview.def)
-            RoleStat(label = "速度", value = preview.speed)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             RoleStat(label = "力量", value = preview.strength)
@@ -831,7 +827,6 @@ private fun EnemyPreviewPanel(preview: EnemyPreviewUiState) {
             RoleStat(label = "命中", value = preview.hit)
             RoleStat(label = "闪避", value = preview.eva)
             RoleStat(label = "暴击", value = preview.crit)
-            RoleStat(label = "抗暴", value = preview.resist)
         }
 
         Text(text = "先手规则：${preview.firstStrike}", color = Color(0xFFB8B2A6))
@@ -948,7 +943,6 @@ private fun RoleDetailPanel(
     val hit = (70 + player.speed + player.hitBonus).coerceIn(50, 98)
     val eva = (8 + player.speed / 2 + player.evaBonus).coerceIn(5, 45)
     val crit = (6 + player.speed / 3 + player.critBonus).coerceIn(5, 40)
-    val resist = (3 + player.resistBonus).coerceIn(0, 50)
     val critDmg = 1.5
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -959,7 +953,6 @@ private fun RoleDetailPanel(
                 "能量" to "${player.mp}/${player.mpMax}",
                 "攻击" to "${player.atk}",
                 "防御" to "${player.def}",
-                "速度" to "${player.speed}",
                 "命中" to "${hit}%",
                 "闪避" to "${eva}%",
                 "暴击率" to "${crit}%"
@@ -973,9 +966,7 @@ private fun RoleDetailPanel(
                 "智力" to "${player.intelligence}",
                 "敏捷" to "${player.agility}",
                 "法术强度" to "${player.intelligence}",
-                "法术抗性" to "${resist}",
-                "暴击伤害" to "${(critDmg * 100).toInt()}%",
-                "抗暴" to "${resist}%"
+                "暴击伤害" to "${(critDmg * 100).toInt()}%"
             )
         )
         SkillCatalogSummary(role = role, showSkillFormula = showSkillFormula)
@@ -1818,11 +1809,10 @@ private fun StatusPanel(player: PlayerStats, battle: BattleUiState?) {
         Text("生命 ${player.hp}/${player.hpMax}")
         Text("能量 ${player.mp}/${player.mpMax}")
         Text("攻击 ${player.atk}  防御 ${player.def}")
-        Text("速度 ${player.speed}")
         Text("力量 ${player.strength}  智力 ${player.intelligence}  敏捷 ${player.agility}")
-        if (player.hitBonus != 0 || player.evaBonus != 0 || player.critBonus != 0 || player.resistBonus != 0) {
+        if (player.hitBonus != 0 || player.evaBonus != 0 || player.critBonus != 0) {
             Text(
-                text = "命中+${player.hitBonus} 闪避+${player.evaBonus} 暴击+${player.critBonus} 抗暴+${player.resistBonus}",
+                text = "命中+${player.hitBonus} 闪避+${player.evaBonus} 暴击+${player.critBonus}",
                 color = Color(0xFFB8B2A6)
             )
         }
@@ -1912,9 +1902,10 @@ private fun EquipmentPanel(
                     )
                     Text(text = "等级 ${item.level}", color = levelColor)
                     Text(text = "属性 ${formatStats(item.totalStats())}", color = Color(0xFFB8B2A6))
-                    if (item.affixes.isNotEmpty()) {
+                    val visibleAffixes = item.affixes.filterNot { isHiddenStat(it.type) }
+                    if (visibleAffixes.isNotEmpty()) {
                         Text(text = "词条", fontWeight = FontWeight.SemiBold)
-                        item.affixes.forEach { affix ->
+                        visibleAffixes.forEach { affix ->
                             Text(
                                 text = formatAffixLine(affix),
                                 color = equipmentAffixColor(item.rarityTier, item.rarityId)
@@ -2595,8 +2586,8 @@ private fun ShopPanel(
     val equipmentSlots = offers.take(12)
     val potionSlots = List(3) { index -> ShopGridEntry.Potion(index + 1) }
     val filledSlots = equipmentSlots.map { ShopGridEntry.Offer(it) } + potionSlots
-    val gridSlots = if (filledSlots.size < 15) {
-        filledSlots + List(15 - filledSlots.size) { ShopGridEntry.Empty }
+    val gridSlots = if (filledSlots.size < 20) {
+        filledSlots + List(20 - filledSlots.size) { ShopGridEntry.Empty }
     } else {
         filledSlots
     }
@@ -2627,7 +2618,7 @@ private fun ShopPanel(
                 Divider(modifier = Modifier.padding(vertical = 4.dp))
                 Text(text = "金币 ${state.player.gold}", color = Color(0xFF8DB38B))
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
+                    columns = GridCells.Fixed(5),
                     modifier = Modifier.heightIn(max = 420.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -2956,7 +2947,6 @@ private fun BattleInfoPanel(
     val hit = (70 + player.speed + player.hitBonus).coerceIn(50, 98)
     val eva = (8 + player.speed / 2 + player.evaBonus).coerceIn(5, 45)
     val crit = (6 + player.speed / 3 + player.critBonus).coerceIn(5, 40)
-    val resist = (3 + player.resistBonus).coerceIn(0, 50)
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -2980,11 +2970,9 @@ private fun BattleInfoPanel(
                         "能量" to "${player.mp}/${player.mpMax}",
                         "攻击" to "${player.atk}",
                         "防御" to "${player.def}",
-                        "速度" to "${player.speed}",
                         "命中" to "${hit}%",
                         "闪避" to "${eva}%",
-                        "暴击" to "${crit}%",
-                        "抗暴" to "${resist}%"
+                        "暴击" to "${crit}%"
                     )
                 )
                 val enemyLines = buildEnemyInfoLines(battle, enemyPreview)
@@ -3339,7 +3327,6 @@ private fun buildEnemyInfoLines(
         lines += "数量" to "${enemyPreview.count}"
         lines += "攻击" to "${enemyPreview.atk}"
         lines += "防御" to "${enemyPreview.def}"
-        lines += "速度" to "${enemyPreview.speed}"
     }
     if (lines.isEmpty()) {
         lines += "提示" to "暂无敌人情报"
@@ -3767,24 +3754,32 @@ private fun cardQualityColor(quality: CardQuality): Color {
     }
 }
 
+private fun isHiddenStat(type: StatType): Boolean {
+    return type == StatType.SPEED || type == StatType.CRIT_RESIST
+}
+
 private fun formatStats(stats: Map<StatType, Int>): String {
-    if (stats.isEmpty()) return "无"
-    return stats.entries.joinToString(" ") { "${statLabel(it.key)}+${it.value}" }
+    val visible = stats.entries.filterNot { isHiddenStat(it.key) }
+    if (visible.isEmpty()) return "无"
+    return visible.joinToString(" ") { "${statLabel(it.key)}+${it.value}" }
 }
 
 private fun formatAffixes(affixes: List<EquipmentAffix>): String {
-    if (affixes.isEmpty()) return "无"
-    return affixes.joinToString(" ") { "${statLabel(it.type)}+${it.value}" }
+    val visible = affixes.filterNot { isHiddenStat(it.type) }
+    if (visible.isEmpty()) return "无"
+    return visible.joinToString(" ") { "${statLabel(it.type)}+${it.value}" }
 }
 
 private fun formatAffixLine(affix: EquipmentAffix): String {
+    if (isHiddenStat(affix.type)) return ""
     val value = if (affix.value >= 0) "+${affix.value}" else affix.value.toString()
     return "${statLabel(affix.type)}$value"
 }
 
 private fun formatCardEffects(effects: List<CardEffect>): String {
-    if (effects.isEmpty()) return "无"
-    return effects.joinToString("，") { effect ->
+    val visible = effects.filterNot { isHiddenStat(it.stat) }
+    if (visible.isEmpty()) return "无"
+    return visible.joinToString("，") { effect ->
         val value = if (effect.value >= 0) "+${effect.value}" else effect.value.toString()
         "${statLabel(effect.stat)}$value"
     }
@@ -3801,7 +3796,7 @@ private fun formatSkillEffects(effects: List<SkillEffect>): String {
 }
 
 private fun formatEnemyStats(stats: EnemyStats): String {
-    return "生命${stats.hp} 攻击${stats.atk} 防御${stats.def} 速度${stats.spd} 命中${stats.hit} 闪避${stats.eva} 暴击${stats.crit} 抗暴${stats.resist}"
+    return "生命${stats.hp} 攻击${stats.atk} 防御${stats.def} 命中${stats.hit} 闪避${stats.eva} 暴击${stats.crit}"
 }
 
 private fun formatEnemySkill(skill: EnemySkillDefinition): String {
