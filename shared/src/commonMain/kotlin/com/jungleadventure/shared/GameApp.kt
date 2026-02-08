@@ -55,7 +55,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -63,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import androidx.compose.ui.window.PopupPositionProvider
 import com.jungleadventure.shared.loot.EquipmentSlot
 import com.jungleadventure.shared.loot.StatType
 import kotlin.math.roundToInt
@@ -2368,11 +2368,16 @@ private fun HoverTooltipBox(
     content: @Composable (Modifier) -> Unit
 ) {
     var hovered by remember { mutableStateOf(false) }
-    var anchor by remember { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
     var cursorOffset by remember { mutableStateOf(Offset.Zero) }
+    val positionProvider = remember(cursorOffset) {
+        PopupPositionProvider { anchorBounds, _, _, _ ->
+            val offsetX = anchorBounds.left + cursorOffset.x.roundToInt() + 12
+            val offsetY = anchorBounds.top + cursorOffset.y.roundToInt() + 12
+            IntOffset(offsetX, offsetY)
+        }
+    }
     Box(
         modifier = Modifier
-            .onGloballyPositioned { coordinates -> anchor = coordinates }
             .pointerMoveFilter(
                 onMove = { offset ->
                     cursorOffset = offset
@@ -2396,14 +2401,9 @@ private fun HoverTooltipBox(
     ) {
         content(Modifier)
     }
-    val target = anchor
-    if (hovered && target != null) {
-        val anchorPos = target.localToWindow(Offset.Zero)
-        val popupPos = anchorPos + cursorOffset + Offset(12f, 12f)
-        val offset = IntOffset(popupPos.x.roundToInt(), popupPos.y.roundToInt())
+    if (hovered) {
         Popup(
-            alignment = Alignment.TopStart,
-            offset = offset,
+            positionProvider,
             properties = PopupProperties(focusable = false)
         ) {
             tooltip()
