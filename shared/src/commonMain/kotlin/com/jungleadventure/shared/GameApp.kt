@@ -52,11 +52,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.input.pointer.pointerMoveFilter
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -2393,7 +2393,7 @@ private fun HoverTooltipBox(
     }
     val target = anchor
     if (hovered && target != null) {
-        val position = target.positionInWindow()
+        val position = target.localToRoot(Offset.Zero)
         val offsetY = position.y + target.size.height + with(density) { 6.dp.toPx() }
         val offset = IntOffset(position.x.toInt(), offsetY.toInt())
         Popup(
