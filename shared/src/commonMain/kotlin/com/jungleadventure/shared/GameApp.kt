@@ -108,6 +108,13 @@ fun GameApp(
     val state by viewModel.state.collectAsState()
     CompositionLocalProvider(LocalResourceReader provides resourceReader) {
         MaterialTheme {
+            val isBattleFullScreen = state.screen == GameScreen.ADVENTURE && state.battle != null
+            LaunchedEffect(isBattleFullScreen) {
+                GameLogger.info(
+                    "GameApp",
+                    "布局模式切换：战斗全屏=${isBattleFullScreen} screen=${state.screen}"
+                )
+            }
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -120,12 +127,9 @@ fun GameApp(
                     onToggleRoleDetail = viewModel::onToggleRoleDetail,
                     onToggleSettings = viewModel::onToggleSettings
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
+                if (isBattleFullScreen) {
                     MainPanel(
-                        modifier = Modifier.weight(1.2f),
+                        modifier = Modifier.fillMaxWidth(),
                         state = state,
                         onChoice = viewModel::onSelectChoice,
                         onAdvance = viewModel::onAdvance,
@@ -150,11 +154,43 @@ fun GameApp(
                         showSkillFormula = state.showSkillFormula,
                         onToggleShowSkillFormula = viewModel::onToggleShowSkillFormula
                     )
-                    SidePanel(
-                        modifier = Modifier.weight(0.8f),
-                        state = state,
-                        onEquipItem = viewModel::onEquipItem
-                    )
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        MainPanel(
+                            modifier = Modifier.weight(1.2f),
+                            state = state,
+                            onChoice = viewModel::onSelectChoice,
+                            onAdvance = viewModel::onAdvance,
+                            onSelectRole = viewModel::onSelectRole,
+                            onConfirmRole = viewModel::onConfirmRole,
+                            onSelectChapter = viewModel::onSelectChapter,
+                            onSelectDifficulty = viewModel::onSelectDifficulty,
+                            onConfirmChapterSelection = viewModel::onConfirmChapterSelection,
+                            onCreateNewSave = viewModel::onCreateNewSave,
+                            onLoadSave = viewModel::onLoad,
+                            onToggleShopOfferSelection = viewModel::onToggleShopOfferSelection,
+                            onToggleShopSellSelection = viewModel::onToggleShopSellSelection,
+                            onShopBuySelected = viewModel::onShopBuySelected,
+                            onShopBuyPotion = viewModel::onShopBuyPotion,
+                            onShopSellSelected = viewModel::onShopSellSelected,
+                            onShopLeave = viewModel::onShopLeave,
+                            onSelectCodexTab = viewModel::onSelectCodexTab,
+                            onReturnToMain = viewModel::onReturnToMain,
+                            onOpenChapterSelect = viewModel::onOpenChapterSelect,
+                            onAssignBattleSkill = viewModel::onAssignBattleSkill,
+                            onClearBattleSkill = viewModel::onClearBattleSkill,
+                            showSkillFormula = state.showSkillFormula,
+                            onToggleShowSkillFormula = viewModel::onToggleShowSkillFormula
+                        )
+                        SidePanel(
+                            modifier = Modifier.weight(0.8f),
+                            state = state,
+                            onEquipItem = viewModel::onEquipItem
+                        )
+                    }
                 }
             }
         }
@@ -210,7 +246,7 @@ private fun HeaderBar(
             val titleText = "${state.title} · $titleChapterLabel · $titleProgressLabel"
             Text(
                 text = titleText,
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.titleMedium,
                 color = Color(0xFFECE8D9),
                 fontWeight = FontWeight.Bold
             )
@@ -221,7 +257,8 @@ private fun HeaderBar(
             }
             Text(
                 text = "回合 ${state.turn}  |  章节 ${state.chapter}$stageLabel",
-                color = Color(0xFFB8B2A6)
+                color = Color(0xFFB8B2A6),
+                style = MaterialTheme.typography.bodySmall
             )
             if (state.stage.command.isNotBlank()) {
                 Text(
