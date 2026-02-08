@@ -33,7 +33,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -1284,58 +1283,14 @@ private fun InventoryOverviewPanel(
         PlaceholderPanel("背包空空如也")
         return
     }
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(240.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        items(inventory.items, key = { it.uid }) { item ->
-            val rarityColor = equipmentRarityColor(item.rarityTier, item.rarityId)
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier.padding(10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    HoverTooltipBox(
-                        logTag = "背包装备",
-                        logName = item.name,
-                        tooltip = {
-                            EquipmentTooltipCard(
-                                slot = item.slot,
-                                item = item
-                            )
-                        }
-                    ) { baseModifier ->
-                        EquipmentRarityIcon(
-                            label = equipmentSlotShortLabel(item.slot),
-                            color = rarityColor,
-                            size = 40.dp,
-                            modifier = baseModifier
-                        )
-                    }
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(
-                            text = "${item.name}（${item.rarityName}）",
-                            fontWeight = FontWeight.SemiBold,
-                            color = rarityColor
-                        )
-                        Text(
-                            text = "部位 ${slotLabel(item.slot)} | 等级 ${item.level} | 评分 ${item.score}",
-                            color = Color(0xFFB8B2A6)
-                        )
-                        Text(
-                            text = "属性 ${formatStats(item.totalStats())}",
-                            color = Color(0xFF7B756B)
-                        )
-                    }
-                    OutlinedButton(onClick = { onShowEquipmentDetail(item) }) {
-                        Text("详情")
-                    }
-                }
-            }
-        }
+    Text(text = "悬浮查看详情，点击图标查看装备详情", color = Color(0xFF7B756B))
+    InventoryIconGrid(
+        items = inventory.items,
+        columns = 4,
+        iconSize = 40.dp,
+        logTag = "背包面板"
+    ) { item ->
+        onShowEquipmentDetail(item)
     }
 }
 
@@ -1420,6 +1375,145 @@ private fun EquipmentIconCard(
             color = if (item == null) Color(0xFF7B756B) else Color(0xFFB8B2A6),
             textAlign = TextAlign.Center
         )
+    }
+}
+
+@Composable
+private fun InventoryIconGrid(
+    items: List<EquipmentItem>,
+    columns: Int,
+    iconSize: Dp,
+    logTag: String,
+    onItemClick: (EquipmentItem) -> Unit
+) {
+    val rows = items.chunked(columns)
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(220.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(rows.size) { rowIndex ->
+            val rowItems = rows[rowIndex]
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                rowItems.forEach { item ->
+                    InventoryIconCell(
+                        item = item,
+                        iconSize = iconSize,
+                        logTag = logTag,
+                        onItemClick = onItemClick
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InventoryIconCell(
+    item: EquipmentItem,
+    iconSize: Dp,
+    logTag: String,
+    onItemClick: (EquipmentItem) -> Unit
+) {
+    val rarityColor = equipmentRarityColor(item.rarityTier, item.rarityId)
+    HoverTooltipBox(
+        logTag = logTag,
+        logName = item.name,
+        tooltip = {
+            EquipmentTooltipCard(
+                slot = item.slot,
+                item = item
+            )
+        }
+    ) { baseModifier ->
+        val clickableModifier = baseModifier.clickable {
+            GameLogger.info(logTag, "点击背包物品图标：${item.name} uid=${item.uid} 槽位=${item.slot}")
+            onItemClick(item)
+        }
+        EquipmentRarityIcon(
+            label = equipmentSlotShortLabel(item.slot),
+            color = rarityColor,
+            size = iconSize,
+            modifier = clickableModifier
+        )
+    }
+}
+
+@Composable
+private fun ShopInventoryIconGrid(
+    items: List<EquipmentItem>,
+    selectedIds: Set<String>,
+    columns: Int,
+    iconSize: Dp,
+    onToggleSelected: (String) -> Unit
+) {
+    val rows = items.chunked(columns)
+    LazyColumn(
+        modifier = Modifier.heightIn(max = 320.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(rows.size) { rowIndex ->
+            val rowItems = rows[rowIndex]
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                rowItems.forEach { item ->
+                    val selected = selectedIds.contains(item.uid)
+                    ShopInventoryIconCell(
+                        item = item,
+                        selected = selected,
+                        iconSize = iconSize,
+                        onToggleSelected = onToggleSelected
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ShopInventoryIconCell(
+    item: EquipmentItem,
+    selected: Boolean,
+    iconSize: Dp,
+    onToggleSelected: (String) -> Unit
+) {
+    val rarityColor = equipmentRarityColor(item.rarityTier, item.rarityId)
+    val borderColor = if (selected) Color(0xFF8DB38B) else Color(0xFF2C3B33)
+    val borderWidth = if (selected) 2.dp else 1.dp
+    HoverTooltipBox(
+        logTag = "商店背包",
+        logName = item.name,
+        tooltip = {
+            EquipmentTooltipCard(
+                slot = item.slot,
+                item = item
+            )
+        }
+    ) { baseModifier ->
+        Box(
+            modifier = baseModifier
+                .border(borderWidth, borderColor, RoundedCornerShape(12.dp))
+                .padding(2.dp)
+                .clickable {
+                    GameLogger.info(
+                        "商店背包",
+                        "切换出售选择：${item.name} uid=${item.uid} 选中=${!selected}"
+                    )
+                    onToggleSelected(item.uid)
+                }
+        ) {
+            EquipmentRarityIcon(
+                label = equipmentSlotShortLabel(item.slot),
+                color = rarityColor,
+                size = iconSize
+            )
+        }
     }
 }
 
@@ -2201,66 +2295,14 @@ private fun InventoryPanel(
             PlaceholderPanel("背包空空如也")
             return
         }
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(220.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(inventory.items, key = { it.uid }) { item ->
-                val rarityColor = equipmentRarityColor(item.rarityTier, item.rarityId)
-                val levelColor = equipmentLevelColor(item.level)
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.padding(10.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        HoverTooltipBox(
-                            logTag = "背包装备",
-                            logName = item.name,
-                            tooltip = {
-                                EquipmentTooltipCard(
-                                    slot = item.slot,
-                                    item = item
-                                )
-                            }
-                        ) { baseModifier ->
-                            EquipmentRarityIcon(
-                                label = equipmentSlotShortLabel(item.slot),
-                                color = rarityColor,
-                                size = 42.dp,
-                                modifier = baseModifier
-                            )
-                        }
-                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(
-                                text = "${item.name}（${item.rarityName}）",
-                                fontWeight = FontWeight.SemiBold,
-                                color = rarityColor
-                            )
-                            Text(
-                                text = "部位 ${slotLabel(item.slot)} | 等级 ${item.level} | 评分 ${item.score}",
-                                color = rarityColor
-                            )
-                            Text(text = "等级 ${item.level}", color = levelColor)
-                            Text(text = "属性 ${formatStats(item.totalStats())}", color = Color(0xFFB8B2A6))
-                            if (item.affixes.isNotEmpty()) {
-                                Text(text = "词条", fontWeight = FontWeight.SemiBold)
-                                item.affixes.forEach { affix ->
-                                    Text(
-                                        text = formatAffixLine(affix),
-                                        color = equipmentAffixColor(item.rarityTier, item.rarityId)
-                                    )
-                                }
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Button(onClick = { onEquipItem(item.uid) }) { Text("装备") }
-                            }
-                        }
-                    }
-                }
-            }
+        Text(text = "悬浮查看详情，点击图标即可装备", color = Color(0xFF7B756B))
+        InventoryIconGrid(
+            items = inventory.items,
+            columns = 4,
+            iconSize = 42.dp,
+            logTag = "背包面板"
+        ) { item ->
+            onEquipItem(item.uid)
         }
     }
 }
@@ -2476,60 +2518,14 @@ private fun ShopPanel(
                 if (inventory.items.isEmpty()) {
                     PlaceholderPanel("背包空空如也")
                 } else {
-                    LazyColumn(
-                        modifier = Modifier.heightIn(max = 320.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(inventory.items, key = { it.uid }) { item ->
-                            val checked = selectedSellIds.contains(item.uid)
-                            val rarityColor = equipmentRarityColor(item.rarityTier, item.rarityId)
-                            val sellValue = estimateEquipmentSellValue(item)
-                            Card(modifier = Modifier.fillMaxWidth()) {
-                                Row(
-                                    modifier = Modifier.padding(8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Checkbox(
-                                        checked = checked,
-                                        onCheckedChange = { onToggleShopSellSelection(item.uid) }
-                                    )
-                                    HoverTooltipBox(
-                                        logTag = "商店背包",
-                                        logName = item.name,
-                                        tooltip = {
-                                            EquipmentTooltipCard(
-                                                slot = item.slot,
-                                                item = item
-                                            )
-                                        }
-                                    ) { baseModifier ->
-                                        EquipmentRarityIcon(
-                                            label = equipmentSlotShortLabel(item.slot),
-                                            color = rarityColor,
-                                            size = 36.dp,
-                                            modifier = baseModifier
-                                        )
-                                    }
-                                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                        Text(
-                                            text = "${item.name}（${item.rarityName}）",
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = rarityColor
-                                        )
-                                        Text(
-                                            text = "部位 ${slotLabel(item.slot)} | 等级 ${item.level}",
-                                            color = Color(0xFFB8B2A6)
-                                        )
-                                        Text(
-                                            text = "售出 +$sellValue 金币",
-                                            color = Color(0xFF8DB38B)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    Text(text = "点击图标选择要出售的装备", color = Color(0xFF7B756B))
+                    ShopInventoryIconGrid(
+                        items = inventory.items,
+                        selectedIds = selectedSellIds,
+                        columns = 4,
+                        iconSize = 36.dp,
+                        onToggleSelected = onToggleShopSellSelection
+                    )
                 }
             }
         }
