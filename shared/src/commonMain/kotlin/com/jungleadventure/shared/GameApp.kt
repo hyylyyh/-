@@ -119,15 +119,15 @@ fun GameApp(
                         showSkillFormula = state.showSkillFormula,
                         onToggleShowSkillFormula = viewModel::onToggleShowSkillFormula
                     )
-                    SidePanel(
-                        modifier = Modifier.weight(0.8f),
-                        state = state,
-                        onSelectCodexTab = viewModel::onSelectCodexTab,
-                        onShowEquipmentDetail = viewModel::onShowEquipmentDetail,
-                        onReturnToMain = viewModel::onReturnToMain,
-                        onOpenChapterSelect = viewModel::onOpenChapterSelect,
-                        showSkillFormula = state.showSkillFormula,
-                        onToggleShowSkillFormula = viewModel::onToggleShowSkillFormula
+                SidePanel(
+                    modifier = Modifier.weight(0.8f),
+                    state = state,
+                    onSelectCodexTab = viewModel::onSelectCodexTab,
+                    onShowEquipmentDetail = viewModel::onShowEquipmentDetail,
+                    onReturnToMain = viewModel::onReturnToMain,
+                    onOpenChapterSelect = viewModel::onOpenChapterSelect,
+                    showSkillFormula = state.showSkillFormula,
+                    onToggleShowSkillFormula = viewModel::onToggleShowSkillFormula
                     )
                 }
             }
@@ -824,7 +824,10 @@ private fun SidePanel(
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(text = "装备面板", fontWeight = FontWeight.Bold)
                     Divider(modifier = Modifier.padding(vertical = 6.dp))
-                    EquipmentOverviewPanel(player = state.player)
+                    EquipmentOverviewPanel(
+                        player = state.player,
+                        onShowEquipmentDetail = onShowEquipmentDetail
+                    )
                 }
             }
             Card(modifier = Modifier.fillMaxWidth()) {
@@ -865,16 +868,6 @@ private fun SidePanel(
             }
         }
         Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text(text = "游戏图鉴", fontWeight = FontWeight.Bold)
-                Divider(modifier = Modifier.padding(vertical = 8.dp))
-                CodexPanel(
-                    state = state,
-                    onSelectCodexTab = onSelectCodexTab
-                )
-            }
-        }
-        Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(text = "敌人情报", fontWeight = FontWeight.Bold)
                 Divider(modifier = Modifier.padding(vertical = 4.dp))
@@ -887,7 +880,9 @@ private fun SidePanel(
         }
         SettingsPanelCard(
             showSkillFormula = showSkillFormula,
-            onToggleShowSkillFormula = onToggleShowSkillFormula
+            onToggleShowSkillFormula = onToggleShowSkillFormula,
+            codexState = state,
+            onSelectCodexTab = onSelectCodexTab
         )
     }
 }
@@ -2174,16 +2169,16 @@ private fun BattleInfoPanel(
                 InfoBlock(
                     title = "我方情报",
                     lines = listOf(
-                        "${player.name}  等级 ${player.level}",
-                        "生命 ${player.hp}/${player.hpMax}  能量 ${player.mp}/${player.mpMax}",
-                        "攻击 ${player.atk}  防御 ${player.def}  速度 ${player.speed}"
+                        "角色" to "${player.name}（Lv${player.level}）",
+                        "生命" to "${player.hp}/${player.hpMax}",
+                        "能量" to "${player.mp}/${player.mpMax}",
+                        "攻击" to "${player.atk}",
+                        "防御" to "${player.def}",
+                        "速度" to "${player.speed}"
                     )
                 )
                 val enemyLines = buildEnemyInfoLines(battle, enemyPreview)
-                InfoBlock(
-                    title = "敌人情报",
-                    lines = enemyLines
-                )
+                InfoBlock(title = "敌人情报", lines = enemyLines)
             }
         }
     }
@@ -2285,15 +2280,26 @@ private fun RowScope.ActionIconButton(
 }
 
 @Composable
-private fun RowScope.InfoBlock(title: String, lines: List<String>) {
+private fun RowScope.InfoBlock(title: String, lines: List<Pair<String, String>>) {
     Card(
         colors = CardDefaults.cardColors(containerColor = Color(0xFF182720)),
         modifier = Modifier.weight(1f)
     ) {
         Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(text = title, fontWeight = FontWeight.SemiBold)
-            lines.forEach { line ->
-                Text(text = line, color = Color(0xFFB8B2A6))
+            lines.forEach { (label, value) ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = label,
+                        color = Color(0xFF7B756B),
+                        modifier = Modifier.width(52.dp)
+                    )
+                    Text(text = value, color = Color(0xFFB8B2A6))
+                }
             }
         }
     }
@@ -2302,18 +2308,22 @@ private fun RowScope.InfoBlock(title: String, lines: List<String>) {
 private fun buildEnemyInfoLines(
     battle: BattleUiState?,
     enemyPreview: EnemyPreviewUiState?
-): List<String> {
-    val lines = mutableListOf<String>()
+): List<Pair<String, String>> {
+    val lines = mutableListOf<Pair<String, String>>()
     if (battle != null) {
-        lines += "${battle.enemyName}"
-        lines += "生命 ${battle.enemyHp}  能量 ${battle.enemyMp}"
+        lines += "名称" to battle.enemyName
+        lines += "生命" to "${battle.enemyHp}"
+        lines += "能量" to "${battle.enemyMp}"
     }
     if (enemyPreview != null) {
-        lines += "等级 ${enemyPreview.level}  数量 ${enemyPreview.count}"
-        lines += "攻击 ${enemyPreview.atk}  防御 ${enemyPreview.def}  速度 ${enemyPreview.speed}"
+        lines += "等级" to "${enemyPreview.level}"
+        lines += "数量" to "${enemyPreview.count}"
+        lines += "攻击" to "${enemyPreview.atk}"
+        lines += "防御" to "${enemyPreview.def}"
+        lines += "速度" to "${enemyPreview.speed}"
     }
     if (lines.isEmpty()) {
-        lines += "暂无敌人情报"
+        lines += "提示" to "暂无敌人情报"
     }
     return lines
 }
@@ -2391,7 +2401,9 @@ private fun statusColor(type: StatusType): Color {
 @Composable
 private fun SettingsPanelCard(
     showSkillFormula: Boolean,
-    onToggleShowSkillFormula: (Boolean) -> Unit
+    onToggleShowSkillFormula: (Boolean) -> Unit,
+    codexState: GameUiState? = null,
+    onSelectCodexTab: ((CodexTab) -> Unit)? = null
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -2413,6 +2425,21 @@ private fun SettingsPanelCard(
                     checked = showSkillFormula,
                     onCheckedChange = onToggleShowSkillFormula
                 )
+            }
+            if (codexState != null && onSelectCodexTab != null) {
+                var showCodex by remember { mutableStateOf(false) }
+                Divider(modifier = Modifier.padding(vertical = 4.dp))
+                Text(text = "图鉴面板", fontWeight = FontWeight.SemiBold)
+                Text(text = "图鉴已移入设置面板，可在此展开查看。", color = Color(0xFFB8B2A6))
+                Button(onClick = { showCodex = !showCodex }, modifier = Modifier.fillMaxWidth()) {
+                    Text(text = if (showCodex) "收起图鉴" else "展开图鉴")
+                }
+                if (showCodex) {
+                    CodexPanel(
+                        state = codexState,
+                        onSelectCodexTab = onSelectCodexTab
+                    )
+                }
             }
         }
     }
