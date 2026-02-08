@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -60,6 +61,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.window.PopupPositionProvider
@@ -2370,10 +2374,17 @@ private fun HoverTooltipBox(
     var hovered by remember { mutableStateOf(false) }
     var cursorOffset by remember { mutableStateOf(Offset.Zero) }
     val positionProvider = remember(cursorOffset) {
-        PopupPositionProvider { anchorBounds, _, _, _ ->
-            val offsetX = anchorBounds.left + cursorOffset.x.roundToInt() + 12
-            val offsetY = anchorBounds.top + cursorOffset.y.roundToInt() + 12
-            IntOffset(offsetX, offsetY)
+        object : PopupPositionProvider {
+            override fun calculatePosition(
+                anchorBounds: IntRect,
+                windowSize: IntSize,
+                layoutDirection: LayoutDirection,
+                popupContentSize: IntSize
+            ): IntOffset {
+                val offsetX = anchorBounds.left + cursorOffset.x.roundToInt() + 12
+                val offsetY = anchorBounds.top + cursorOffset.y.roundToInt() + 12
+                return IntOffset(offsetX, offsetY)
+            }
         }
     }
     Box(
@@ -2403,10 +2414,17 @@ private fun HoverTooltipBox(
     }
     if (hovered) {
         Popup(
-            positionProvider,
+            popupPositionProvider = positionProvider,
             properties = PopupProperties(focusable = false)
         ) {
-            tooltip()
+            Box(
+                modifier = Modifier
+                    .widthIn(max = 320.dp)
+                    .heightIn(max = 260.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                tooltip()
+            }
         }
     }
 }
