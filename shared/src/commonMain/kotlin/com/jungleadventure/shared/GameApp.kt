@@ -824,10 +824,7 @@ private fun SidePanel(
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(text = "装备面板", fontWeight = FontWeight.Bold)
                     Divider(modifier = Modifier.padding(vertical = 6.dp))
-                    EquipmentOverviewPanel(
-                        player = state.player,
-                        onShowEquipmentDetail = onShowEquipmentDetail
-                    )
+                    EquipmentOverviewPanel(player = state.player)
                 }
             }
             Card(modifier = Modifier.fillMaxWidth()) {
@@ -984,18 +981,14 @@ private fun EquipmentInfoRow(
 
 @Composable
 private fun EquipmentOverviewPanel(
-    player: PlayerStats,
-    onShowEquipmentDetail: (EquipmentItem?) -> Unit
+    player: PlayerStats
 ) {
     val entries = buildEquipmentIconEntries(player)
     if (entries.isEmpty()) {
         Text(text = "暂无装备槽位", color = Color(0xFF7B756B))
         return
     }
-    EquipmentIconGrid(
-        entries = entries,
-        onShowEquipmentDetail = onShowEquipmentDetail
-    )
+    EquipmentIconGrid(entries = entries)
 }
 
 @Composable
@@ -1065,11 +1058,10 @@ private fun buildEquipmentIconEntries(player: PlayerStats): List<EquipmentIconEn
 
 @Composable
 private fun EquipmentIconGrid(
-    entries: List<EquipmentIconEntry>,
-    onShowEquipmentDetail: (EquipmentItem?) -> Unit
+    entries: List<EquipmentIconEntry>
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(text = "悬浮查看详情，点击图标打开详情", color = Color(0xFF7B756B))
+        Text(text = "悬浮查看详情", color = Color(0xFF7B756B))
         entries.chunked(4).forEach { rowEntries ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1078,17 +1070,7 @@ private fun EquipmentIconGrid(
                 rowEntries.forEach { entry ->
                     EquipmentIconCard(
                         entry = entry,
-                        modifier = Modifier.weight(1f),
-                        onShowEquipmentDetail = onShowEquipmentDetail,
-                        onClick = {
-                            val slotLabel = slotLabel(entry.slot)
-                            val nameLabel = entry.item?.name ?: "空"
-                            GameLogger.info(
-                                "装备图标",
-                                "点击装备图标：槽位=$slotLabel 名称=$nameLabel 打开详情"
-                            )
-                            onShowEquipmentDetail(entry.item)
-                        }
+                        modifier = Modifier.weight(1f)
                     )
                 }
                 val missing = 4 - rowEntries.size
@@ -1103,9 +1085,7 @@ private fun EquipmentIconGrid(
 @Composable
 private fun EquipmentIconCard(
     entry: EquipmentIconEntry,
-    modifier: Modifier = Modifier,
-    onShowEquipmentDetail: (EquipmentItem?) -> Unit,
-    onClick: () -> Unit
+    modifier: Modifier = Modifier
 ) {
     val item = entry.item
     val slot = entry.slot
@@ -1127,8 +1107,7 @@ private fun EquipmentIconCard(
             tooltip = {
                 EquipmentTooltipCard(
                     slot = slot,
-                    item = item,
-                    onShowEquipmentDetail = onShowEquipmentDetail
+                    item = item
                 )
             }
         ) { baseModifier ->
@@ -1136,8 +1115,7 @@ private fun EquipmentIconCard(
                 modifier = baseModifier
                     .size(60.dp)
                     .border(2.dp, borderColor, RoundedCornerShape(14.dp))
-                    .background(backgroundColor, RoundedCornerShape(14.dp))
-                    .clickable { onClick() },
+                    .background(backgroundColor, RoundedCornerShape(14.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -1158,8 +1136,7 @@ private fun EquipmentIconCard(
 @Composable
 private fun EquipmentTooltipCard(
     slot: EquipmentSlot,
-    item: EquipmentItem?,
-    onShowEquipmentDetail: (EquipmentItem?) -> Unit
+    item: EquipmentItem?
 ) {
     val slotName = slotLabel(slot)
     Card(
@@ -1186,9 +1163,6 @@ private fun EquipmentTooltipCard(
             }
             if (item.source.isNotBlank()) {
                 Text(text = "来源 ${item.source}", color = Color(0xFF7B756B))
-            }
-            OutlinedButton(onClick = { onShowEquipmentDetail(item) }) {
-                Text("打开详情弹窗")
             }
         }
     }
@@ -1267,9 +1241,8 @@ private fun SkillIconGrid(
     entries: List<SkillIconEntry>,
     showSkillFormula: Boolean
 ) {
-    var dialogEntry by remember { mutableStateOf<SkillIconEntry?>(null) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(text = "悬浮查看详情，点击图标打开详情", color = Color(0xFF7B756B))
+        Text(text = "悬浮查看详情", color = Color(0xFF7B756B))
         entries.chunked(4).forEach { rowEntries ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1280,15 +1253,7 @@ private fun SkillIconGrid(
                         entry = entry,
                         selected = false,
                         showSkillFormula = showSkillFormula,
-                        modifier = Modifier.weight(1f),
-                        onClick = {
-                            val label = skillTypeLabel(entry.skill.type)
-                            GameLogger.info(
-                                "技能图标",
-                                "点击技能图标：${entry.skill.name} 类型=$label 打开详情"
-                            )
-                            dialogEntry = entry
-                        }
+                        modifier = Modifier.weight(1f)
                     )
                 }
                 val missing = 4 - rowEntries.size
@@ -1296,34 +1261,6 @@ private fun SkillIconGrid(
                     Spacer(modifier = Modifier.weight(missing.toFloat()))
                 }
             }
-        }
-        if (dialogEntry != null) {
-            AlertDialog(
-                onDismissRequest = {
-                    GameLogger.info("技能图标", "关闭技能详情弹窗：${dialogEntry?.skill?.name}")
-                    dialogEntry = null
-                },
-                title = { Text(dialogEntry?.title ?: "技能详情") },
-                text = {
-                    dialogEntry?.let { entry ->
-                        SkillDetailCard(
-                            title = entry.title,
-                            skill = entry.skill,
-                            showFormula = showSkillFormula
-                        )
-                    }
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            GameLogger.info("技能图标", "确认关闭技能详情弹窗：${dialogEntry?.skill?.name}")
-                            dialogEntry = null
-                        }
-                    ) {
-                        Text("关闭")
-                    }
-                }
-            )
         }
     }
 }
@@ -1334,8 +1271,7 @@ private fun SkillIconCard(
     entry: SkillIconEntry,
     selected: Boolean,
     showSkillFormula: Boolean,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
+    modifier: Modifier = Modifier
 ) {
     val typeLabel = skillTypeLabel(entry.skill.type)
     val baseColor = skillTypeColor(entry.skill.type)
@@ -1371,8 +1307,7 @@ private fun SkillIconCard(
                 modifier = baseModifier
                     .size(60.dp)
                     .border(2.dp, borderColor, RoundedCornerShape(14.dp))
-                    .background(backgroundColor, RoundedCornerShape(14.dp))
-                    .clickable { onClick() },
+                    .background(backgroundColor, RoundedCornerShape(14.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 if (painter == null) {
@@ -1675,14 +1610,13 @@ private fun SkillCatalogPanel(
     val unlockedSkillIds = entries.filter { entry ->
         entry.sourceRoleIds.isEmpty() || entry.sourceRoleIds.any { unlockedRoleIds.contains(it) }
     }.map { it.id }.toSet()
-    var dialogEntry by remember { mutableStateOf<SkillCatalogEntry?>(null) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("已收录 ${entries.size} 个技能", color = Color(0xFFB8B2A6))
         if (entries.isEmpty()) {
             PlaceholderPanel("暂无技能图鉴数据")
             return
         }
-        Text(text = "悬浮查看详情，点击图标打开详情", color = Color(0xFF7B756B))
+        Text(text = "悬浮查看详情", color = Color(0xFF7B756B))
         val rows = entries.chunked(4)
         LazyColumn(
             modifier = Modifier
@@ -1701,14 +1635,7 @@ private fun SkillCatalogPanel(
                             entry = entry,
                             unlocked = unlocked,
                             selected = false,
-                            modifier = Modifier.weight(1f),
-                            onClick = {
-                                GameLogger.info(
-                                    "技能图鉴",
-                                    "点击技能图鉴图标：${entry.name} 解锁=$unlocked 打开详情"
-                                )
-                                dialogEntry = entry
-                            }
+                            modifier = Modifier.weight(1f)
                         )
                     }
                     val missing = 4 - rowEntries.size
@@ -1717,31 +1644,6 @@ private fun SkillCatalogPanel(
                     }
                 }
             }
-        }
-        if (dialogEntry != null) {
-            AlertDialog(
-                onDismissRequest = {
-                    GameLogger.info("技能图鉴", "关闭技能详情弹窗：${dialogEntry?.name}")
-                    dialogEntry = null
-                },
-                title = { Text("技能详情") },
-                text = {
-                    dialogEntry?.let { entry ->
-                        val unlocked = unlockedSkillIds.contains(entry.id)
-                        SkillCatalogDetailCard(entry = entry, unlocked = unlocked)
-                    }
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            GameLogger.info("技能图鉴", "确认关闭技能详情弹窗：${dialogEntry?.name}")
-                            dialogEntry = null
-                        }
-                    ) {
-                        Text("关闭")
-                    }
-                }
-            )
         }
     }
 }
@@ -1752,8 +1654,7 @@ private fun SkillCatalogIconCard(
     entry: SkillCatalogEntry,
     unlocked: Boolean,
     selected: Boolean,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
+    modifier: Modifier = Modifier
 ) {
     val baseColor = if (unlocked) skillTypeColor(entry.type) else Color(0xFF8F8F8F)
     val borderColor = if (selected) Color(0xFFE8C07D) else baseColor.copy(alpha = 0.7f)
@@ -1781,8 +1682,7 @@ private fun SkillCatalogIconCard(
                 modifier = baseModifier
                     .size(56.dp)
                     .border(2.dp, borderColor, RoundedCornerShape(14.dp))
-                    .background(backgroundColor, RoundedCornerShape(14.dp))
-                    .clickable { onClick() },
+                    .background(backgroundColor, RoundedCornerShape(14.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 if (painter == null) {
