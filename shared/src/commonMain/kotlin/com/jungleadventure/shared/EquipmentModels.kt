@@ -64,3 +64,24 @@ fun EquipmentItem.totalStats(): Map<StatType, Int> {
 fun estimateEquipmentSellValue(item: EquipmentItem): Int {
     return (4 + item.rarityTier * 4 + item.level).coerceAtLeast(1)
 }
+
+fun formatEquipmentSourceLabel(source: String): String {
+    val trimmed = source.trim()
+    if (trimmed.isBlank()) return ""
+    val tierMatch = Regex("^(enemy|event|shop)_tier_(\\d+)$").find(trimmed)
+    if (tierMatch != null) {
+        val type = tierMatch.groupValues[1]
+        val tier = tierMatch.groupValues[2]
+        val prefix = when (type) {
+            "enemy" -> "敌人掉落"
+            "event" -> "事件掉落"
+            "shop" -> "商店补给"
+            else -> trimmed
+        }
+        return "$prefix（层级$tier）"
+    }
+    if (trimmed.startsWith("auto_shop")) return "商店补给"
+    if (trimmed.startsWith("stage_guardian")) return "守卫战掉落"
+    if (trimmed.startsWith("battle")) return "战斗掉落"
+    return trimmed
+}

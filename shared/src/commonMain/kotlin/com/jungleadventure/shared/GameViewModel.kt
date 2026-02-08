@@ -356,7 +356,11 @@ class GameViewModel(
             return
         }
         val message = buildEquipmentDetailMessage(item)
-        GameLogger.info(logTag, "展示装备详情：${item.name} 模板=${item.templateId}")
+        val sourceLabel = formatEquipmentSourceLabel(item.source).ifBlank { "未知" }
+        GameLogger.info(
+            logTag,
+            "展示装备详情：${item.name} 模板=${item.templateId} 来源=$sourceLabel"
+        )
         _state.update { state ->
             state.copy(
                 showDialog = true,
@@ -1872,6 +1876,7 @@ class GameViewModel(
                 "${statLabelForDetail(affix.type)}${signed(affix.value)}"
             }
         }
+        val sourceLabel = formatEquipmentSourceLabel(item.source)
         return buildString {
             append("名称：${item.name}\n")
             append("稀有度：${item.rarityName}\n")
@@ -1881,8 +1886,8 @@ class GameViewModel(
             append("基础属性：$baseStats\n")
             append("词条：$affixLines\n")
             append("总属性：$totalStats\n")
-            if (item.source.isNotBlank()) {
-                append("来源：${item.source}\n")
+            if (sourceLabel.isNotBlank()) {
+                append("来源：$sourceLabel\n")
             }
             if (item.obtainedAtTurn > 0) {
                 append("获取回合：${item.obtainedAtTurn}\n")

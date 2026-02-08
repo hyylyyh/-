@@ -1090,66 +1090,56 @@ private fun BattleOptionConfigPanel(
             }
             Text(text = "技能槽位", fontWeight = FontWeight.SemiBold)
             val slotSize = 76.dp
-            val slotRows = slotIds.chunked(3)
-            slotRows.forEachIndexed { rowIndex, rowSlots ->
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    rowSlots.forEachIndexed { columnIndex, skillId ->
-                        val slotIndex = rowIndex * 3 + columnIndex
-                        val entry = sortedSkills.firstOrNull { it.id == skillId }
-                        val label = entry?.name ?: "空"
-                        val isEmpty = skillId.isBlank() || entry == null
-                        val highlight = draggingSkill != null &&
-                            slotBounds[slotIndex]?.contains(dragPosition) == true
-                        val borderColor = if (highlight) Color(0xFF8DB38B) else Color(0xFF2C3B33)
-                        Box(
-                            modifier = Modifier
-                                .size(slotSize, 48.dp)
-                                .onGloballyPositioned { coords ->
-                                    slotBounds[slotIndex] = coords.boundsInRoot()
-                                }
-                        ) {
-                            Card(
-                                colors = CardDefaults.cardColors(
-                                    containerColor = if (highlight) Color(0xFF1D2D26) else Color(0xFF182720)
-                                ),
-                                border = BorderStroke(1.dp, borderColor),
-                                modifier = Modifier.fillMaxSize()
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(6.dp),
-                                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                                ) {
-                                    Text(
-                                        text = "槽${slotIndex + 1}",
-                                        color = Color(0xFF7B756B)
-                                    )
-                                    Text(
-                                        text = label,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = if (isEmpty) Color(0xFF7B756B) else Color(0xFFECE8D9),
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                slotIds.forEachIndexed { slotIndex, skillId ->
+                    val entry = sortedSkills.firstOrNull { it.id == skillId }
+                    val label = entry?.name ?: "空"
+                    val isEmpty = skillId.isBlank() || entry == null
+                    val highlight = draggingSkill != null &&
+                        slotBounds[slotIndex]?.contains(dragPosition) == true
+                    val borderColor = if (highlight) Color(0xFF8DB38B) else Color(0xFF2C3B33)
+                    Box(
+                        modifier = Modifier
+                            .size(slotSize, 48.dp)
+                            .onGloballyPositioned { coords ->
+                                slotBounds[slotIndex] = coords.boundsInRoot()
                             }
-                            if (!isEmpty) {
+                    ) {
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (highlight) Color(0xFF1D2D26) else Color(0xFF182720)
+                            ),
+                            border = BorderStroke(1.dp, borderColor),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(6.dp),
+                                verticalArrangement = Arrangement.Center
+                            ) {
                                 Text(
-                                    text = "×",
-                                    color = Color(0xFFD6B36A),
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .padding(4.dp)
-                                        .clickable {
-                                            GameLogger.info("战斗配置", "点击清空技能槽位：槽位=${slotIndex + 1}")
-                                            onClearBattleSkill(slotIndex)
-                                        }
+                                    text = label,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (isEmpty) Color(0xFF7B756B) else Color(0xFFECE8D9),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
-                    }
-                    val missing = 3 - rowSlots.size
-                    repeat(missing) {
-                        Spacer(modifier = Modifier.size(slotSize, 48.dp))
+                        if (!isEmpty) {
+                            Text(
+                                text = "×",
+                                color = Color(0xFFD6B36A),
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(4.dp)
+                                    .clickable {
+                                        GameLogger.info("战斗配置", "点击清空技能槽位：槽位=${slotIndex + 1}")
+                                        onClearBattleSkill(slotIndex)
+                                    }
+                            )
+                        }
                     }
                 }
             }
@@ -1489,8 +1479,9 @@ private fun EquipmentTooltipCard(
             if (item.affixes.isNotEmpty()) {
                 Text(text = "词条 ${formatAffixes(item.affixes)}", color = Color(0xFF8DB38B))
             }
-            if (item.source.isNotBlank()) {
-                Text(text = "来源 ${item.source}", color = Color(0xFF7B756B))
+            val sourceLabel = formatEquipmentSourceLabel(item.source)
+            if (sourceLabel.isNotBlank()) {
+                Text(text = "来源 $sourceLabel", color = Color(0xFF7B756B))
             }
         }
     }
