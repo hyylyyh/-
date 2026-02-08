@@ -27,6 +27,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -2580,6 +2583,14 @@ private fun ShopPanel(
     val selectedOfferIds = state.shopSelectedOfferIds
     val selectedSellIds = state.shopSelectedSellIds
     val inventory = state.player.inventory
+    val equipmentSlots = offers.take(12)
+    val potionSlots = List(3) { index -> ShopGridEntry.Potion(index + 1) }
+    val filledSlots = equipmentSlots.map { ShopGridEntry.Offer(it) } + potionSlots
+    val gridSlots = if (filledSlots.size < 15) {
+        filledSlots + List(15 - filledSlots.size) { ShopGridEntry.Empty }
+    } else {
+        filledSlots
+    }
     val logTag = "ShopPanel"
     LaunchedEffect(
         offers.size,
@@ -2596,6 +2607,9 @@ private fun ShopPanel(
                 "选中出售=${selectedSellIds.size} 背包=${inventory.items.size}/${inventory.capacity} " +
                 "买入合计=${state.shopBuyTotal} 卖出合计=${state.shopSellTotal} 金币=${state.player.gold}"
         )
+        if (offers.size > 12) {
+            GameLogger.info(logTag, "商品数量超出展示上限：展示12件 实际=${offers.size}")
+        }
     }
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -2609,28 +2623,34 @@ private fun ShopPanel(
             Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(text = "商品展示区", fontWeight = FontWeight.Bold)
                 Divider(modifier = Modifier.padding(vertical = 4.dp))
-                if (offers.isEmpty()) {
-                    PlaceholderPanel("暂无可购买商品")
-                } else {
-                    val rows = offers.chunked(2)
-                    LazyColumn(
-                        modifier = Modifier.heightIn(max = 420.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        items(rows) { rowItems ->
-                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                rowItems.forEach { offer ->
-                                    val selected = selectedOfferIds.contains(offer.id)
-                                    ShopOfferCard(
-                                        offer = offer,
-                                        selected = selected,
-                                        onToggle = { onToggleShopOfferSelection(offer.id) },
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                }
-                                if (rowItems.size < 2) {
-                                    Spacer(modifier = Modifier.weight(1f))
-                                }
+                Text(text = "金币 ${state.player.gold}", color = Color(0xFF8DB38B))
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(3),
+                    modifier = Modifier.heightIn(max = 420.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    gridItems(gridSlots) { slot ->
+                        when (slot) {
+                            is ShopGridEntry.Offer -> {
+                                val selected = selectedOfferIds.contains(slot.offer.id)
+                                ShopOfferCard(
+                                    offer = slot.offer,
+                                    selected = selected,
+                                    onToggle = { onToggleShopOfferSelection(slot.offer.id) },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                            is ShopGridEntry.Potion -> {
+                                ShopPotionCard(
+                                    title = "${POTION_NAME}${slot.index}",
+                                    price = POTION_PRICE,
+                                    enabled = state.player.gold >= POTION_PRICE,
+                                    onClick = onShopBuyPotion
+                                )
+                            }
+                            ShopGridEntry.Empty -> {
+                                ShopEmptySlot()
                             }
                         }
                     }
@@ -2645,35 +2665,15 @@ private fun ShopPanel(
             Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(text = "交易操作区", fontWeight = FontWeight.Bold)
                 Divider(modifier = Modifier.padding(vertical = 4.dp))
-                Text(text = "购买合计：${state.shopBuyTotal} 金币", color = Color(0xFFB8B2A6))
-                Text(text = "出售合计：${state.shopSellTotal} 金币", color = Color(0xFFB8B2A6))
-                Text(text = "当前金币：${state.player.gold}", color = Color(0xFF8DB38B))
-                Divider(modifier = Modifier.padding(vertical = 4.dp))
-                Text(text = "补给区", fontWeight = FontWeight.SemiBold)
-                Text(
-                    text = "药水数量：${state.player.potionCount}",
-                    color = Color(0xFFB8B2A6)
-                )
-                Text(
-                    text = "单价：${POTION_PRICE} 金币",
-                    color = Color(0xFF7B756B)
-                )
-                Button(
-                    onClick = onShopBuyPotion,
-                    enabled = state.player.gold >= POTION_PRICE,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("购买${POTION_NAME}")
-                }
-                Divider(modifier = Modifier.padding(vertical = 4.dp))
+                Text(text = "买入合计：${state.shopBuyTotal} 金币", color = Color(0xFFB8B2A6))
                 Button(onClick = onShopBuySelected, modifier = Modifier.fillMaxWidth()) {
-                    Text("购买选中")
+                    Text("买入")
                 }
                 Button(onClick = onShopSellSelected, modifier = Modifier.fillMaxWidth()) {
-                    Text("卖出选中")
+                    Text("卖出")
                 }
                 OutlinedButton(onClick = onShopLeave, modifier = Modifier.fillMaxWidth()) {
-                    Text("离开商店")
+                    Text("离开")
                 }
             }
         }
@@ -2689,6 +2689,10 @@ private fun ShopPanel(
                     text = "容量 ${inventory.items.size}/${inventory.capacity}",
                     color = Color(0xFFB8B2A6)
                 )
+                Text(
+                    text = "卖出合计：${state.shopSellTotal} 金币",
+                    color = Color(0xFFB8B2A6)
+                )
                 if (inventory.items.isEmpty()) {
                     PlaceholderPanel("背包空空如也")
                 } else {
@@ -2702,6 +2706,59 @@ private fun ShopPanel(
                     )
                 }
             }
+        }
+    }
+}
+
+private sealed class ShopGridEntry {
+    data class Offer(val offer: ShopOfferUiState) : ShopGridEntry()
+    data class Potion(val index: Int) : ShopGridEntry()
+    object Empty : ShopGridEntry()
+}
+
+@Composable
+private fun ShopPotionCard(
+    title: String,
+    price: Int,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    val borderColor = if (enabled) Color(0xFF6FBF73) else Color(0xFF2C3B33)
+    val background = if (enabled) Color(0xFF182720) else Color(0xFF171E1B)
+    Card(
+        colors = CardDefaults.cardColors(containerColor = background),
+        border = BorderStroke(1.dp, borderColor),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled, onClick = onClick)
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(8.dp)
+                .heightIn(min = 84.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(text = title, fontWeight = FontWeight.SemiBold, color = Color(0xFF8DB38B))
+            Text(text = "价格 $price 金币", color = Color(0xFFB8B2A6))
+            Text(text = "点击购买", color = Color(0xFF7B756B))
+        }
+    }
+}
+
+@Composable
+private fun ShopEmptySlot() {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF151C18)),
+        border = BorderStroke(1.dp, Color(0xFF2C3B33)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Box(
+            modifier = Modifier
+                .heightIn(min = 84.dp)
+                .padding(8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(text = "空位", color = Color(0xFF5D5D5D))
         }
     }
 }
