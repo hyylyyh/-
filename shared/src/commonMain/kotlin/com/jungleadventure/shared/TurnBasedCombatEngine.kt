@@ -526,7 +526,7 @@ class TurnBasedCombatEngine(private val rng: Random) {
         val amount = max(1, (actor.stats.hpMax * healRate).toInt())
         val nextHp = (actor.hp + amount).coerceAtMost(actor.stats.hpMax)
         val nextActor = actor.withHp(nextHp)
-        val log = "${actor.name} 使用药丸，回复生命 $amount（${nextHp}/${actor.stats.hpMax}）"
+        val log = "${actor.name} 使用药水，回复生命 $amount（${nextHp}/${actor.stats.hpMax}）"
         GameLogger.info("战斗", log)
         return ActionResult(
             player = nextActor,

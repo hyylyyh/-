@@ -107,6 +107,8 @@ data class PlayerStats(
     val equipment: EquipmentLoadout = EquipmentLoadout(),
     val inventory: InventoryState = InventoryState(),
     val cards: List<CardInstance> = emptyList(),
+    val potionCount: Int = 0,
+    val battleSkillSlots: List<String> = emptyList(),
     val pityCounters: Map<String, Int> = emptyMap(),
     val discoveredEquipmentIds: List<String> = emptyList(),
     val discoveredEnemyIds: List<String> = emptyList()

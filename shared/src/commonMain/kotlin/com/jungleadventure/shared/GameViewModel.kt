@@ -43,7 +43,7 @@ class GameViewModel(
     private var stageRuntime: StageRuntime? = null
     private var rngSeed: Long = Random.Default.nextLong()
     private val totalChapters = 10
-    private val battleSkillChoicePrefix = "battle_skill_"
+    private val maxBattleSkillSlots = 5
     private val maxChapter = max(totalChapters, events.maxOfOrNull { it.chapter } ?: 1)
     private val shopOfferCount = 6
     private val monsterOnlyMode = true
@@ -382,6 +382,74 @@ class GameViewModel(
         _state.update { it.copy(activePanel = GamePanel.SKILLS, lastAction = "查看技能") }
     }
 
+    fun onAssignBattleSkill(slotIndex: Int, skillId: String) {
+        val current = _state.value
+        if (slotIndex !in 0 until maxBattleSkillSlots) {
+            GameLogger.warn(logTag, "战斗技能槽位超出范围：槽位=$slotIndex")
+            return
+        }
+        val availableIds = roleSkillIds(current.selectedRoleId).toSet()
+        if (!availableIds.contains(skillId)) {
+            GameLogger.warn(logTag, "战斗技能不可用：技能编号=$skillId")
+            _state.update { it.copy(lastAction = "战斗技能不可用") }
+            return
+        }
+        val normalized = normalizeBattleSkillSlots(
+            slots = current.player.battleSkillSlots,
+            roleId = current.selectedRoleId,
+            reason = "拖动技能配置"
+        )
+        val updatedSlots = normalized.toMutableList()
+        val previous = updatedSlots[slotIndex]
+        updatedSlots.indices.forEach { index ->
+            if (index != slotIndex && updatedSlots[index] == skillId) {
+                updatedSlots[index] = ""
+            }
+        }
+        updatedSlots[slotIndex] = skillId
+        val skillName = skillDefinitionMap[skillId]?.name ?: skillId
+        GameLogger.info(
+            logTag,
+            "战斗技能槽位更新：槽位=${slotIndex + 1} 技能=$skillName 原本=${if (previous.isBlank()) "空" else previous}"
+        )
+        _state.update { state ->
+            state.copy(
+                player = state.player.copy(battleSkillSlots = updatedSlots),
+                lastAction = "战斗技能配置：${slotIndex + 1}号槽位放入$skillName",
+                log = state.log + "战斗技能配置：${slotIndex + 1}号槽位放入$skillName"
+            )
+        }
+    }
+
+    fun onClearBattleSkill(slotIndex: Int) {
+        val current = _state.value
+        if (slotIndex !in 0 until maxBattleSkillSlots) {
+            GameLogger.warn(logTag, "战斗技能槽位超出范围：槽位=$slotIndex")
+            return
+        }
+        val normalized = normalizeBattleSkillSlots(
+            slots = current.player.battleSkillSlots,
+            roleId = current.selectedRoleId,
+            reason = "清空技能槽位"
+        )
+        if (normalized[slotIndex].isBlank()) {
+            GameLogger.info(logTag, "战斗技能槽位已为空，无需清空：槽位=${slotIndex + 1}")
+            return
+        }
+        val updatedSlots = normalized.toMutableList()
+        val removedId = updatedSlots[slotIndex]
+        val removedName = skillDefinitionMap[removedId]?.name ?: removedId
+        updatedSlots[slotIndex] = ""
+        GameLogger.info(logTag, "战斗技能槽位清空：槽位=${slotIndex + 1} 技能=$removedName")
+        _state.update { state ->
+            state.copy(
+                player = state.player.copy(battleSkillSlots = updatedSlots),
+                lastAction = "清空战斗技能：${slotIndex + 1}号槽位",
+                log = state.log + "清空战斗技能：${slotIndex + 1}号槽位移除$removedName"
+            )
+        }
+    }
+
     fun onToggleShopOfferSelection(offerId: String) {
         val current = _state.value
         val event = current.currentEvent
@@ -596,6 +664,42 @@ class GameViewModel(
             updated.copy(
                 lastAction = summary,
                 log = updated.log + logs
+            )
+        }
+    }
+
+    fun onShopBuyPotion() {
+        val current = _state.value
+        val event = current.currentEvent
+        if (event == null || !isShopEvent(event)) {
+            GameLogger.warn("商店系统", "当前事件不是商店，忽略药水购买")
+            return
+        }
+        val price = POTION_PRICE
+        if (current.player.gold < price) {
+            GameLogger.warn("商店系统", "金币不足，无法购买药水：金币=${current.player.gold} 价格=$price")
+            _state.update { state ->
+                state.copy(
+                    lastAction = "金币不足，无法购买药水",
+                    log = state.log + "金币不足，无法购买${POTION_NAME}"
+                )
+            }
+            return
+        }
+        val nextGold = current.player.gold - price
+        val nextPotion = current.player.potionCount + 1
+        GameLogger.info(
+            "商店系统",
+            "购买药水：名称=$POTION_NAME 价格=$price 金币 剩余金币=$nextGold 药水数量=$nextPotion"
+        )
+        _state.update { state ->
+            state.copy(
+                player = state.player.copy(
+                    gold = nextGold,
+                    potionCount = nextPotion
+                ),
+                lastAction = "购买${POTION_NAME}",
+                log = state.log + "购买${POTION_NAME} -$price 金币（剩余药水 $nextPotion）"
             )
         }
     }
@@ -1175,7 +1279,7 @@ class GameViewModel(
         } else {
             roles.firstOrNull { it.unlocked }?.id ?: ""
         }
-        val normalizedPlayer = normalizePlayerStats(saveGame.player, "读取存档")
+        val normalizedPlayer = normalizePlayerStats(saveGame.player, validRoleId, "读取存档")
         val choices = buildEventChoices(
             event,
             saveGame.chapter,
@@ -1383,7 +1487,9 @@ class GameViewModel(
             materials = 0,
             baseStats = base,
             equipment = EquipmentLoadout(),
-            inventory = InventoryState()
+            inventory = InventoryState(),
+            potionCount = 0,
+            battleSkillSlots = normalizeBattleSkillSlots(emptyList(), role.id, "应用角色")
         )
         return recalculatePlayerStats(raw, "应用角色")
     }
@@ -1897,7 +2003,7 @@ class GameViewModel(
         return expBase + (safeLevel - 1) * expGrowth
     }
 
-    private fun normalizePlayerStats(player: PlayerStats, reason: String): PlayerStats {
+    private fun normalizePlayerStats(player: PlayerStats, roleId: String, reason: String): PlayerStats {
         val base = if (player.baseStats.hpMax <= 0 || player.baseStats.atk <= 0) {
             PlayerBaseStats(
                 hpMax = player.hpMax.coerceAtLeast(1),
@@ -1929,9 +2035,29 @@ class GameViewModel(
             exp = player.exp.coerceAtLeast(0),
             expToNext = expToNext
         )
-        val synced = syncDiscoveredEquipment(normalized, reason)
+        val battleReady = normalizeBattleConfig(normalized, roleId, reason)
+        val synced = syncDiscoveredEquipment(battleReady, reason)
         val sanitized = sanitizeDuplicateEquipments(synced, reason)
         return recalculatePlayerStats(sanitized, reason)
+    }
+
+    private fun normalizeBattleConfig(player: PlayerStats, roleId: String, reason: String): PlayerStats {
+        val normalizedSlots = normalizeBattleSkillSlots(
+            slots = player.battleSkillSlots,
+            roleId = roleId,
+            reason = reason
+        )
+        val safePotion = player.potionCount.coerceAtLeast(0)
+        if (normalizedSlots != player.battleSkillSlots || safePotion != player.potionCount) {
+            GameLogger.info(
+                logTag,
+                "战斗配置修正：药水=${player.potionCount}->$safePotion 槽位=${player.battleSkillSlots.joinToString()} -> ${normalizedSlots.joinToString()} 原因=$reason"
+            )
+        }
+        return player.copy(
+            potionCount = safePotion,
+            battleSkillSlots = normalizedSlots
+        )
     }
 
     private fun syncDiscoveredEquipment(player: PlayerStats, reason: String): PlayerStats {
@@ -2409,12 +2535,28 @@ class GameViewModel(
             }
         }
 
+        val potionSlotIndex = when (choiceId) {
+            BATTLE_CHOICE_POTION_1 -> 1
+            BATTLE_CHOICE_POTION_2 -> 2
+            BATTLE_CHOICE_ITEM -> 1
+            else -> 0
+        }
+        if (potionSlotIndex > 0) {
+            val potionCount = _state.value.player.potionCount
+            if (potionCount < potionSlotIndex) {
+                val message = "药水数量不足，无法使用（当前 $potionCount）"
+                GameLogger.warn(logTag, message)
+                _state.update { it.copy(lastAction = message, log = it.log + message) }
+                return
+            }
+        }
+
         val action = when {
-            choiceId == "battle_attack" -> PlayerBattleAction(PlayerBattleActionType.BASIC_ATTACK)
+            choiceId == BATTLE_CHOICE_ATTACK -> PlayerBattleAction(PlayerBattleActionType.BASIC_ATTACK)
             skillId != null -> PlayerBattleAction(PlayerBattleActionType.SKILL, skillDefinitionMap[skillId])
-            choiceId == "battle_item" -> PlayerBattleAction(PlayerBattleActionType.ITEM)
-            choiceId == "battle_equip" -> PlayerBattleAction(PlayerBattleActionType.EQUIP)
-            choiceId == "battle_flee" -> PlayerBattleAction(PlayerBattleActionType.FLEE)
+            potionSlotIndex > 0 -> PlayerBattleAction(PlayerBattleActionType.ITEM)
+            choiceId == BATTLE_CHOICE_EQUIP -> PlayerBattleAction(PlayerBattleActionType.EQUIP)
+            choiceId == BATTLE_CHOICE_FLEE -> PlayerBattleAction(PlayerBattleActionType.FLEE)
             else -> PlayerBattleAction(PlayerBattleActionType.BASIC_ATTACK)
         }
 
@@ -2431,7 +2573,19 @@ class GameViewModel(
             step = enemyStep
         }
 
-        updateBattleState(sessionAfter, newLogs)
+        val potionPlayer = if (potionSlotIndex > 0) {
+            val beforeCount = _state.value.player.potionCount
+            val nextCount = (beforeCount - 1).coerceAtLeast(0)
+            GameLogger.info(
+                logTag,
+                "消耗药水：槽位=$potionSlotIndex 之前=$beforeCount 之后=$nextCount"
+            )
+            newLogs = newLogs + "消耗${POTION_NAME} x1，剩余 $nextCount"
+            _state.value.player.copy(potionCount = nextCount)
+        } else {
+            null
+        }
+        updateBattleState(sessionAfter, newLogs, potionPlayer)
 
         val outcome = step.outcome
         if (outcome != null) {
@@ -2470,11 +2624,11 @@ class GameViewModel(
             finishBattle(event, outcome)
             return
         }
-        val playerSkills = currentRoleSkillDefinitions()
+        val playerSkills = resolveBattleSkillDefinitions(current.player)
         val playerCooldowns = buildPlayerSkillCooldowns(playerSkills)
         GameLogger.info(
             logTag,
-            "进入战斗技能准备：角色=${_state.value.selectedRoleId} 技能数量=${playerSkills.size}"
+            "进入战斗技能准备：角色=${_state.value.selectedRoleId} 技能数量=${playerSkills.size} 槽位=${current.player.battleSkillSlots.joinToString()}"
         )
         val session = turnEngine.startSession(
             player = context.player,
@@ -2511,9 +2665,14 @@ class GameViewModel(
         }
     }
 
-    private fun updateBattleState(session: BattleSession, newLogs: List<String>) {
+    private fun updateBattleState(
+        session: BattleSession,
+        newLogs: List<String>,
+        playerOverride: PlayerStats? = null
+    ) {
         battleSession = session
-        val skillSummary = buildSkillCooldownSummary(session)
+        val basePlayer = playerOverride ?: _state.value.player
+        val skillSummary = buildSkillCooldownSummary(session, basePlayer)
         val battleState = BattleUiState(
             round = session.round,
             playerHp = session.player.hp,
@@ -2526,9 +2685,9 @@ class GameViewModel(
             playerStatuses = session.player.statuses,
             enemyStatuses = session.enemy.statuses
         )
-        val choices = buildBattleChoices(session)
+        val choices = buildBattleChoices(session, basePlayer)
         _state.update { current ->
-            val syncedPlayer = syncBattlePlayerStats(current.player, session)
+            val syncedPlayer = syncBattlePlayerStats(playerOverride ?: current.player, session)
             current.copy(
                 player = syncedPlayer,
                 battle = battleState,
@@ -2546,7 +2705,7 @@ class GameViewModel(
         logLine: String,
         lastAction: String
     ) {
-        val skillSummary = buildSkillCooldownSummary(session)
+        val skillSummary = buildSkillCooldownSummary(session, updatedPlayer)
         val battleState = BattleUiState(
             round = session.round,
             playerHp = session.player.hp,
@@ -2559,7 +2718,7 @@ class GameViewModel(
             playerStatuses = session.player.statuses,
             enemyStatuses = session.enemy.statuses
         )
-        val choices = buildBattleChoices(session)
+        val choices = buildBattleChoices(session, updatedPlayer)
         _state.update { current ->
             current.copy(
                 player = updatedPlayer,
@@ -2742,8 +2901,8 @@ class GameViewModel(
         )
     }
 
-    private fun buildBattleChoices(session: BattleSession): List<GameChoice> {
-        val skills = currentRoleSkillDefinitions()
+    private fun buildBattleChoices(session: BattleSession, player: PlayerStats = _state.value.player): List<GameChoice> {
+        val skills = resolveBattleSkillDefinitions(player)
         if (skills.isNotEmpty() && session.playerSkillCooldowns.isEmpty()) {
             GameLogger.warn(logTag, "战斗技能冷却为空，技能数量=${skills.size}")
         }
@@ -2761,17 +2920,21 @@ class GameViewModel(
             GameLogger.info(logTag, "战斗技能选项生成：总数=${skillChoices.size} 可用=$enabledCount")
         }
         val equipLabel = "换装备（${equipmentModeLabel(session.equipmentMode)}）"
+        val potionCount = player.potionCount.coerceAtLeast(0)
+        val potionLabel1 = "药水1（剩余$potionCount）"
+        val potionLabel2 = "药水2（剩余$potionCount）"
         val baseChoices = listOf(
-            GameChoice("battle_attack", "普通攻击"),
-            GameChoice("battle_item", "使用药丸"),
-            GameChoice("battle_equip", equipLabel),
-            GameChoice("battle_flee", "撤离战斗")
+            GameChoice(BATTLE_CHOICE_ATTACK, "普通攻击"),
+            GameChoice(BATTLE_CHOICE_POTION_1, potionLabel1, enabled = potionCount >= 1),
+            GameChoice(BATTLE_CHOICE_POTION_2, potionLabel2, enabled = potionCount >= 2),
+            GameChoice(BATTLE_CHOICE_EQUIP, equipLabel),
+            GameChoice(BATTLE_CHOICE_FLEE, "撤离战斗")
         )
         return baseChoices + skillChoices
     }
 
-    private fun buildSkillCooldownSummary(session: BattleSession): String {
-        val skills = currentRoleSkillDefinitions()
+    private fun buildSkillCooldownSummary(session: BattleSession, player: PlayerStats = _state.value.player): String {
+        val skills = resolveBattleSkillDefinitions(player)
         if (skills.isEmpty()) return "无技能"
         val cooldowns = session.playerSkillCooldowns
         return skills.joinToString(" / ") { skill ->
@@ -2780,34 +2943,97 @@ class GameViewModel(
         }
     }
 
-    private fun currentRoleSkillDefinitions(): List<SkillDefinition> {
-        val roleId = _state.value.selectedRoleId
+    private fun roleSkillIds(roleId: String): List<String> {
         val character = characterDefinitions.firstOrNull { it.id == roleId }
         if (character == null) {
             GameLogger.warn(logTag, "未找到角色技能配置：角色编号=$roleId")
             return emptyList()
         }
-        val skillList = mutableListOf<SkillDefinition>()
-        character.activeSkillIds.forEach { skillId ->
-            val definition = skillDefinitionMap[skillId]
-            if (definition == null) {
-                GameLogger.warn(logTag, "主动技能缺失：角色=$roleId 技能编号=$skillId")
-            } else {
-                skillList += definition
+        return buildList {
+            addAll(character.activeSkillIds)
+            if (character.ultimateSkillId.isNotBlank()) {
+                add(character.ultimateSkillId)
             }
         }
-        if (character.ultimateSkillId.isNotBlank()) {
-            val ultimate = skillDefinitionMap[character.ultimateSkillId]
-            if (ultimate == null) {
-                GameLogger.warn(logTag, "终极技能缺失：角色=$roleId 技能编号=${character.ultimateSkillId}")
+    }
+
+    private fun roleSkillDefinitions(roleId: String): List<SkillDefinition> {
+        val skillIds = roleSkillIds(roleId)
+        val skillList = mutableListOf<SkillDefinition>()
+        skillIds.forEach { skillId ->
+            val definition = skillDefinitionMap[skillId]
+            if (definition == null) {
+                GameLogger.warn(logTag, "技能缺失：角色=$roleId 技能编号=$skillId")
             } else {
-                skillList += ultimate
+                skillList += definition
             }
         }
         if (skillList.isEmpty()) {
             GameLogger.warn(logTag, "角色无可用技能：角色编号=$roleId")
         }
         return skillList.distinctBy { it.id }
+    }
+
+    private fun currentRoleSkillDefinitions(): List<SkillDefinition> {
+        return roleSkillDefinitions(_state.value.selectedRoleId)
+    }
+
+    private fun resolveBattleSkillDefinitions(player: PlayerStats): List<SkillDefinition> {
+        val roleId = _state.value.selectedRoleId
+        val available = roleSkillDefinitions(roleId)
+        if (available.isEmpty()) return emptyList()
+        val normalizedSlots = normalizeBattleSkillSlots(
+            slots = player.battleSkillSlots,
+            roleId = roleId,
+            reason = "战斗技能解析"
+        )
+        val availableMap = available.associateBy { it.id }
+        val selected = normalizedSlots
+            .filter { it.isNotBlank() }
+            .mapNotNull { availableMap[it] }
+        if (selected.isEmpty()) {
+            GameLogger.info(logTag, "战斗技能槽为空，当前无可用技能")
+        }
+        return selected
+    }
+
+    private fun normalizeBattleSkillSlots(
+        slots: List<String>,
+        roleId: String,
+        reason: String
+    ): List<String> {
+        val availableIds = roleSkillIds(roleId).toSet()
+        if (availableIds.isEmpty()) {
+            return List(maxBattleSkillSlots) { "" }
+        }
+        val baseSlots = if (slots.isEmpty()) {
+            val defaults = roleSkillIds(roleId).distinct().take(maxBattleSkillSlots)
+            defaults + List(maxBattleSkillSlots - defaults.size) { "" }
+        } else {
+            List(maxBattleSkillSlots) { index ->
+                slots.getOrNull(index).orEmpty()
+            }
+        }
+        val occupied = mutableSetOf<String>()
+        val sanitized = baseSlots.map { skillId ->
+            val trimmed = skillId.trim()
+            if (trimmed.isBlank()) return@map ""
+            if (!availableIds.contains(trimmed)) {
+                return@map ""
+            }
+            if (occupied.contains(trimmed)) {
+                return@map ""
+            }
+            occupied += trimmed
+            trimmed
+        }
+        if (sanitized != baseSlots) {
+            GameLogger.info(
+                logTag,
+                "战斗技能槽位已规范化：原因=$reason 原始=${baseSlots.joinToString()} 结果=${sanitized.joinToString()}"
+            )
+        }
+        return sanitized
     }
 
     private fun buildPlayerSkillCooldowns(skills: List<SkillDefinition>): Map<String, Int> {
@@ -2817,13 +3043,9 @@ class GameViewModel(
         return cooldowns
     }
 
-    private fun buildBattleSkillChoiceId(skillId: String): String {
-        return "$battleSkillChoicePrefix$skillId"
-    }
-
     private fun parseBattleSkillChoiceId(choiceId: String): String? {
-        return if (choiceId.startsWith(battleSkillChoicePrefix)) {
-            choiceId.removePrefix(battleSkillChoicePrefix)
+        return if (choiceId.startsWith(BATTLE_SKILL_CHOICE_PREFIX)) {
+            choiceId.removePrefix(BATTLE_SKILL_CHOICE_PREFIX)
         } else {
             null
         }

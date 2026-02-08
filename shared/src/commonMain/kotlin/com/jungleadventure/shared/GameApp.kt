@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -42,6 +44,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.CompositionLocalProvider
@@ -51,11 +54,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.pointer.pointerMoveFilter
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -74,6 +83,9 @@ import kotlin.math.roundToInt
 private val LocalResourceReader = staticCompositionLocalOf<ResourceReader> {
     error("未提供ResourceReader")
 }
+
+private const val BattleSkillSlotCount = 5
+private const val BattlePotionSlotCount = 2
 
 @Composable
 fun GameApp(
@@ -114,8 +126,16 @@ fun GameApp(
                         onToggleShopOfferSelection = viewModel::onToggleShopOfferSelection,
                         onToggleShopSellSelection = viewModel::onToggleShopSellSelection,
                         onShopBuySelected = viewModel::onShopBuySelected,
+                        onShopBuyPotion = viewModel::onShopBuyPotion,
                         onShopSellSelected = viewModel::onShopSellSelected,
                         onShopLeave = viewModel::onShopLeave,
+                        onOpenStatus = viewModel::onOpenStatus,
+                        onOpenEquipment = viewModel::onOpenEquipment,
+                        onOpenInventory = viewModel::onOpenInventory,
+                        onOpenCards = viewModel::onOpenCards,
+                        onOpenSkills = viewModel::onOpenSkills,
+                        onAssignBattleSkill = viewModel::onAssignBattleSkill,
+                        onClearBattleSkill = viewModel::onClearBattleSkill,
                         showSkillFormula = state.showSkillFormula,
                         onToggleShowSkillFormula = viewModel::onToggleShowSkillFormula
                     )
@@ -224,8 +244,16 @@ private fun MainPanel(
     onToggleShopOfferSelection: (String) -> Unit,
     onToggleShopSellSelection: (String) -> Unit,
     onShopBuySelected: () -> Unit,
+    onShopBuyPotion: () -> Unit,
     onShopSellSelected: () -> Unit,
     onShopLeave: () -> Unit,
+    onOpenStatus: () -> Unit,
+    onOpenEquipment: () -> Unit,
+    onOpenInventory: () -> Unit,
+    onOpenCards: () -> Unit,
+    onOpenSkills: () -> Unit,
+    onAssignBattleSkill: (Int, String) -> Unit,
+    onClearBattleSkill: (Int) -> Unit,
     showSkillFormula: Boolean,
     onToggleShowSkillFormula: (Boolean) -> Unit
 ) {
@@ -282,7 +310,9 @@ private fun MainPanel(
                         Divider(modifier = Modifier.padding(vertical = 8.dp))
                         RoleDetailPanel(
                             state = state,
-                            showSkillFormula = showSkillFormula
+                            showSkillFormula = showSkillFormula,
+                            onAssignBattleSkill = onAssignBattleSkill,
+                            onClearBattleSkill = onClearBattleSkill
                         )
                     }
                 }
@@ -344,23 +374,33 @@ private fun MainPanel(
                         }
                     }
                 }
-                if (state.battle == null) {
-                    if (isShopEventUi(state.currentEvent)) {
-                        ShopPanel(
-                            state = state,
-                            onToggleShopOfferSelection = onToggleShopOfferSelection,
-                            onToggleShopSellSelection = onToggleShopSellSelection,
-                            onShopBuySelected = onShopBuySelected,
-                            onShopSellSelected = onShopSellSelected,
-                            onShopLeave = onShopLeave
-                        )
-                    } else {
-                        EventActionPanel(
-                            choices = state.choices,
-                            onChoice = onChoice,
-                            onAdvance = onAdvance
-                        )
-                    }
+                if (state.battle != null) {
+                    BattleOperationPanel(
+                        player = state.player,
+                        choices = state.choices,
+                        onChoice = onChoice,
+                        onOpenStatus = onOpenStatus,
+                        onOpenEquipment = onOpenEquipment,
+                        onOpenInventory = onOpenInventory,
+                        onOpenCards = onOpenCards,
+                        onOpenSkills = onOpenSkills
+                    )
+                } else if (isShopEventUi(state.currentEvent)) {
+                    ShopPanel(
+                        state = state,
+                        onToggleShopOfferSelection = onToggleShopOfferSelection,
+                        onToggleShopSellSelection = onToggleShopSellSelection,
+                        onShopBuySelected = onShopBuySelected,
+                        onShopBuyPotion = onShopBuyPotion,
+                        onShopSellSelected = onShopSellSelected,
+                        onShopLeave = onShopLeave
+                    )
+                } else {
+                    EventActionPanel(
+                        choices = state.choices,
+                        onChoice = onChoice,
+                        onAdvance = onAdvance
+                    )
                 }
             }
         }
@@ -824,10 +864,7 @@ private fun SidePanel(
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(text = "装备面板", fontWeight = FontWeight.Bold)
                     Divider(modifier = Modifier.padding(vertical = 6.dp))
-                    EquipmentOverviewPanel(
-                        player = state.player,
-                        onShowEquipmentDetail = onShowEquipmentDetail
-                    )
+                    EquipmentOverviewPanel(player = state.player)
                 }
             }
             Card(modifier = Modifier.fillMaxWidth()) {
@@ -890,11 +927,21 @@ private fun SidePanel(
 @Composable
 private fun RoleDetailPanel(
     state: GameUiState,
-    showSkillFormula: Boolean
+    showSkillFormula: Boolean,
+    onAssignBattleSkill: (Int, String) -> Unit,
+    onClearBattleSkill: (Int) -> Unit
 ) {
     val player = state.player
     val role = state.roles.firstOrNull { it.id == state.selectedRoleId }
         ?: state.roles.firstOrNull { it.unlocked }
+    val roleId = role?.id ?: state.selectedRoleId
+    val availableSkills = if (roleId.isBlank()) {
+        emptyList()
+    } else {
+        state.skillCatalog.filter { entry ->
+            entry.sourceRoleIds.contains(roleId) && !entry.type.equals("PASSIVE", true)
+        }
+    }
     val hit = (70 + player.speed + player.hitBonus).coerceIn(50, 98)
     val eva = (8 + player.speed / 2 + player.evaBonus).coerceIn(5, 45)
     val crit = (6 + player.speed / 3 + player.critBonus).coerceIn(5, 40)
@@ -930,6 +977,14 @@ private fun RoleDetailPanel(
         )
         SkillCatalogSummary(role = role, showSkillFormula = showSkillFormula)
         Divider(modifier = Modifier.padding(vertical = 4.dp))
+        Text(text = "战斗选项配置", fontWeight = FontWeight.SemiBold)
+        BattleOptionConfigPanel(
+            player = player,
+            availableSkills = availableSkills,
+            onAssignBattleSkill = onAssignBattleSkill,
+            onClearBattleSkill = onClearBattleSkill
+        )
+        Divider(modifier = Modifier.padding(vertical = 4.dp))
         Text(text = "状态与效果", fontWeight = FontWeight.SemiBold)
         if (state.playerStatuses.isEmpty()) {
             Text(text = "暂无状态", color = Color(0xFF7B756B))
@@ -941,6 +996,231 @@ private fun RoleDetailPanel(
             }
         }
     }
+}
+
+private data class BattleDragSkill(
+    val id: String,
+    val name: String
+)
+
+@Composable
+private fun BattleOptionConfigPanel(
+    player: PlayerStats,
+    availableSkills: List<SkillCatalogEntry>,
+    onAssignBattleSkill: (Int, String) -> Unit,
+    onClearBattleSkill: (Int) -> Unit
+) {
+    val slotIds = remember(player.battleSkillSlots) {
+        normalizeBattleSkillSlotsForUi(player.battleSkillSlots)
+    }
+    val slotBounds = remember { mutableStateMapOf<Int, Rect>() }
+    var draggingSkill by remember { mutableStateOf<BattleDragSkill?>(null) }
+    var dragPosition by remember { mutableStateOf(Offset.Zero) }
+    var containerOffset by remember { mutableStateOf(Offset.Zero) }
+    val potionCount = player.potionCount.coerceAtLeast(0)
+    val sortedSkills = remember(availableSkills) {
+        availableSkills.sortedWith(compareBy<SkillCatalogEntry> { it.type }.thenBy { it.name })
+    }
+
+    fun handleDrop() {
+        val dragging = draggingSkill ?: return
+        val target = slotBounds.entries.firstOrNull { it.value.contains(dragPosition) }?.key
+        if (target != null) {
+            GameLogger.info(
+                "战斗配置",
+                "拖动技能命中槽位：技能=${dragging.name} 槽位=${target + 1}"
+            )
+            onAssignBattleSkill(target, dragging.id)
+        } else {
+            GameLogger.info("战斗配置", "拖动技能未命中槽位：技能=${dragging.name}")
+        }
+        draggingSkill = null
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .onGloballyPositioned { coords ->
+                containerOffset = coords.positionInRoot()
+            }
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = "拖动技能到下方槽位，最多配置 ${BattleSkillSlotCount} 个技能。",
+                color = Color(0xFF7B756B)
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF182720)),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(text = "普通攻击", fontWeight = FontWeight.SemiBold)
+                        Text(text = "默认可用", color = Color(0xFF7B756B))
+                    }
+                }
+                repeat(BattlePotionSlotCount) { index ->
+                    val enabled = potionCount >= index + 1
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (enabled) Color(0xFF182720) else Color(0xFF222B26)
+                        ),
+                        border = BorderStroke(1.dp, if (enabled) Color(0xFF3A5C4C) else Color(0xFF2C3B33)),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(text = "药水槽${index + 1}", fontWeight = FontWeight.SemiBold)
+                            Text(
+                                text = "剩余 $potionCount",
+                                color = if (enabled) Color(0xFF8DB38B) else Color(0xFF7B756B)
+                            )
+                        }
+                    }
+                }
+            }
+            Text(text = "战斗技能槽位", fontWeight = FontWeight.SemiBold)
+            val rows = slotIds.chunked(3)
+            rows.forEachIndexed { rowIndex, rowSlots ->
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    rowSlots.forEachIndexed { columnIndex, skillId ->
+                        val slotIndex = rowIndex * 3 + columnIndex
+                        val entry = sortedSkills.firstOrNull { it.id == skillId }
+                        val label = entry?.name ?: "空槽"
+                        val isEmpty = skillId.isBlank() || entry == null
+                        val highlight = draggingSkill != null &&
+                            slotBounds[slotIndex]?.contains(dragPosition) == true
+                        val borderColor = if (highlight) Color(0xFF8DB38B) else Color(0xFF2C3B33)
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (highlight) Color(0xFF1D2D26) else Color(0xFF182720)
+                            ),
+                            border = BorderStroke(1.dp, borderColor),
+                            modifier = Modifier
+                                .weight(1f)
+                                .onGloballyPositioned { coords ->
+                                    slotBounds[slotIndex] = coords.boundsInRoot()
+                                }
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(text = "槽位 ${slotIndex + 1}", color = Color(0xFF7B756B))
+                                Text(
+                                    text = label,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (isEmpty) Color(0xFF7B756B) else Color(0xFFECE8D9),
+                                    textAlign = TextAlign.Center
+                                )
+                                if (!isEmpty) {
+                                    Text(
+                                        text = "清空",
+                                        color = Color(0xFFD6B36A),
+                                        modifier = Modifier.clickable {
+                                            GameLogger.info("战斗配置", "点击清空技能槽位：槽位=${slotIndex + 1}")
+                                            onClearBattleSkill(slotIndex)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    val missing = 3 - rowSlots.size
+                    if (missing > 0) {
+                        Spacer(modifier = Modifier.weight(missing.toFloat()))
+                    }
+                }
+            }
+            Text(text = "技能池", fontWeight = FontWeight.SemiBold)
+            if (sortedSkills.isEmpty()) {
+                PlaceholderPanel("暂无可配置技能")
+            } else {
+                val skillRows = sortedSkills.chunked(2)
+                skillRows.forEach { rowSkills ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        rowSkills.forEach { skill ->
+                            var coordinates by remember(skill.id) { mutableStateOf<LayoutCoordinates?>(null) }
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF182720)),
+                                border = BorderStroke(1.dp, Color(0xFF2C3B33)),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .onGloballyPositioned { coords -> coordinates = coords }
+                                    .pointerInput(skill.id) {
+                                        detectDragGestures(
+                                            onDragStart = { offset ->
+                                                val rootOffset = coordinates?.localToRoot(offset) ?: offset
+                                                draggingSkill = BattleDragSkill(skill.id, skill.name)
+                                                dragPosition = rootOffset
+                                                GameLogger.info("战斗配置", "开始拖动技能：${skill.name}")
+                                            },
+                                            onDragCancel = {
+                                                GameLogger.info("战斗配置", "拖动技能取消：${skill.name}")
+                                                draggingSkill = null
+                                            },
+                                            onDragEnd = {
+                                                handleDrop()
+                                            },
+                                            onDrag = { change, dragAmount ->
+                                                change.consume()
+                                                dragPosition += dragAmount
+                                            }
+                                        )
+                                    }
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(text = skill.name, fontWeight = FontWeight.SemiBold)
+                                    Text(
+                                        text = "类型 ${skillTypeLabel(skill.type)} | 消耗 ${skill.cost} | 冷却 ${skill.cooldown}",
+                                        color = Color(0xFF7B756B)
+                                    )
+                                }
+                            }
+                        }
+                        if (rowSkills.size < 2) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+            Text(
+                text = "药水可在商店购买，战斗中消耗后立即生效。",
+                color = Color(0xFF7B756B)
+            )
+        }
+        if (draggingSkill != null) {
+            val localOffset = dragPosition - containerOffset + Offset(12f, 12f)
+            Box(
+                modifier = Modifier
+                    .offset { IntOffset(localOffset.x.roundToInt(), localOffset.y.roundToInt()) }
+                    .background(Color(0xFF26362E), RoundedCornerShape(10.dp))
+                    .border(1.dp, Color(0xFF8DB38B), RoundedCornerShape(10.dp))
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Text(text = draggingSkill?.name.orEmpty(), fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
+
+private fun normalizeBattleSkillSlotsForUi(slots: List<String>): List<String> {
+    val normalized = MutableList(BattleSkillSlotCount) { "" }
+    slots.take(BattleSkillSlotCount).forEachIndexed { index, skillId ->
+        normalized[index] = skillId
+    }
+    return normalized
 }
 
 @Composable
@@ -1981,6 +2261,7 @@ private fun ShopPanel(
     onToggleShopOfferSelection: (String) -> Unit,
     onToggleShopSellSelection: (String) -> Unit,
     onShopBuySelected: () -> Unit,
+    onShopBuyPotion: () -> Unit,
     onShopSellSelected: () -> Unit,
     onShopLeave: () -> Unit
 ) {
@@ -2031,6 +2312,23 @@ private fun ShopPanel(
                 Text(text = "购买合计：${state.shopBuyTotal} 金币", color = Color(0xFFB8B2A6))
                 Text(text = "出售合计：${state.shopSellTotal} 金币", color = Color(0xFFB8B2A6))
                 Text(text = "当前金币：${state.player.gold}", color = Color(0xFF8DB38B))
+                Divider(modifier = Modifier.padding(vertical = 4.dp))
+                Text(text = "补给区", fontWeight = FontWeight.SemiBold)
+                Text(
+                    text = "药水数量：${state.player.potionCount}",
+                    color = Color(0xFFB8B2A6)
+                )
+                Text(
+                    text = "单价：${POTION_PRICE} 金币",
+                    color = Color(0xFF7B756B)
+                )
+                Button(
+                    onClick = onShopBuyPotion,
+                    enabled = state.player.gold >= POTION_PRICE,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("购买${POTION_NAME}")
+                }
                 Divider(modifier = Modifier.padding(vertical = 4.dp))
                 Button(onClick = onShopBuySelected, modifier = Modifier.fillMaxWidth()) {
                     Text("购买选中")
@@ -2186,6 +2484,7 @@ private fun BattleInfoPanel(
 
 @Composable
 private fun BattleOperationPanel(
+    player: PlayerStats,
     choices: List<GameChoice>,
     onChoice: (String) -> Unit,
     onOpenStatus: () -> Unit,
@@ -2195,58 +2494,76 @@ private fun BattleOperationPanel(
     onOpenSkills: () -> Unit
 ) {
     val choiceMap = choices.associateBy { it.id }
-    val skillChoices = choices.filter { it.id.startsWith("battle_skill_") }
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(12.dp)) {
             Text(text = "战斗操作", fontWeight = FontWeight.Bold)
             Divider(modifier = Modifier.padding(vertical = 8.dp))
+            Text(text = "战斗选项", fontWeight = FontWeight.SemiBold)
+            Spacer(modifier = Modifier.height(4.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                val attack = choiceMap[BATTLE_CHOICE_ATTACK]
                 ActionIconButton(
                     label = "攻击",
-                    enabled = choiceMap["battle_attack"]?.enabled == true,
-                    onClick = { onChoice("battle_attack") }
+                    enabled = attack?.enabled == true,
+                    onClick = { onChoice(BATTLE_CHOICE_ATTACK) }
                 )
+                val potion1 = choiceMap[BATTLE_CHOICE_POTION_1]
                 ActionIconButton(
-                    label = "药丸",
-                    enabled = choiceMap["battle_item"]?.enabled == true,
-                    onClick = { onChoice("battle_item") }
+                    label = "药水1",
+                    enabled = potion1?.enabled == true,
+                    onClick = { onChoice(BATTLE_CHOICE_POTION_1) }
                 )
+                val potion2 = choiceMap[BATTLE_CHOICE_POTION_2]
                 ActionIconButton(
-                    label = "换装",
-                    enabled = choiceMap["battle_equip"]?.enabled == true,
-                    onClick = { onChoice("battle_equip") }
+                    label = "药水2",
+                    enabled = potion2?.enabled == true,
+                    onClick = { onChoice(BATTLE_CHOICE_POTION_2) }
                 )
             }
+            Text(text = "药水剩余：${player.potionCount}", color = Color(0xFF7B756B))
             Spacer(modifier = Modifier.height(6.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ActionIconButton(
-                    label = "撤离",
-                    enabled = choiceMap["battle_flee"]?.enabled == true,
-                    onClick = { onChoice("battle_flee") }
-                )
-            }
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
-            Text(text = "技能列表", fontWeight = FontWeight.SemiBold)
+            Text(text = "技能栏", fontWeight = FontWeight.SemiBold)
             Spacer(modifier = Modifier.height(4.dp))
-            if (skillChoices.isEmpty()) {
-                PlaceholderPanel("暂无可用技能")
+            val slotIds = normalizeBattleSkillSlotsForUi(player.battleSkillSlots)
+            if (slotIds.all { it.isBlank() }) {
+                PlaceholderPanel("未配置战斗技能")
             } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 220.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    items(skillChoices, key = { it.id }) { choice ->
-                        Button(
-                            onClick = { onChoice(choice.id) },
-                            enabled = choice.enabled,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(choice.label)
+                slotIds.chunked(2).forEach { rowSlots ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        rowSlots.forEach { skillId ->
+                            val choice = if (skillId.isNotBlank()) {
+                                choiceMap[buildBattleSkillChoiceId(skillId)]
+                            } else {
+                                null
+                            }
+                            Button(
+                                onClick = { choice?.let { onChoice(it.id) } },
+                                enabled = choice?.enabled == true,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(choice?.label ?: "空槽")
+                            }
+                        }
+                        if (rowSlots.size < 2) {
+                            Spacer(modifier = Modifier.weight(1f))
                         }
                     }
                 }
+            }
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            Text(text = "其他操作", fontWeight = FontWeight.SemiBold)
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ActionIconButton(
+                    label = "换装",
+                    enabled = choiceMap[BATTLE_CHOICE_EQUIP]?.enabled == true,
+                    onClick = { onChoice(BATTLE_CHOICE_EQUIP) }
+                )
+                ActionIconButton(
+                    label = "撤离",
+                    enabled = choiceMap[BATTLE_CHOICE_FLEE]?.enabled == true,
+                    onClick = { onChoice(BATTLE_CHOICE_FLEE) }
+                )
             }
             Divider(modifier = Modifier.padding(vertical = 8.dp))
             Text(text = "快捷面板", fontWeight = FontWeight.SemiBold)
