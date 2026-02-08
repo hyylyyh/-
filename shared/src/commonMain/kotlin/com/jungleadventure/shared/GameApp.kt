@@ -96,8 +96,8 @@ private val LocalResourceReader = staticCompositionLocalOf<ResourceReader> {
 
 private const val BattleSkillSlotCount = 5
 private const val BattlePotionSlotCount = 2
-private const val InventoryGridColumns = 6
-private const val InventoryGridRows = 9
+private const val InventoryGridColumns = 4
+private const val InventoryGridRows = 5
 private const val InventoryGridSize = InventoryGridColumns * InventoryGridRows
 private val BattleBaseTileWidth = 112.dp
 private val BattleBaseTileHeight = 56.dp
@@ -1254,12 +1254,15 @@ private fun InventoryOverviewPanel(
     onShowEquipmentDetail: (EquipmentItem?) -> Unit
 ) {
     val inventory = player.inventory
+    val redPotion = player.potionCount.coerceAtLeast(0)
+    val bluePotion = player.bluePotionCount.coerceAtLeast(0)
     Text("容量 ${inventory.items.size}/${inventory.capacity}", color = Color(0xFFB8B2A6))
+    Text(text = "消耗品：红药水 x$redPotion | 蓝药水 x$bluePotion", color = Color(0xFF7B756B))
     if (inventory.items.isEmpty()) {
         PlaceholderPanel("背包空空如也")
         return
     }
-    Text(text = "悬浮查看详情，点击图标查看装备详情", color = Color(0xFF7B756B))
+    Text(text = "悬浮或长按查看详情，点击图标查看装备详情", color = Color(0xFF7B756B))
     InventoryIconGrid(
         items = inventory.items,
         columns = 4,
@@ -1329,7 +1332,7 @@ private fun EquipmentIconCard(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        HoverTooltipBox(
+        HoverPressTooltipBox(
             logTag = "装备图标",
             logName = item?.name ?: slotName,
             tooltip = {
@@ -1396,9 +1399,13 @@ private fun InventoryIconCell(
     onItemClick: (EquipmentItem) -> Unit
 ) {
     val rarityColor = equipmentRarityColor(item.rarityTier, item.rarityId)
-    HoverTooltipBox(
+    HoverPressTooltipBox(
         logTag = logTag,
         logName = item.name,
+        onClick = {
+            GameLogger.info(logTag, "点击背包物品图标：${item.name} uid=${item.uid} 槽位=${item.slot}")
+            onItemClick(item)
+        },
         tooltip = {
             EquipmentTooltipCard(
                 slot = item.slot,
@@ -1406,15 +1413,11 @@ private fun InventoryIconCell(
             )
         }
     ) { baseModifier ->
-        val clickableModifier = baseModifier.clickable {
-            GameLogger.info(logTag, "点击背包物品图标：${item.name} uid=${item.uid} 槽位=${item.slot}")
-            onItemClick(item)
-        }
         EquipmentRarityIcon(
             label = equipmentSlotShortLabel(item.slot),
             color = rarityColor,
             size = iconSize,
-            modifier = clickableModifier
+            modifier = baseModifier
         )
     }
 }
@@ -1462,9 +1465,16 @@ private fun ShopInventoryIconCell(
     val rarityColor = equipmentRarityColor(item.rarityTier, item.rarityId)
     val borderColor = if (selected) Color(0xFF8DB38B) else Color(0xFF2C3B33)
     val borderWidth = if (selected) 2.dp else 1.dp
-    HoverTooltipBox(
+    HoverPressTooltipBox(
         logTag = "商店背包",
         logName = item.name,
+        onClick = {
+            GameLogger.info(
+                "商店背包",
+                "切换出售选择：${item.name} uid=${item.uid} 选中=${!selected}"
+            )
+            onToggleSelected(item.uid)
+        },
         tooltip = {
             EquipmentTooltipCard(
                 slot = item.slot,
@@ -1476,13 +1486,6 @@ private fun ShopInventoryIconCell(
             modifier = baseModifier
                 .border(borderWidth, borderColor, RoundedCornerShape(12.dp))
                 .padding(2.dp)
-                .clickable {
-                    GameLogger.info(
-                        "商店背包",
-                        "切换出售选择：${item.name} uid=${item.uid} 选中=${!selected}"
-                    )
-                    onToggleSelected(item.uid)
-                }
         ) {
             EquipmentRarityIcon(
                 label = equipmentSlotShortLabel(item.slot),
@@ -1715,7 +1718,7 @@ private fun SkillIconCard(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        HoverTooltipBox(
+        HoverPressTooltipBox(
             logTag = "技能图标",
             logName = entry.skill.name,
             tooltip = {
@@ -2001,7 +2004,7 @@ private fun EquipmentCatalogPanel(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        HoverTooltipBox(
+                        HoverPressTooltipBox(
                             logTag = "装备图鉴",
                             logName = entry.name,
                             tooltip = {
@@ -2117,7 +2120,7 @@ private fun SkillCatalogIconCard(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        HoverTooltipBox(
+        HoverPressTooltipBox(
             logTag = "技能图鉴",
             logName = entry.name,
             tooltip = {
@@ -2265,6 +2268,8 @@ private fun InventoryPanel(
     onEquipItem: (String) -> Unit
 ) {
     val inventory = player.inventory
+    val redPotion = player.potionCount.coerceAtLeast(0)
+    val bluePotion = player.bluePotionCount.coerceAtLeast(0)
     val slots = buildGridSlots(inventory.items)
     val rows = slots.chunked(InventoryGridColumns)
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -2272,7 +2277,8 @@ private fun InventoryPanel(
             "容量 ${inventory.items.size}/${inventory.capacity} | 网格 ${InventoryGridColumns}x${InventoryGridRows}",
             color = Color(0xFFB8B2A6)
         )
-        Text(text = "悬浮查看详情，点击图标即可装备", color = Color(0xFF7B756B))
+        Text(text = "消耗品：红药水 x$redPotion | 蓝药水 x$bluePotion", color = Color(0xFF7B756B))
+        Text(text = "悬浮或长按查看详情，点击图标即可装备", color = Color(0xFF7B756B))
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
@@ -2346,9 +2352,13 @@ private fun InventoryGridCell(
                 size = 40.dp
             )
         } else {
-            HoverTooltipBox(
+            HoverPressTooltipBox(
                 logTag = "背包网格",
                 logName = item.name,
+                onClick = {
+                    GameLogger.info("背包网格", "点击装备格：${item.name} uid=${item.uid}")
+                    onEquipItem(item.uid)
+                },
                 tooltip = {
                     EquipmentTooltipCard(
                         slot = item.slot,
@@ -2356,15 +2366,11 @@ private fun InventoryGridCell(
                     )
                 }
             ) { baseModifier ->
-                val clickableModifier = baseModifier.clickable {
-                    GameLogger.info("背包网格", "点击装备格：${item.name} uid=${item.uid}")
-                    onEquipItem(item.uid)
-                }
                 EquipmentRarityIcon(
                     label = label,
                     color = color,
                     size = 40.dp,
-                    modifier = clickableModifier
+                    modifier = baseModifier
                 )
             }
         }
@@ -2376,7 +2382,7 @@ private fun CardGridPanel(cards: List<CardInstance>) {
     val slots = buildCardGridSlots(cards)
     val rows = slots.chunked(InventoryGridColumns)
     Text(
-        text = "网格 ${InventoryGridColumns}x${InventoryGridRows}，悬浮查看卡牌详情",
+        text = "网格 ${InventoryGridColumns}x${InventoryGridRows}，悬浮或长按查看卡牌详情",
         color = Color(0xFF7B756B)
     )
     if (cards.isEmpty()) {
@@ -2423,7 +2429,7 @@ private fun CardGridCell(
                 size = 40.dp
             )
         } else {
-            HoverTooltipBox(
+            HoverPressTooltipBox(
                 logTag = "卡牌网格",
                 logName = card.name,
                 tooltip = {
@@ -3617,6 +3623,33 @@ private fun PressTooltipBox(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun HoverPressTooltipBox(
+    modifier: Modifier = Modifier,
+    logTag: String,
+    logName: String,
+    enabled: Boolean = true,
+    onClick: () -> Unit = {},
+    tooltip: @Composable () -> Unit,
+    content: @Composable (Modifier) -> Unit
+) {
+    PressTooltipBox(
+        modifier = modifier,
+        logTag = logTag,
+        logName = logName,
+        enabled = enabled,
+        onClick = onClick,
+        tooltip = tooltip
+    ) {
+        HoverTooltipBox(
+            logTag = logTag,
+            logName = logName,
+            tooltip = tooltip,
+            content = content
+        )
     }
 }
 

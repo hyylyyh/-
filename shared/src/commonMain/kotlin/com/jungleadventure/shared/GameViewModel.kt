@@ -1540,8 +1540,13 @@ class GameViewModel(
             baseStats = base,
             equipment = EquipmentLoadout(),
             inventory = InventoryState(),
-            potionCount = 0,
+            potionCount = 5,
+            bluePotionCount = 5,
             battleSkillSlots = normalizeBattleSkillSlots(emptyList(), role.id, "应用角色")
+        )
+        GameLogger.info(
+            logTag,
+            "初始消耗品：红药水=${raw.potionCount} 蓝药水=${raw.bluePotionCount} 角色=${role.name}"
         )
         return recalculatePlayerStats(raw, "应用角色")
     }
@@ -2078,11 +2083,19 @@ class GameViewModel(
         } else {
             player.hp
         }
+        val safeBluePotion = player.bluePotionCount.coerceAtLeast(0)
+        if (safeBluePotion != player.bluePotionCount) {
+            GameLogger.info(
+                logTag,
+                "消耗品修正：蓝药水=${player.bluePotionCount}->$safeBluePotion 原因=$reason"
+            )
+        }
         val normalized = player.copy(
             baseStats = base,
             hp = safeHp,
             exp = player.exp.coerceAtLeast(0),
-            expToNext = expToNext
+            expToNext = expToNext,
+            bluePotionCount = safeBluePotion
         )
         val battleReady = normalizeBattleConfig(normalized, roleId, reason)
         val synced = syncDiscoveredEquipment(battleReady, reason)
