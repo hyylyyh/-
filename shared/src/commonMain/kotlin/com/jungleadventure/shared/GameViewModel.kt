@@ -318,6 +318,23 @@ class GameViewModel(
         _state.update { it.copy(codexTab = tab, lastAction = "切换图鉴：${codexTabLabel(tab)}") }
     }
 
+    fun onShowEquipmentDetail(item: EquipmentItem?) {
+        if (item == null) {
+            GameLogger.warn(logTag, "请求装备详情失败：装备为空")
+            return
+        }
+        val message = buildEquipmentDetailMessage(item)
+        GameLogger.info(logTag, "展示装备详情：${item.name} 模板=${item.templateId}")
+        _state.update { state ->
+            state.copy(
+                showDialog = true,
+                dialogTitle = "装备详情",
+                dialogMessage = message,
+                lastAction = "查看装备详情：${item.name}"
+            )
+        }
+    }
+
     fun onOpenInventory() {
         GameLogger.info(logTag, "切换面板：背包")
         _state.update { it.copy(activePanel = GamePanel.INVENTORY, lastAction = "查看背包") }
@@ -591,6 +608,7 @@ class GameViewModel(
                 currentEvent = null,
                 enemyPreview = null,
                 battle = null,
+                playerStatuses = emptyList(),
                 choices = emptyList(),
                 lastAction = "已选择新存档槽位 $slot",
                 log = current.log + "已选择新存档槽位 $slot，请选择角色",
@@ -626,6 +644,7 @@ class GameViewModel(
                 currentEvent = null,
                 enemyPreview = null,
                 battle = null,
+                playerStatuses = emptyList(),
                 choices = emptyList(),
                 lastAction = "已返回主界面",
                 log = current.log + "返回主界面，重新选择存档与角色",
@@ -763,6 +782,7 @@ class GameViewModel(
                 currentEvent = nextEvent,
                 enemyPreview = enemyPreview,
                 battle = null,
+                playerStatuses = emptyList(),
                 choices = nextChoices,
                 log = state.log + listOf(stageLog) +
                     listOfNotNull(commandLog, guardianLog, nextEvent?.introText) +
@@ -844,6 +864,7 @@ class GameViewModel(
                 currentEvent = event,
                 enemyPreview = enemyPreview,
                 battle = null,
+                playerStatuses = emptyList(),
                 choices = choices,
                 activePanel = saveGame.activePanel,
                 showSkillFormula = saveGame.showSkillFormula,
@@ -914,6 +935,7 @@ class GameViewModel(
                 currentEvent = event,
                 enemyPreview = enemyPreview,
                 battle = null,
+                playerStatuses = emptyList(),
                 choices = choices,
                 log = current.log + listOf(stageLog) + listOfNotNull(commandLog, guardianLog, event?.introText)
             )
@@ -1359,6 +1381,66 @@ class GameViewModel(
 
     private fun estimateSellValue(item: EquipmentItem): Int {
         return (4 + item.rarityTier * 4 + item.level).coerceAtLeast(1)
+    }
+
+    private fun buildEquipmentDetailMessage(item: EquipmentItem): String {
+        val baseStats = formatStatsForDetail(item.stats)
+        val totalStats = formatStatsForDetail(item.totalStats())
+        val affixLines = if (item.affixes.isEmpty()) {
+            "无"
+        } else {
+            item.affixes.joinToString("，") { affix ->
+                "${statLabelForDetail(affix.type)}${signed(affix.value)}"
+            }
+        }
+        return buildString {
+            append("名称：${item.name}\n")
+            append("稀有度：${item.rarityName}\n")
+            append("部位：${equipmentSlotLabelForDetail(item.slot)}\n")
+            append("等级：${item.level}\n")
+            append("评分：${item.score}\n")
+            append("基础属性：$baseStats\n")
+            append("词条：$affixLines\n")
+            append("总属性：$totalStats\n")
+            if (item.source.isNotBlank()) {
+                append("来源：${item.source}\n")
+            }
+            if (item.obtainedAtTurn > 0) {
+                append("获取回合：${item.obtainedAtTurn}\n")
+            }
+        }
+    }
+
+    private fun formatStatsForDetail(stats: Map<StatType, Int>): String {
+        if (stats.isEmpty()) return "无"
+        return stats.entries.joinToString("，") { (type, value) ->
+            "${statLabelForDetail(type)}${signed(value)}"
+        }
+    }
+
+    private fun statLabelForDetail(type: StatType): String {
+        return when (type) {
+            StatType.HP -> "生命"
+            StatType.ATK -> "攻击"
+            StatType.DEF -> "防御"
+            StatType.SPEED -> "速度"
+            StatType.STR -> "力量"
+            StatType.INT -> "智力"
+            StatType.AGI -> "敏捷"
+            StatType.HIT -> "命中"
+            StatType.EVADE -> "闪避"
+            StatType.CRIT -> "暴击"
+            StatType.CRIT_RESIST -> "抗暴"
+        }
+    }
+
+    private fun equipmentSlotLabelForDetail(slot: com.jungleadventure.shared.loot.EquipmentSlot): String {
+        return when (slot) {
+            com.jungleadventure.shared.loot.EquipmentSlot.WEAPON -> "武器"
+            com.jungleadventure.shared.loot.EquipmentSlot.ARMOR -> "护甲"
+            com.jungleadventure.shared.loot.EquipmentSlot.HELM -> "头盔"
+            com.jungleadventure.shared.loot.EquipmentSlot.ACCESSORY -> "饰品"
+        }
     }
 
     private fun resolveLootTier(dropTableId: String, difficulty: Int): Int {
@@ -2078,6 +2160,7 @@ class GameViewModel(
                 player = syncedPlayer,
                 battle = battleState,
                 enemyPreview = buildEnemyPreview(current.currentEvent, syncedPlayer),
+                playerStatuses = session.player.statuses,
                 choices = choices,
                 log = current.log + newLogs
             )
@@ -2109,6 +2192,7 @@ class GameViewModel(
                 player = updatedPlayer,
                 battle = battleState,
                 enemyPreview = buildEnemyPreview(current.currentEvent, updatedPlayer),
+                playerStatuses = session.player.statuses,
                 choices = choices,
                 lastAction = lastAction,
                 log = current.log + logLine
@@ -2216,6 +2300,7 @@ class GameViewModel(
             state.copy(
                 player = rewardPlayer,
                 battle = null,
+                playerStatuses = emptyList(),
                 lastAction = outcomeText.ifBlank { "战斗结束" },
                 log = state.log + listOfNotNull(
                     outcomeText.ifBlank { null },
@@ -2847,6 +2932,7 @@ class GameViewModel(
                 currentEvent = shopEvent,
                 enemyPreview = null,
                 battle = null,
+                playerStatuses = emptyList(),
                 choices = choices,
                 lastAction = "商店出现",
                 log = state.log + listOf("精英/首领战后出现商店", shopEvent.introText)

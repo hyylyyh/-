@@ -19,6 +19,7 @@ data class GameUiState(
     val currentEvent: EventDefinition? = null,
     val enemyPreview: EnemyPreviewUiState? = null,
     val battle: BattleUiState? = null,
+    val playerStatuses: List<StatusInstance> = emptyList(),
     val log: List<String> = listOf("请选择存档：读取已有存档或创建新存档"),
     val choices: List<GameChoice> = listOf(),
     val activePanel: GamePanel = GamePanel.STATUS,

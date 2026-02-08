@@ -91,18 +91,8 @@ fun GameApp(
                 SidePanel(
                     modifier = Modifier.weight(0.8f),
                     state = state,
-                    onChoice = viewModel::onSelectChoice,
-                    onOpenStatus = viewModel::onOpenStatus,
-                    onOpenEquipment = viewModel::onOpenEquipment,
-                    onOpenEquipmentCatalog = viewModel::onOpenEquipmentCatalog,
                     onSelectCodexTab = viewModel::onSelectCodexTab,
-                    onOpenInventory = viewModel::onOpenInventory,
-                    onOpenCards = viewModel::onOpenCards,
-                    onOpenSkills = viewModel::onOpenSkills,
-                    onEquipItem = viewModel::onEquipItem,
-                    onUnequipSlot = viewModel::onUnequipSlot,
-                    onSave = viewModel::onSave,
-                    onLoad = viewModel::onLoad,
+                    onShowEquipmentDetail = viewModel::onShowEquipmentDetail,
                     onReturnToMain = viewModel::onReturnToMain,
                     onOpenChapterSelect = viewModel::onOpenChapterSelect,
                     showSkillFormula = state.showSkillFormula,
@@ -768,18 +758,8 @@ private fun RoleAvatar(name: String, size: Dp, background: Color, textColor: Col
 private fun SidePanel(
     modifier: Modifier,
     state: GameUiState,
-    onChoice: (String) -> Unit,
-    onOpenStatus: () -> Unit,
-    onOpenEquipment: () -> Unit,
-    onOpenEquipmentCatalog: () -> Unit,
     onSelectCodexTab: (CodexTab) -> Unit,
-    onOpenInventory: () -> Unit,
-    onOpenCards: () -> Unit,
-    onOpenSkills: () -> Unit,
-    onEquipItem: (String) -> Unit,
-    onUnequipSlot: (EquipmentSlot) -> Unit,
-    onSave: (Int) -> Unit,
-    onLoad: (Int) -> Unit,
+    onShowEquipmentDetail: (EquipmentItem?) -> Unit,
     onReturnToMain: () -> Unit,
     onOpenChapterSelect: () -> Unit,
     showSkillFormula: Boolean,
@@ -816,77 +796,34 @@ private fun SidePanel(
             }
         }
         Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text(text = "快捷面板", fontWeight = FontWeight.Bold)
+            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(text = "角色详情", fontWeight = FontWeight.Bold)
                 Divider(modifier = Modifier.padding(vertical = 8.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = onOpenStatus) { Text("状态") }
-                        Button(onClick = onOpenEquipment) { Text("装备") }
-                        Button(onClick = onOpenEquipmentCatalog) { Text("图鉴") }
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = onOpenInventory) { Text("背包") }
-                        Button(onClick = onOpenCards) { Text("卡牌") }
-                        Button(onClick = onOpenSkills) { Text("技能") }
-                    }
-                }
+                RoleDetailPanel(
+                    state = state,
+                    onShowEquipmentDetail = onShowEquipmentDetail,
+                    showSkillFormula = showSkillFormula
+                )
             }
         }
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(12.dp)) {
-                Text(text = when (state.activePanel) {
-                    GamePanel.STATUS -> "角色状态"
-                    GamePanel.EQUIPMENT -> "当前装备"
-                    GamePanel.EQUIPMENT_CATALOG -> "游戏图鉴"
-                    GamePanel.INVENTORY -> "背包物品"
-                    GamePanel.CARDS -> "卡牌收藏"
-                    GamePanel.SKILLS -> "角色技能"
-                }, fontWeight = FontWeight.Bold)
+                Text(text = "游戏图鉴", fontWeight = FontWeight.Bold)
                 Divider(modifier = Modifier.padding(vertical = 8.dp))
-                when (state.activePanel) {
-                    GamePanel.STATUS -> StatusPanel(state.player, state.battle)
-                    GamePanel.EQUIPMENT -> EquipmentPanel(
-                        player = state.player,
-                        onUnequip = onUnequipSlot
-                    )
-                    GamePanel.EQUIPMENT_CATALOG -> CodexPanel(
-                        state = state,
-                        onSelectCodexTab = onSelectCodexTab
-                    )
-                    GamePanel.INVENTORY -> InventoryPanel(
-                        player = state.player,
-                        onEquipItem = onEquipItem
-                    )
-                    GamePanel.CARDS -> CardPanel(player = state.player)
-                    GamePanel.SKILLS -> SkillPanel(
-                        role = state.roles.firstOrNull { it.id == state.selectedRoleId }
-                            ?: state.roles.firstOrNull { it.unlocked },
-                        showSkillFormula = showSkillFormula
-                    )
-                }
+                CodexPanel(
+                    state = state,
+                    onSelectCodexTab = onSelectCodexTab
+                )
             }
         }
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (state.battle == null) {
-                    Text(text = "敌人情报", fontWeight = FontWeight.Bold)
-                    Divider(modifier = Modifier.padding(vertical = 4.dp))
-                    if (state.enemyPreview == null) {
-                        PlaceholderPanel("暂无敌人情报")
-                    } else {
-                        EnemyPreviewPanel(preview = state.enemyPreview)
-                    }
+                Text(text = "敌人情报", fontWeight = FontWeight.Bold)
+                Divider(modifier = Modifier.padding(vertical = 4.dp))
+                if (state.enemyPreview == null) {
+                    PlaceholderPanel("暂无敌人情报")
                 } else {
-                    BattleOperationPanel(
-                        choices = state.choices,
-                        onChoice = onChoice,
-                        onOpenStatus = onOpenStatus,
-                        onOpenEquipment = onOpenEquipment,
-                        onOpenInventory = onOpenInventory,
-                        onOpenCards = onOpenCards,
-                        onOpenSkills = onOpenSkills
-                    )
+                    EnemyPreviewPanel(preview = state.enemyPreview)
                 }
             }
         }
@@ -894,6 +831,161 @@ private fun SidePanel(
             showSkillFormula = showSkillFormula,
             onToggleShowSkillFormula = onToggleShowSkillFormula
         )
+    }
+}
+
+@Composable
+private fun RoleDetailPanel(
+    state: GameUiState,
+    onShowEquipmentDetail: (EquipmentItem?) -> Unit,
+    showSkillFormula: Boolean
+) {
+    val player = state.player
+    val role = state.roles.firstOrNull { it.id == state.selectedRoleId }
+        ?: state.roles.firstOrNull { it.unlocked }
+    val hit = (70 + player.speed + player.hitBonus).coerceIn(50, 98)
+    val eva = (8 + player.speed / 2 + player.evaBonus).coerceIn(5, 45)
+    val crit = (6 + player.speed / 3 + player.critBonus).coerceIn(5, 40)
+    val resist = (3 + player.resistBonus).coerceIn(0, 50)
+    val critDmg = 1.5
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(text = "装备与基础属性", fontWeight = FontWeight.SemiBold)
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            EquipmentSlot.values().forEach { slot ->
+                val item = player.equipment.slots[slot]
+                EquipmentInfoRow(
+                    slot = slot,
+                    item = item,
+                    onShowDetail = { onShowEquipmentDetail(item) }
+                )
+            }
+        }
+        Divider(modifier = Modifier.padding(vertical = 4.dp))
+        Text(text = "基础属性", fontWeight = FontWeight.SemiBold)
+        Text(
+            text = "生命 ${player.hp}/${player.hpMax}  能量 ${player.mp}/${player.mpMax}",
+            color = Color(0xFFB8B2A6)
+        )
+        Text(
+            text = "攻击 ${player.atk}  防御 ${player.def}  速度 ${player.speed}",
+            color = Color(0xFFB8B2A6)
+        )
+        Text(
+            text = "暴击率 ${crit}%  命中 ${hit}%  闪避 ${eva}%",
+            color = Color(0xFFB8B2A6)
+        )
+        Divider(modifier = Modifier.padding(vertical = 4.dp))
+        Text(text = "战斗属性与技能", fontWeight = FontWeight.SemiBold)
+        Text(
+            text = "力量 ${player.strength}  智力 ${player.intelligence}  敏捷 ${player.agility}",
+            color = Color(0xFFB8B2A6)
+        )
+        Text(
+            text = "法术强度 ${player.intelligence}  法术抗性 ${resist}",
+            color = Color(0xFFB8B2A6)
+        )
+        Text(
+            text = "暴击伤害 ${(critDmg * 100).toInt()}%  抗暴 ${resist}%",
+            color = Color(0xFFB8B2A6)
+        )
+        SkillCatalogSummary(role = role, showSkillFormula = showSkillFormula)
+        Divider(modifier = Modifier.padding(vertical = 4.dp))
+        Text(text = "状态与效果", fontWeight = FontWeight.SemiBold)
+        if (state.playerStatuses.isEmpty()) {
+            Text(text = "暂无状态", color = Color(0xFF7B756B))
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                state.playerStatuses.forEach { status ->
+                    StatusLine(status = status)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EquipmentInfoRow(
+    slot: EquipmentSlot,
+    item: EquipmentItem?,
+    onShowDetail: () -> Unit
+) {
+    val rarityColor = item?.let { equipmentRarityColor(it.rarityTier, it.rarityId) } ?: Color(0xFF8F8F8F)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column {
+            Text(
+                text = "${slotLabel(slot)}：${item?.name ?: "空"}",
+                fontWeight = FontWeight.SemiBold,
+                color = if (item == null) Color(0xFFB8B2A6) else rarityColor
+            )
+            if (item != null) {
+                Text(
+                    text = "稀有度 ${item.rarityName} | 等级 ${item.level} | 评分 ${item.score}",
+                    color = rarityColor
+                )
+            }
+        }
+        OutlinedButton(onClick = onShowDetail, enabled = item != null) {
+            Text("详情")
+        }
+    }
+}
+
+@Composable
+private fun SkillCatalogSummary(role: RoleProfile?, showSkillFormula: Boolean) {
+    if (role == null) {
+        Text(text = "暂无技能信息", color = Color(0xFF7B756B))
+        return
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(text = "已解锁技能", fontWeight = FontWeight.SemiBold)
+        RoleSkillSummary(title = "被动", skill = role.passiveSkill, showSkillFormula = showSkillFormula)
+        role.activeSkills.forEachIndexed { index, skill ->
+            RoleSkillSummary(title = "主动 ${index + 1}", skill = skill, showSkillFormula = showSkillFormula)
+        }
+        RoleSkillSummary(title = "终极", skill = role.ultimateSkill, showSkillFormula = showSkillFormula)
+    }
+}
+
+@Composable
+private fun RoleSkillSummary(title: String, skill: RoleSkill, showSkillFormula: Boolean) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(text = "$title：${skill.name}", fontWeight = FontWeight.SemiBold)
+        Text(
+            text = "类型 ${skillTypeLabel(skill.type)}  目标 ${skill.target}",
+            color = Color(0xFFB8B2A6)
+        )
+        if (skill.cost != "-" || skill.cooldown != "-") {
+            val costText = if (skill.cost == "-") "无" else skill.cost
+            val cooldownText = if (skill.cooldown == "-") "无" else skill.cooldown
+            Text(text = "消耗 $costText  冷却 $cooldownText", color = Color(0xFFB8B2A6))
+        }
+        if (skill.description.isNotBlank()) {
+            Text(text = skill.description, color = Color(0xFFB8B2A6))
+        }
+        if (skill.effectLines.isNotEmpty()) {
+            Text(text = "效果 ${skill.effectLines.joinToString("、")}", color = Color(0xFF8DB38B))
+        }
+        if (showSkillFormula && skill.formulaLines.isNotEmpty()) {
+            Text(text = "公式 ${skill.formulaLines.joinToString("、")}", color = Color(0xFFD6B36A))
+        }
+    }
+}
+
+@Composable
+private fun StatusLine(status: StatusInstance) {
+    val color = statusColor(status.type)
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Box(
+            modifier = Modifier
+                .size(10.dp)
+                .background(color, CircleShape)
+        )
+        Text(text = formatStatusLine(status), color = Color(0xFFB8B2A6))
     }
 }
 
@@ -1645,6 +1737,17 @@ private fun statusTypeLabel(type: StatusType): String {
         StatusType.SHIELD -> "护盾"
         StatusType.HASTE -> "加速"
         StatusType.SLOW -> "减速"
+    }
+}
+
+private fun statusColor(type: StatusType): Color {
+    return when (type) {
+        StatusType.POISON -> Color(0xFF6FBF73)
+        StatusType.BLEED -> Color(0xFFD16A6A)
+        StatusType.STUN -> Color(0xFFF0C36A)
+        StatusType.SHIELD -> Color(0xFF5DADE2)
+        StatusType.HASTE -> Color(0xFF8DB38B)
+        StatusType.SLOW -> Color(0xFF8F8F8F)
     }
 }
 
