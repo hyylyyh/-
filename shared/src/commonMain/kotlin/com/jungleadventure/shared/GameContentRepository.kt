@@ -31,14 +31,6 @@ class GameContentRepository(private val resourceReader: ResourceReader) {
         return nodes
     }
 
-    fun loadRuins(): RuinsFile {
-        GameLogger.log(logTag, "开始读取遗迹配置（遗迹表）")
-        val raw = resourceReader.readText("data/ruins.json")
-        val ruins: RuinsFile = json.decodeFromString(raw)
-        GameLogger.log(logTag, "遗迹配置读取完成，数量=${ruins.ruins.size}")
-        return ruins
-    }
-
     fun loadCharacters(): CharacterFile {
         GameLogger.log(logTag, "开始读取角色配置（角色表）")
         val raw = resourceReader.readText("cp/cp.json")

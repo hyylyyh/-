@@ -52,18 +52,6 @@ enum class FirstStrikeRule {
     ENEMY
 }
 
-data class CombatAction(
-    val actorId: String,
-    val type: CombatActionType,
-    val skillId: String? = null
-)
-
-enum class CombatActionType {
-    BASIC_ATTACK,
-    SKILL,
-    DEFEND
-}
-
 data class CombatOutcome(
     val victory: Boolean,
     val rounds: Int,
