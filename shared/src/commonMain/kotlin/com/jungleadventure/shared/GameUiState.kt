@@ -32,6 +32,7 @@ data class GameUiState(
     val skillCatalog: List<SkillCatalogEntry> = emptyList(),
     val monsterCatalog: List<MonsterCatalogEntry> = emptyList(),
     val codexTab: CodexTab = CodexTab.EQUIPMENT,
+    val showRoleDetail: Boolean = false,
     val lastAction: String = "",
     val saveSlots: List<SaveSlotSummary> = emptyList(),
     val showSkillFormula: Boolean = false,

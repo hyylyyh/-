@@ -67,7 +67,7 @@ fun GameApp(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            HeaderBar(state)
+            HeaderBar(state, onToggleRoleDetail = viewModel::onToggleRoleDetail)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -130,7 +130,10 @@ fun GameApp(
 }
 
 @Composable
-private fun HeaderBar(state: GameUiState) {
+private fun HeaderBar(
+    state: GameUiState,
+    onToggleRoleDetail: () -> Unit
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -167,10 +170,15 @@ private fun HeaderBar(state: GameUiState) {
                 )
             }
         }
-        Text(
-            text = state.lastAction.ifBlank { "准备行动" },
-            color = Color(0xFF8DB38B)
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = state.lastAction.ifBlank { "准备行动" },
+                color = Color(0xFF8DB38B)
+            )
+            Button(onClick = onToggleRoleDetail) {
+                Text(text = if (state.showRoleDetail) "关闭角色详情" else "角色详情")
+            }
+        }
     }
 }
 
@@ -819,15 +827,17 @@ private fun SidePanel(
                 }
             }
         }
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(text = "角色详情", fontWeight = FontWeight.Bold)
-                Divider(modifier = Modifier.padding(vertical = 8.dp))
-                RoleDetailPanel(
-                    state = state,
-                    onShowEquipmentDetail = onShowEquipmentDetail,
-                    showSkillFormula = showSkillFormula
-                )
+        if (state.showRoleDetail) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(text = "角色详情", fontWeight = FontWeight.Bold)
+                    Divider(modifier = Modifier.padding(vertical = 8.dp))
+                    RoleDetailPanel(
+                        state = state,
+                        onShowEquipmentDetail = onShowEquipmentDetail,
+                        showSkillFormula = showSkillFormula
+                    )
+                }
             }
         }
         Card(modifier = Modifier.fillMaxWidth()) {

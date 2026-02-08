@@ -318,6 +318,19 @@ class GameViewModel(
         _state.update { it.copy(codexTab = tab, lastAction = "切换图鉴：${codexTabLabel(tab)}") }
     }
 
+    fun onToggleRoleDetail() {
+        val next = !_state.value.showRoleDetail
+        val label = if (next) "打开角色详情" else "关闭角色详情"
+        GameLogger.info(logTag, "角色详情面板切换：$label")
+        _state.update { state ->
+            state.copy(
+                showRoleDetail = next,
+                lastAction = label,
+                log = state.log + label
+            )
+        }
+    }
+
     fun onShowEquipmentDetail(item: EquipmentItem?) {
         if (item == null) {
             GameLogger.warn(logTag, "请求装备详情失败：装备为空")
