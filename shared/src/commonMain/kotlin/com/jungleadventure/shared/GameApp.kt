@@ -2956,7 +2956,6 @@ private fun BattleInfoPanel(
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Divider(modifier = Modifier.padding(bottom = 8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -3073,7 +3072,6 @@ private fun BattleOperationPanel(
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Divider(modifier = Modifier.padding(bottom = 8.dp))
             Text(text = "基础动作", fontWeight = FontWeight.SemiBold)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 val attack = choiceMap[BATTLE_CHOICE_ATTACK]
