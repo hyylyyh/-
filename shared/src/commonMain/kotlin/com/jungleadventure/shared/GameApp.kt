@@ -93,6 +93,7 @@ fun GameApp(
                     onChoice = viewModel::onSelectChoice,
                     onOpenStatus = viewModel::onOpenStatus,
                     onOpenEquipment = viewModel::onOpenEquipment,
+                    onOpenEquipmentCatalog = viewModel::onOpenEquipmentCatalog,
                     onOpenInventory = viewModel::onOpenInventory,
                     onOpenCards = viewModel::onOpenCards,
                     onOpenSkills = viewModel::onOpenSkills,
@@ -768,6 +769,7 @@ private fun SidePanel(
     onChoice: (String) -> Unit,
     onOpenStatus: () -> Unit,
     onOpenEquipment: () -> Unit,
+    onOpenEquipmentCatalog: () -> Unit,
     onOpenInventory: () -> Unit,
     onOpenCards: () -> Unit,
     onOpenSkills: () -> Unit,
@@ -814,12 +816,17 @@ private fun SidePanel(
             Column(modifier = Modifier.padding(12.dp)) {
                 Text(text = "快捷面板", fontWeight = FontWeight.Bold)
                 Divider(modifier = Modifier.padding(vertical = 8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = onOpenStatus) { Text("状态") }
-                    Button(onClick = onOpenEquipment) { Text("装备") }
-                    Button(onClick = onOpenInventory) { Text("背包") }
-                    Button(onClick = onOpenCards) { Text("卡牌") }
-                    Button(onClick = onOpenSkills) { Text("技能") }
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = onOpenStatus) { Text("状态") }
+                        Button(onClick = onOpenEquipment) { Text("装备") }
+                        Button(onClick = onOpenEquipmentCatalog) { Text("图鉴") }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = onOpenInventory) { Text("背包") }
+                        Button(onClick = onOpenCards) { Text("卡牌") }
+                        Button(onClick = onOpenSkills) { Text("技能") }
+                    }
                 }
             }
         }
@@ -828,6 +835,7 @@ private fun SidePanel(
                 Text(text = when (state.activePanel) {
                     GamePanel.STATUS -> "角色状态"
                     GamePanel.EQUIPMENT -> "当前装备"
+                    GamePanel.EQUIPMENT_CATALOG -> "装备图鉴"
                     GamePanel.INVENTORY -> "背包物品"
                     GamePanel.CARDS -> "卡牌收藏"
                     GamePanel.SKILLS -> "角色技能"
@@ -839,6 +847,7 @@ private fun SidePanel(
                         player = state.player,
                         onUnequip = onUnequipSlot
                     )
+                    GamePanel.EQUIPMENT_CATALOG -> EquipmentCatalogPanel(entries = state.equipmentCatalog)
                     GamePanel.INVENTORY -> InventoryPanel(
                         player = state.player,
                         onEquipItem = onEquipItem
@@ -978,6 +987,48 @@ private fun EquipmentPanel(
                     }
                 }
                 Divider(modifier = Modifier.padding(vertical = 4.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun EquipmentCatalogPanel(entries: List<EquipmentCatalogEntry>) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("已收录 ${entries.size} 件装备", color = Color(0xFFB8B2A6))
+        if (entries.isEmpty()) {
+            PlaceholderPanel("暂无装备图鉴数据")
+            return
+        }
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(240.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(entries, key = { it.id }) { entry ->
+                val rarityColor = equipmentRarityColor(entry.rarityTier, entry.rarityId)
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = "${entry.name}（${entry.rarityName}）",
+                            fontWeight = FontWeight.SemiBold,
+                            color = rarityColor
+                        )
+                        Text(
+                            text = "部位 ${slotLabel(entry.slot)} | 等级需求 ${entry.levelReq} | 强化上限 ${entry.enhanceMax}",
+                            color = Color(0xFFB8B2A6)
+                        )
+                        Text(
+                            text = "基础属性 ${formatStats(entry.baseStats)}",
+                            color = Color(0xFFB8B2A6)
+                        )
+                        Text(
+                            text = "词条数量 ${entry.affixMin}-${entry.affixMax} | 卖价 ${entry.sellValue} | 分解产出 ${entry.salvageYield}",
+                            color = Color(0xFF7B756B)
+                        )
+                    }
+                }
             }
         }
     }

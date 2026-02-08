@@ -40,6 +40,22 @@ data class EquipmentItem(
     val obtainedAtTurn: Int = 0
 )
 
+data class EquipmentCatalogEntry(
+    val id: String,
+    val name: String,
+    val slot: EquipmentSlot,
+    val rarityId: String,
+    val rarityName: String,
+    val rarityTier: Int,
+    val levelReq: Int,
+    val baseStats: Map<StatType, Int>,
+    val affixMin: Int,
+    val affixMax: Int,
+    val enhanceMax: Int,
+    val sellValue: Int,
+    val salvageYield: Int
+)
+
 @Serializable
 data class EquipmentLoadout(
     val slots: Map<EquipmentSlot, EquipmentItem> = emptyMap()

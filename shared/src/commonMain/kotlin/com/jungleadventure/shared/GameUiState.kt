@@ -22,6 +22,7 @@ data class GameUiState(
     val log: List<String> = listOf("请选择存档：读取已有存档或创建新存档"),
     val choices: List<GameChoice> = listOf(),
     val activePanel: GamePanel = GamePanel.STATUS,
+    val equipmentCatalog: List<EquipmentCatalogEntry> = emptyList(),
     val lastAction: String = "",
     val saveSlots: List<SaveSlotSummary> = emptyList(),
     val showSkillFormula: Boolean = false,
@@ -135,6 +136,7 @@ data class EnemyPreviewUiState(
 enum class GamePanel {
     STATUS,
     EQUIPMENT,
+    EQUIPMENT_CATALOG,
     INVENTORY,
     CARDS,
     SKILLS

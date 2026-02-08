@@ -44,6 +44,7 @@ class GameViewModel(
     private var rngSeed: Long = Random.Default.nextLong()
     private val totalChapters = 10
     private val maxChapter = max(totalChapters, events.maxOfOrNull { it.chapter } ?: 1)
+    private val shopOfferCount = 6
     private val monsterOnlyMode = true
     private val roles = loadRoleProfiles()
     private val enemyRepository = loadEnemyRepository()
@@ -51,6 +52,7 @@ class GameViewModel(
     private val turnEngine = TurnBasedCombatEngine(rng)
     private val lootRepository = LootRepository()
     private val cardRepository = CardRepository()
+    private val equipmentCatalog = buildEquipmentCatalog()
     private var battleSession: BattleSession? = null
     private var battleEventId: String? = null
     private var shopEventId: String? = null
@@ -83,6 +85,7 @@ class GameViewModel(
                 selectedDifficulty = 1,
                 completedChapters = emptyList(),
                 screen = GameScreen.SAVE_SELECT,
+                equipmentCatalog = equipmentCatalog,
                 lastAction = "请选择存档",
                 log = listOf("请选择存档：读取已有存档或创建新存档")
             )
@@ -291,6 +294,11 @@ class GameViewModel(
     fun onOpenEquipment() {
         GameLogger.info(logTag, "切换面板：装备")
         _state.update { it.copy(activePanel = GamePanel.EQUIPMENT, lastAction = "查看装备") }
+    }
+
+    fun onOpenEquipmentCatalog() {
+        GameLogger.info(logTag, "切换面板：装备图鉴")
+        _state.update { it.copy(activePanel = GamePanel.EQUIPMENT_CATALOG, lastAction = "查看装备图鉴") }
     }
 
     fun onOpenInventory() {
@@ -691,7 +699,7 @@ class GameViewModel(
         val node = stageEngine.currentNode(nextRuntime)
         val forcedEvent = buildForcedEvent(forcedEventId, chapter, difficulty, nextTurn)
         val nextEvent = forcedEvent ?: resolveEventForNode(nextRuntime, node, chapter)
-        val nextChoices = buildEventChoices(nextEvent, chapter, difficulty, nextTurn)
+        val nextChoices = buildEventChoices(nextEvent, chapter, difficulty, nextTurn, current.player)
 
         val stageLog = if (shouldRestartStage) {
             "进入关卡：${nextRuntime.stage.name}"
@@ -790,15 +798,20 @@ class GameViewModel(
             GameLogger.warn("存档系统", "存档事件未找到：事件编号=${saveGame.currentEventId}")
         }
 
-        val choices = buildEventChoices(event, saveGame.chapter, saveGame.selectedDifficulty, saveGame.turn)
-        val runtimeNode = node
-
         val validRoleId = if (roles.any { it.id == saveGame.selectedRoleId }) {
             saveGame.selectedRoleId
         } else {
             roles.firstOrNull { it.unlocked }?.id ?: ""
         }
         val normalizedPlayer = normalizePlayerStats(saveGame.player, "读取存档")
+        val choices = buildEventChoices(
+            event,
+            saveGame.chapter,
+            saveGame.selectedDifficulty,
+            saveGame.turn,
+            normalizedPlayer
+        )
+        val runtimeNode = node
 
         _state.update { current ->
             val enemyPreview = buildEnemyPreview(event, normalizedPlayer)
@@ -859,7 +872,7 @@ class GameViewModel(
         stageRuntime = runtime
         val node = stageEngine.currentNode(runtime)
         val event = resolveEventForNode(runtime, node, chapter)
-        val choices = buildEventChoices(event, chapter, difficulty, turn)
+        val choices = buildEventChoices(event, chapter, difficulty, turn, _state.value.player)
         val stageLog = if (reason.isBlank()) {
             "进入关卡：${runtime.stage.name}"
         } else {
@@ -1240,6 +1253,17 @@ class GameViewModel(
         item: EquipmentItem
     ): LootApplication {
         val inventory = player.inventory
+        if (isDuplicateEquipment(player, item)) {
+            val gold = estimateSellValue(item)
+            GameLogger.warn(
+                "掉落系统",
+                "已拥有同类装备，自动折算：${item.name} 模板=${item.templateId} -> 金币+$gold"
+            )
+            return LootApplication(
+                player = player.copy(gold = player.gold + gold),
+                logs = listOf("已有同类装备，${item.name} 已折算金币 +$gold")
+            )
+        }
         return if (inventory.items.size >= inventory.capacity) {
             val gold = estimateSellValue(item)
             GameLogger.warn(
@@ -1259,6 +1283,16 @@ class GameViewModel(
                 logs = listOf("获得装备：${item.name}（${item.rarityName}）")
             )
         }
+    }
+
+    private fun ownedEquipmentTemplateIds(player: PlayerStats): Set<String> {
+        val equipped = player.equipment.slots.values.map { it.templateId }
+        val inventory = player.inventory.items.map { it.templateId }
+        return (equipped + inventory).toSet()
+    }
+
+    private fun isDuplicateEquipment(player: PlayerStats, item: EquipmentItem): Boolean {
+        return ownedEquipmentTemplateIds(player).contains(item.templateId)
     }
 
     private fun estimateSellValue(item: EquipmentItem): Int {
@@ -1378,7 +1412,50 @@ class GameViewModel(
             exp = player.exp.coerceAtLeast(0),
             expToNext = expToNext
         )
-        return recalculatePlayerStats(normalized, reason)
+        val sanitized = sanitizeDuplicateEquipments(normalized, reason)
+        return recalculatePlayerStats(sanitized, reason)
+    }
+
+    private fun sanitizeDuplicateEquipments(player: PlayerStats, reason: String): PlayerStats {
+        if (player.inventory.items.isEmpty()) return player
+        val equippedTemplates = player.equipment.slots.values.map { it.templateId }.toMutableSet()
+        val grouped = player.inventory.items.groupBy { it.templateId }
+        val keptItems = mutableListOf<EquipmentItem>()
+        var goldGain = 0
+        grouped.forEach { (templateId, items) ->
+            if (equippedTemplates.contains(templateId)) {
+                items.forEach { item ->
+                    val gold = estimateSellValue(item)
+                    goldGain += gold
+                    GameLogger.warn(
+                        "装备系统",
+                        "存档重复装备整理：已装备同类，自动折算 ${item.name} 模板=$templateId -> 金币+$gold 原因=$reason"
+                    )
+                }
+                return@forEach
+            }
+            val best = items.maxByOrNull { it.score } ?: items.first()
+            keptItems += best
+            equippedTemplates += templateId
+            items.filter { it.uid != best.uid }.forEach { item ->
+                val gold = estimateSellValue(item)
+                goldGain += gold
+                GameLogger.warn(
+                    "装备系统",
+                    "存档重复装备整理：保留高评分=${best.name} 折算 ${item.name} 模板=$templateId -> 金币+$gold 原因=$reason"
+                )
+            }
+        }
+        if (goldGain > 0) {
+            GameLogger.info("装备系统", "重复装备整理完成：折算金币+$goldGain 原因=$reason")
+        }
+        if (goldGain == 0 && keptItems.size == player.inventory.items.size) {
+            return player
+        }
+        return player.copy(
+            gold = player.gold + goldGain,
+            inventory = player.inventory.copy(items = keptItems)
+        )
     }
 
     private fun recalculatePlayerStats(player: PlayerStats, reason: String): PlayerStats {
@@ -2211,13 +2288,14 @@ class GameViewModel(
         event: EventDefinition?,
         chapter: Int,
         difficulty: Int,
-        turn: Int
+        turn: Int,
+        player: PlayerStats
     ): List<GameChoice> {
         if (event == null) {
             return listOf(GameChoice("继续", "继续"))
         }
         return if (isShopEvent(event)) {
-            buildShopChoices(event, chapter, difficulty, turn)
+            buildShopChoices(event, chapter, difficulty, turn, player)
         } else {
             engine.toChoices(event)
         }
@@ -2261,14 +2339,17 @@ class GameViewModel(
         event: EventDefinition,
         chapter: Int,
         difficulty: Int,
-        turn: Int
+        turn: Int,
+        player: PlayerStats
     ): List<GameChoice> {
-        ensureShopOffers(event, chapter, difficulty, turn)
+        ensureShopOffers(event, chapter, difficulty, turn, player)
         val choices = mutableListOf<GameChoice>()
         if (shopOffers.isEmpty()) {
             choices += GameChoice("shop_leave", "商店暂无商品，离开")
             return choices
         }
+        val totalPrice = shopOffers.sumOf { it.price }
+        choices += GameChoice("shop_buy_all", "一键购买可买装备（总价 $totalPrice 金币）")
         shopOffers.forEachIndexed { index, offer ->
             val label = "购买 ${offer.item.name}（${offer.item.rarityName}） 价格 ${offer.price} 金币"
             choices += GameChoice("shop_buy_$index", label)
@@ -2281,11 +2362,19 @@ class GameViewModel(
         event: EventDefinition,
         chapter: Int,
         difficulty: Int,
-        turn: Int
+        turn: Int,
+        player: PlayerStats
     ) {
         if (shopEventId == event.eventId && shopOffers.isNotEmpty()) return
         shopEventId = event.eventId
-        shopOffers = generateShopOffers(chapter, difficulty, turn, count = 3)
+        val exclude = ownedEquipmentTemplateIds(player)
+        shopOffers = generateShopOffers(
+            chapter = chapter,
+            difficulty = difficulty,
+            turn = turn,
+            count = shopOfferCount,
+            excludeTemplateIds = exclude
+        )
         GameLogger.info(
             "商店系统",
             "商店商品生成：事件=${event.eventId} 章节=$chapter 难度=$difficulty 数量=${shopOffers.size}"
@@ -2296,15 +2385,18 @@ class GameViewModel(
         chapter: Int,
         difficulty: Int,
         turn: Int,
-        count: Int
+        count: Int,
+        excludeTemplateIds: Set<String>
     ): List<ShopOffer> {
         val offers = mutableListOf<ShopOffer>()
+        val blockedTemplates = excludeTemplateIds.toMutableSet()
         val tier = resolveShopTier(chapter, difficulty)
         repeat(count) {
-            val item = generateShopEquipment(tier, turn)
+            val item = generateShopEquipment(tier, turn, blockedTemplates)
             if (item != null) {
                 val price = estimateShopPrice(item)
                 offers += ShopOffer(item, price)
+                blockedTemplates += item.templateId
                 GameLogger.info(
                     "商店系统",
                     "商品上架：${item.name}（${item.rarityName}） 价格=$price 金币"
@@ -2330,7 +2422,11 @@ class GameViewModel(
         return tier
     }
 
-    private fun generateShopEquipment(tier: Int, turn: Int): EquipmentItem? {
+    private fun generateShopEquipment(
+        tier: Int,
+        turn: Int,
+        excludeTemplateIds: Set<String>
+    ): EquipmentItem? {
         val pityCounters = mutableMapOf<String, Int>()
         repeat(20) { attempt ->
             val outcome = lootRepository.generateLoot(
@@ -2340,7 +2436,12 @@ class GameViewModel(
                 pityCounters
             )
             if (outcome.equipment != null) {
-                return buildEquipmentItem(outcome.equipment, "shop_tier_$tier", turn)
+                val item = buildEquipmentItem(outcome.equipment, "shop_tier_$tier", turn)
+                if (excludeTemplateIds.contains(item.templateId)) {
+                    GameLogger.info("商店系统", "商店抽取到重复模板，跳过：${item.name} 模板=${item.templateId}")
+                    return@repeat
+                }
+                return item
             }
             GameLogger.info("商店系统", "商店抽取未命中装备，继续尝试：轮次=${attempt + 1}")
         }
@@ -2371,6 +2472,10 @@ class GameViewModel(
             advanceToNextNode(incrementTurn = true)
             return
         }
+        if (choiceId == "shop_buy_all") {
+            handleShopBuyAll(event)
+            return
+        }
         if (!choiceId.startsWith("shop_buy_")) {
             GameLogger.warn("商店系统", "未知商店选项：$choiceId")
             return
@@ -2381,6 +2486,25 @@ class GameViewModel(
             return
         }
         val offer = shopOffers[index]
+        if (isDuplicateEquipment(current.player, offer.item)) {
+            GameLogger.warn("商店系统", "已拥有同类装备，无法重复购买：${offer.item.name}")
+            shopOffers = shopOffers.toMutableList().also { it.removeAt(index) }
+            val newChoices = buildShopChoices(
+                event,
+                current.chapter,
+                current.selectedDifficulty,
+                current.turn,
+                current.player
+            )
+            _state.update { state ->
+                state.copy(
+                    choices = newChoices,
+                    lastAction = "已拥有同类装备，无法重复购买",
+                    log = state.log + "已拥有同类装备，${offer.item.name} 已下架"
+                )
+            }
+            return
+        }
         if (current.player.inventory.items.size >= current.player.inventory.capacity) {
             GameLogger.warn("商店系统", "背包已满，无法购买：${offer.item.name}")
             _state.update { state ->
@@ -2404,7 +2528,13 @@ class GameViewModel(
         val paidPlayer = current.player.copy(gold = current.player.gold - offer.price)
         val added = addEquipmentToInventory(paidPlayer, offer.item)
         shopOffers = shopOffers.toMutableList().also { it.removeAt(index) }
-        val newChoices = buildShopChoices(event, current.chapter, current.selectedDifficulty, current.turn)
+        val newChoices = buildShopChoices(
+            event,
+            current.chapter,
+            current.selectedDifficulty,
+            current.turn,
+            added.player
+        )
         GameLogger.info(
             "商店系统",
             "购买完成：${offer.item.name} 价格=${offer.price} 剩余金币=${added.player.gold}"
@@ -2419,10 +2549,97 @@ class GameViewModel(
         }
     }
 
+    private fun handleShopBuyAll(event: EventDefinition) {
+        val current = _state.value
+        if (!isShopEvent(event)) {
+            GameLogger.warn("商店系统", "当前事件不是商店，忽略批量购买")
+            return
+        }
+        if (shopOffers.isEmpty()) {
+            GameLogger.warn("商店系统", "商店暂无商品，批量购买取消")
+            _state.update { state ->
+                state.copy(
+                    lastAction = "商店暂无商品",
+                    log = state.log + "商店暂无商品，无法批量购买"
+                )
+            }
+            return
+        }
+        var player = current.player
+        val logs = mutableListOf<String>()
+        val remaining = mutableListOf<ShopOffer>()
+        var purchased = 0
+        var spent = 0
+        for (index in shopOffers.indices) {
+            val offer = shopOffers[index]
+            if (isDuplicateEquipment(player, offer.item)) {
+                GameLogger.warn("商店系统", "批量购买跳过重复装备：${offer.item.name}")
+                logs += "已有同类装备，${offer.item.name} 已跳过"
+                continue
+            }
+            if (player.inventory.items.size >= player.inventory.capacity) {
+                GameLogger.warn("商店系统", "批量购买中断：背包已满")
+                logs += "背包已满，批量购买中断"
+                remaining.addAll(shopOffers.drop(index))
+                break
+            }
+            if (player.gold < offer.price) {
+                GameLogger.warn("商店系统", "批量购买跳过：金币不足 ${offer.item.name}")
+                logs += "金币不足，跳过 ${offer.item.name}"
+                remaining += offer
+                continue
+            }
+            val paidPlayer = player.copy(gold = player.gold - offer.price)
+            val added = addEquipmentToInventory(paidPlayer, offer.item)
+            player = added.player
+            purchased += 1
+            spent += offer.price
+            logs += "购买 ${offer.item.name}（${offer.item.rarityName}） -${offer.price} 金币"
+            logs += added.logs
+            GameLogger.info(
+                "商店系统",
+                "批量购买完成单件：${offer.item.name} 价格=${offer.price} 剩余金币=${player.gold}"
+            )
+        }
+        if (purchased == 0 && remaining.isEmpty()) {
+            GameLogger.warn("商店系统", "批量购买未成交：金币不足或重复装备过多")
+            logs += "批量购买未成交"
+        }
+        shopOffers = remaining
+        val newChoices = buildShopChoices(
+            event,
+            current.chapter,
+            current.selectedDifficulty,
+            current.turn,
+            player
+        )
+        val summary = if (purchased > 0) {
+            "批量购买完成：${purchased} 件，花费 $spent 金币"
+        } else {
+            "批量购买未成交"
+        }
+        GameLogger.info("商店系统", summary)
+        logs += summary
+        _state.update { state ->
+            state.copy(
+                player = player,
+                choices = newChoices,
+                lastAction = summary,
+                log = state.log + logs
+            )
+        }
+    }
+
     private fun openShopEventAfterBattle(event: EventDefinition) {
         val current = _state.value
         val shopEvent = buildShopEvent(current.chapter, current.selectedDifficulty, current.turn)
-        val choices = buildShopChoices(shopEvent, current.chapter, current.selectedDifficulty, current.turn)
+        val choices = buildShopChoices(
+            shopEvent,
+            current.chapter,
+            current.selectedDifficulty,
+            current.turn,
+            current.player
+        )
         GameLogger.info(
             "商店系统",
             "商店出现：章节=${current.chapter} 回合=${current.turn} 事件=${shopEvent.eventId}"
@@ -2709,6 +2926,39 @@ class GameViewModel(
             "敌人数据已加载：敌人=${enemyFile.enemies.size}，敌群=${groupFile.groups.size}"
         )
         return EnemyRepository(enemyFile, groupFile)
+    }
+
+    private fun buildEquipmentCatalog(): List<EquipmentCatalogEntry> {
+        val definitions = lootRepository.allEquipmentDefinitions()
+        if (definitions.isEmpty()) {
+            GameLogger.warn("装备图鉴", "装备配置为空，图鉴列表为空")
+            return emptyList()
+        }
+        val entries = definitions.map { definition ->
+            val rarity = lootRepository.rarityDefinition(definition.rarity)
+            EquipmentCatalogEntry(
+                id = definition.id,
+                name = definition.name,
+                slot = definition.slot,
+                rarityId = definition.rarity,
+                rarityName = rarity?.name ?: definition.rarity,
+                rarityTier = rarity?.tier ?: 1,
+                levelReq = definition.levelReq,
+                baseStats = definition.baseStats,
+                affixMin = definition.affixCount.min,
+                affixMax = definition.affixCount.max,
+                enhanceMax = definition.enhanceMax,
+                sellValue = definition.sellValue,
+                salvageYield = definition.salvageYield
+            )
+        }.sortedWith(
+            compareBy<EquipmentCatalogEntry> { it.slot.ordinal }
+                .thenBy { it.rarityTier }
+                .thenBy { it.levelReq }
+                .thenBy { it.name }
+        )
+        GameLogger.info("装备图鉴", "装备图鉴加载完成：数量=${entries.size}")
+        return entries
     }
 
     private data class StageBundle(

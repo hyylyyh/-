@@ -12,6 +12,14 @@ class LootRepository(
     private val equipmentById = data.equipments.associateBy { it.id }
     private val affixById = data.affixes.associateBy { it.id }
 
+    fun allEquipmentDefinitions(): List<EquipmentDefinition> {
+        return data.equipments
+    }
+
+    fun rarityDefinition(id: String): RarityDefinition? {
+        return rarityById[id]
+    }
+
     fun getLootTableById(id: String): LootTable? {
         return data.lootTables.firstOrNull { it.id == id }
     }
