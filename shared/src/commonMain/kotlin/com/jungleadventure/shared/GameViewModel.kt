@@ -369,8 +369,28 @@ class GameViewModel(
             GameLogger.warn(logTag, "设置入口不可用：当前界面=${current.screen}")
             return
         }
-        settingsReturnScreen = current.screen
-        GameLogger.info(logTag, "进入设置界面")
+        val resolvedReturnScreen = when {
+            current.screen == GameScreen.ROLE_DETAIL && roleDetailReturnScreen == GameScreen.SETTINGS -> {
+                GameLogger.info(
+                    logTag,
+                    "设置入口来自角色详情且角色详情源于设置，保持原返回界面：${settingsReturnScreen.name}"
+                )
+                settingsReturnScreen
+            }
+            current.screen == GameScreen.ROLE_DETAIL -> {
+                GameLogger.info(
+                    logTag,
+                    "设置入口来自角色详情，使用角色详情返回界面：${roleDetailReturnScreen.name}"
+                )
+                roleDetailReturnScreen
+            }
+            else -> {
+                GameLogger.info(logTag, "设置入口来自界面：${current.screen.name}")
+                current.screen
+            }
+        }
+        settingsReturnScreen = resolvedReturnScreen
+        GameLogger.info(logTag, "进入设置界面，返回界面=${settingsReturnScreen.name}")
         _state.update { state ->
             state.copy(
                 screen = GameScreen.SETTINGS,
