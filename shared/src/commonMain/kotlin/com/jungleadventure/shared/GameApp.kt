@@ -146,11 +146,12 @@ fun GameApp(
                     state = state,
                     onSelectCodexTab = viewModel::onSelectCodexTab,
                     onShowEquipmentDetail = viewModel::onShowEquipmentDetail,
+                    onEquipItem = viewModel::onEquipItem,
                     onReturnToMain = viewModel::onReturnToMain,
                     onOpenChapterSelect = viewModel::onOpenChapterSelect,
                     showSkillFormula = state.showSkillFormula,
                     onToggleShowSkillFormula = viewModel::onToggleShowSkillFormula
-                    )
+                )
                 }
             }
         }
@@ -851,6 +852,7 @@ private fun SidePanel(
     state: GameUiState,
     onSelectCodexTab: (CodexTab) -> Unit,
     onShowEquipmentDetail: (EquipmentItem?) -> Unit,
+    onEquipItem: (String) -> Unit,
     onReturnToMain: () -> Unit,
     onOpenChapterSelect: () -> Unit,
     showSkillFormula: Boolean,
@@ -866,16 +868,19 @@ private fun SidePanel(
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(text = "装备面板", fontWeight = FontWeight.Bold)
                     Divider(modifier = Modifier.padding(vertical = 6.dp))
-                    EquipmentOverviewPanel(player = state.player)
+                    EquipmentOverviewPanel(
+                        player = state.player,
+                        onShowEquipmentDetail = onShowEquipmentDetail
+                    )
                 }
             }
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(text = "背包面板", fontWeight = FontWeight.Bold)
                     Divider(modifier = Modifier.padding(vertical = 6.dp))
-                    InventoryOverviewPanel(
+                    InventoryPanel(
                         player = state.player,
-                        onShowEquipmentDetail = onShowEquipmentDetail
+                        onEquipItem = onEquipItem
                     )
                 }
             }

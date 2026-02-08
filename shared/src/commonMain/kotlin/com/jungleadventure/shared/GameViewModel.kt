@@ -792,8 +792,8 @@ class GameViewModel(
 
     fun onEquipItem(itemId: String) {
         val current = _state.value
-        if (current.screen != GameScreen.ADVENTURE) {
-            GameLogger.warn("装备系统", "未进入冒险界面，无法装备")
+        if (current.screen != GameScreen.ADVENTURE && current.screen != GameScreen.ROLE_DETAIL) {
+            GameLogger.warn("装备系统", "当前界面无法装备：${current.screen}")
             return
         }
         val inventory = current.player.inventory
@@ -855,8 +855,8 @@ class GameViewModel(
 
     fun onUnequipSlot(slot: EquipmentSlot) {
         val current = _state.value
-        if (current.screen != GameScreen.ADVENTURE) {
-            GameLogger.warn("装备系统", "未进入冒险界面，无法卸下装备")
+        if (current.screen != GameScreen.ADVENTURE && current.screen != GameScreen.ROLE_DETAIL) {
+            GameLogger.warn("装备系统", "当前界面无法卸下装备：${current.screen}")
             return
         }
         val loadout = current.player.equipment
