@@ -1103,9 +1103,9 @@ private fun SkillIconGrid(
     entries: List<SkillIconEntry>,
     showSkillFormula: Boolean
 ) {
-    var expandedId by remember { mutableStateOf<String?>(null) }
+    var pinnedId by remember { mutableStateOf<String?>(null) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(text = "悬浮查看详情，点击图标展开技能详情", color = Color(0xFF7B756B))
+        Text(text = "悬浮查看详情，点击图标固定详情", color = Color(0xFF7B756B))
         entries.chunked(4).forEach { rowEntries ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1114,17 +1114,18 @@ private fun SkillIconGrid(
                 rowEntries.forEach { entry ->
                     SkillIconCard(
                         entry = entry,
-                        selected = expandedId == entry.id,
+                        selected = pinnedId == entry.id,
                         showSkillFormula = showSkillFormula,
                         modifier = Modifier.weight(1f),
+                        pinned = pinnedId == entry.id,
                         onClick = {
-                            val nextId = if (expandedId == entry.id) null else entry.id
+                            val nextId = if (pinnedId == entry.id) null else entry.id
                             val label = skillTypeLabel(entry.skill.type)
                             GameLogger.info(
                                 "技能图标",
-                                "点击技能图标：${entry.skill.name} 类型=$label 展开=${nextId != null}"
+                                "点击技能图标：${entry.skill.name} 类型=$label 固定=${nextId != null}"
                             )
-                            expandedId = nextId
+                            pinnedId = nextId
                         }
                     )
                 }
@@ -1133,14 +1134,6 @@ private fun SkillIconGrid(
                     Spacer(modifier = Modifier.weight(missing.toFloat()))
                 }
             }
-        }
-        val expandedEntry = expandedId?.let { id -> entries.firstOrNull { it.id == id } }
-        if (expandedEntry != null) {
-            SkillDetailCard(
-                title = expandedEntry.title,
-                skill = expandedEntry.skill,
-                showFormula = showSkillFormula
-            )
         }
     }
 }
@@ -1152,6 +1145,7 @@ private fun SkillIconCard(
     selected: Boolean,
     showSkillFormula: Boolean,
     modifier: Modifier = Modifier,
+    pinned: Boolean,
     onClick: () -> Unit
 ) {
     val typeLabel = skillTypeLabel(entry.skill.type)
@@ -1176,6 +1170,7 @@ private fun SkillIconCard(
         HoverTooltipBox(
             logTag = "技能图标",
             logName = entry.skill.name,
+            pinned = pinned,
             tooltip = {
                 SkillDetailCard(
                     title = entry.title,
@@ -1492,14 +1487,14 @@ private fun SkillCatalogPanel(
     val unlockedSkillIds = entries.filter { entry ->
         entry.sourceRoleIds.isEmpty() || entry.sourceRoleIds.any { unlockedRoleIds.contains(it) }
     }.map { it.id }.toSet()
-    var selectedId by remember { mutableStateOf<String?>(null) }
+    var pinnedId by remember { mutableStateOf<String?>(null) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("已收录 ${entries.size} 个技能", color = Color(0xFFB8B2A6))
         if (entries.isEmpty()) {
             PlaceholderPanel("暂无技能图鉴数据")
             return
         }
-        Text(text = "点击图标查看技能详情", color = Color(0xFF7B756B))
+        Text(text = "悬浮查看详情，点击图标固定详情", color = Color(0xFF7B756B))
         val rows = entries.chunked(4)
         LazyColumn(
             modifier = Modifier
@@ -1517,15 +1512,16 @@ private fun SkillCatalogPanel(
                         SkillCatalogIconCard(
                             entry = entry,
                             unlocked = unlocked,
-                            selected = selectedId == entry.id,
+                            selected = pinnedId == entry.id,
                             modifier = Modifier.weight(1f),
+                            pinned = pinnedId == entry.id,
                             onClick = {
-                                val nextId = if (selectedId == entry.id) null else entry.id
+                                val nextId = if (pinnedId == entry.id) null else entry.id
                                 GameLogger.info(
                                     "技能图鉴",
-                                    "点击技能图鉴图标：${entry.name} 解锁=$unlocked 展开=${nextId != null}"
+                                    "点击技能图鉴图标：${entry.name} 解锁=$unlocked 固定=${nextId != null}"
                                 )
-                                selectedId = nextId
+                                pinnedId = nextId
                             }
                         )
                     }
@@ -1535,11 +1531,6 @@ private fun SkillCatalogPanel(
                     }
                 }
             }
-        }
-        val selectedEntry = selectedId?.let { id -> entries.firstOrNull { it.id == id } }
-        if (selectedEntry != null) {
-            val unlocked = unlockedSkillIds.contains(selectedEntry.id)
-            SkillCatalogDetailCard(entry = selectedEntry, unlocked = unlocked)
         }
     }
 }
@@ -1551,6 +1542,7 @@ private fun SkillCatalogIconCard(
     unlocked: Boolean,
     selected: Boolean,
     modifier: Modifier = Modifier,
+    pinned: Boolean,
     onClick: () -> Unit
 ) {
     val baseColor = if (unlocked) skillTypeColor(entry.type) else Color(0xFF8F8F8F)
@@ -1571,6 +1563,7 @@ private fun SkillCatalogIconCard(
         HoverTooltipBox(
             logTag = "技能图鉴",
             logName = entry.name,
+            pinned = pinned,
             tooltip = {
                 SkillCatalogDetailCard(entry = entry, unlocked = unlocked)
             }
@@ -2368,12 +2361,13 @@ private fun rememberSkillIconPainter(path: String, logTag: String): Painter? {
 private fun HoverTooltipBox(
     logTag: String,
     logName: String,
+    pinned: Boolean,
     tooltip: @Composable () -> Unit,
     content: @Composable (Modifier) -> Unit
 ) {
     var hovered by remember { mutableStateOf(false) }
     var cursorOffset by remember { mutableStateOf(Offset.Zero) }
-    val positionProvider = remember(cursorOffset) {
+    val positionProvider = remember(cursorOffset, pinned, hovered) {
         object : PopupPositionProvider {
             override fun calculatePosition(
                 anchorBounds: IntRect,
@@ -2381,8 +2375,16 @@ private fun HoverTooltipBox(
                 layoutDirection: LayoutDirection,
                 popupContentSize: IntSize
             ): IntOffset {
-                val offsetX = anchorBounds.left + cursorOffset.x.roundToInt() + 12
-                val offsetY = anchorBounds.top + cursorOffset.y.roundToInt() + 12
+                val offsetX = if (hovered) {
+                    anchorBounds.left + cursorOffset.x.roundToInt() + 12
+                } else {
+                    anchorBounds.left + (anchorBounds.width - popupContentSize.width) / 2
+                }
+                val offsetY = if (hovered) {
+                    anchorBounds.top + cursorOffset.y.roundToInt() + 12
+                } else {
+                    anchorBounds.bottom + 8
+                }
                 return IntOffset(offsetX, offsetY)
             }
         }
@@ -2412,7 +2414,7 @@ private fun HoverTooltipBox(
     ) {
         content(Modifier)
     }
-    if (hovered) {
+    if (hovered || pinned) {
         Popup(
             popupPositionProvider = positionProvider,
             properties = PopupProperties(focusable = false)
