@@ -14,7 +14,7 @@ actual fun decodeImageBitmap(bytes: ByteArray): ImageBitmap? {
             bitmap.asImageBitmap()
         }
     } catch (e: Exception) {
-        GameLogger.warn("图片加载", "安卓端解码PNG失败，字节长度=${bytes.size}", e)
+        GameLogger.warn("图片加载", "安卓端解码PNG失败，字节长度=${bytes.size} 异常=${e.message}")
         null
     }
 }

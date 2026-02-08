@@ -50,6 +50,7 @@ import kotlinx.coroutines.CancellationException
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.input.pointer.pointerMoveFilter
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.BitmapPainter
@@ -1112,6 +1113,7 @@ private fun SkillIconGrid(
                         entry = entry,
                         selected = expandedId == entry.id,
                         showSkillFormula = showSkillFormula,
+                        modifier = Modifier.weight(1f),
                         onClick = {
                             val nextId = if (expandedId == entry.id) null else entry.id
                             val label = skillTypeLabel(entry.skill.type)
@@ -1123,10 +1125,9 @@ private fun SkillIconGrid(
                         }
                     )
                 }
-                if (rowEntries.size < 4) {
-                    repeat(4 - rowEntries.size) {
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
+                val missing = 4 - rowEntries.size
+                if (missing > 0) {
+                    Spacer(modifier = Modifier.weight(missing.toFloat()))
                 }
             }
         }
@@ -1146,6 +1147,7 @@ private fun SkillIconCard(
     entry: SkillIconEntry,
     selected: Boolean,
     showSkillFormula: Boolean,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     val typeLabel = skillTypeLabel(entry.skill.type)
@@ -1163,7 +1165,7 @@ private fun SkillIconCard(
         }
     }
     Column(
-        modifier = Modifier.weight(1f),
+        modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
@@ -1512,6 +1514,7 @@ private fun SkillCatalogPanel(
                             entry = entry,
                             unlocked = unlocked,
                             selected = selectedId == entry.id,
+                            modifier = Modifier.weight(1f),
                             onClick = {
                                 val nextId = if (selectedId == entry.id) null else entry.id
                                 GameLogger.info(
@@ -1522,10 +1525,9 @@ private fun SkillCatalogPanel(
                             }
                         )
                     }
-                    if (rowEntries.size < 4) {
-                        repeat(4 - rowEntries.size) {
-                            Spacer(modifier = Modifier.weight(1f))
-                        }
+                    val missing = 4 - rowEntries.size
+                    if (missing > 0) {
+                        Spacer(modifier = Modifier.weight(missing.toFloat()))
                     }
                 }
             }
@@ -1543,6 +1545,7 @@ private fun SkillCatalogIconCard(
     entry: SkillCatalogEntry,
     unlocked: Boolean,
     selected: Boolean,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     val baseColor = if (unlocked) skillTypeColor(entry.type) else Color(0xFF8F8F8F)
@@ -1556,7 +1559,7 @@ private fun SkillCatalogIconCard(
         "锁"
     }
     Column(
-        modifier = Modifier.weight(1f),
+        modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
@@ -2347,7 +2350,7 @@ private fun rememberSkillIconPainter(path: String, logTag: String): Painter? {
             GameLogger.info(logTag, "读取图标资源：$path 字节=${data.size}")
             data
         } catch (e: Exception) {
-            GameLogger.warn(logTag, "读取图标资源失败：$path", e)
+            GameLogger.warn(logTag, "读取图标资源失败：$path 异常=${e.message}")
             null
         }
     }
@@ -2355,6 +2358,7 @@ private fun rememberSkillIconPainter(path: String, logTag: String): Painter? {
     return image?.let { remember(path) { BitmapPainter(it) } }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 private fun HoverTooltipBox(
     logTag: String,
