@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -52,19 +51,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.input.pointer.pointerMoveFilter
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupProperties
 import com.jungleadventure.shared.loot.EquipmentSlot
 import com.jungleadventure.shared.loot.StatType
 
@@ -1101,8 +1094,9 @@ private fun SkillIconGrid(
     showSkillFormula: Boolean
 ) {
     var expandedId by remember { mutableStateOf<String?>(null) }
+    var hoveredId by remember { mutableStateOf<String?>(null) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(text = "点击图标展开技能详情", color = Color(0xFF7B756B))
+        Text(text = "悬浮预览，点击图标展开技能详情", color = Color(0xFF7B756B))
         entries.chunked(4).forEach { rowEntries ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1114,6 +1108,17 @@ private fun SkillIconGrid(
                         selected = expandedId == entry.id,
                         showSkillFormula = showSkillFormula,
                         modifier = Modifier.weight(1f),
+                        onHoverChange = { hovering ->
+                            if (hovering) {
+                                if (hoveredId != entry.id) {
+                                    GameLogger.info("技能图标", "鼠标进入：${entry.skill.name}")
+                                }
+                                hoveredId = entry.id
+                            } else if (hoveredId == entry.id) {
+                                GameLogger.info("技能图标", "鼠标离开：${entry.skill.name}")
+                                hoveredId = null
+                            }
+                        },
                         onClick = {
                             val nextId = if (expandedId == entry.id) null else entry.id
                             val label = skillTypeLabel(entry.skill.type)
@@ -1131,7 +1136,8 @@ private fun SkillIconGrid(
                 }
             }
         }
-        val expandedEntry = entries.firstOrNull { it.id == expandedId }
+        val displayId = expandedId ?: hoveredId
+        val expandedEntry = displayId?.let { id -> entries.firstOrNull { it.id == id } }
         if (expandedEntry != null) {
             SkillDetailCard(
                 title = expandedEntry.title,
@@ -1142,12 +1148,14 @@ private fun SkillIconGrid(
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 private fun SkillIconCard(
     entry: SkillIconEntry,
     selected: Boolean,
     showSkillFormula: Boolean,
     modifier: Modifier = Modifier,
+    onHoverChange: (Boolean) -> Unit,
     onClick: () -> Unit
 ) {
     val typeLabel = skillTypeLabel(entry.skill.type)
@@ -1169,38 +1177,36 @@ private fun SkillIconCard(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        HoverTooltipBox(
-            logTag = "技能图标",
-            logName = entry.skill.name,
-            tooltip = {
-                SkillDetailCard(
-                    title = entry.title,
-                    skill = entry.skill,
-                    showFormula = showSkillFormula
+        Box(
+            modifier = Modifier
+                .size(60.dp)
+                .border(2.dp, borderColor, RoundedCornerShape(14.dp))
+                .background(backgroundColor, RoundedCornerShape(14.dp))
+                .pointerMoveFilter(
+                    onEnter = {
+                        onHoverChange(true)
+                        false
+                    },
+                    onExit = {
+                        onHoverChange(false)
+                        false
+                    }
                 )
-            }
-        ) { baseModifier ->
-            Box(
-                modifier = baseModifier
-                    .size(60.dp)
-                    .border(2.dp, borderColor, RoundedCornerShape(14.dp))
-                    .background(backgroundColor, RoundedCornerShape(14.dp))
-                    .clickable { onClick() },
-                contentAlignment = Alignment.Center
-            ) {
-                if (painter == null) {
-                    Text(
-                        text = fallbackText,
-                        fontWeight = FontWeight.Bold,
-                        color = baseColor
-                    )
-                } else {
-                    Image(
-                        painter = painter,
-                        contentDescription = entry.skill.name,
-                        modifier = Modifier.size(38.dp)
-                    )
-                }
+                .clickable { onClick() },
+            contentAlignment = Alignment.Center
+        ) {
+            if (painter == null) {
+                Text(
+                    text = fallbackText,
+                    fontWeight = FontWeight.Bold,
+                    color = baseColor
+                )
+            } else {
+                Image(
+                    painter = painter,
+                    contentDescription = entry.skill.name,
+                    modifier = Modifier.size(38.dp)
+                )
             }
         }
         Text(
@@ -1489,6 +1495,7 @@ private fun SkillCatalogPanel(
         entry.sourceRoleIds.isEmpty() || entry.sourceRoleIds.any { unlockedRoleIds.contains(it) }
     }.map { it.id }.toSet()
     var selectedId by remember { mutableStateOf<String?>(null) }
+    var hoveredId by remember { mutableStateOf<String?>(null) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("已收录 ${entries.size} 个技能", color = Color(0xFFB8B2A6))
         if (entries.isEmpty()) {
@@ -1515,6 +1522,17 @@ private fun SkillCatalogPanel(
                             unlocked = unlocked,
                             selected = selectedId == entry.id,
                             modifier = Modifier.weight(1f),
+                            onHoverChange = { hovering ->
+                                if (hovering) {
+                                    if (hoveredId != entry.id) {
+                                        GameLogger.info("技能图鉴", "鼠标进入：${entry.name}")
+                                    }
+                                    hoveredId = entry.id
+                                } else if (hoveredId == entry.id) {
+                                    GameLogger.info("技能图鉴", "鼠标离开：${entry.name}")
+                                    hoveredId = null
+                                }
+                            },
                             onClick = {
                                 val nextId = if (selectedId == entry.id) null else entry.id
                                 GameLogger.info(
@@ -1532,7 +1550,8 @@ private fun SkillCatalogPanel(
                 }
             }
         }
-        val selectedEntry = entries.firstOrNull { it.id == selectedId }
+        val displayId = selectedId ?: hoveredId
+        val selectedEntry = displayId?.let { id -> entries.firstOrNull { it.id == id } }
         if (selectedEntry != null) {
             val unlocked = unlockedSkillIds.contains(selectedEntry.id)
             SkillCatalogDetailCard(entry = selectedEntry, unlocked = unlocked)
@@ -1540,12 +1559,14 @@ private fun SkillCatalogPanel(
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 private fun SkillCatalogIconCard(
     entry: SkillCatalogEntry,
     unlocked: Boolean,
     selected: Boolean,
     modifier: Modifier = Modifier,
+    onHoverChange: (Boolean) -> Unit,
     onClick: () -> Unit
 ) {
     val baseColor = if (unlocked) skillTypeColor(entry.type) else Color(0xFF8F8F8F)
@@ -1563,34 +1584,36 @@ private fun SkillCatalogIconCard(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        HoverTooltipBox(
-            logTag = "技能图鉴",
-            logName = entry.name,
-            tooltip = {
-                SkillCatalogDetailCard(entry = entry, unlocked = unlocked)
-            }
-        ) { baseModifier ->
-            Box(
-                modifier = baseModifier
-                    .size(56.dp)
-                    .border(2.dp, borderColor, RoundedCornerShape(14.dp))
-                    .background(backgroundColor, RoundedCornerShape(14.dp))
-                    .clickable { onClick() },
-                contentAlignment = Alignment.Center
-            ) {
-                if (painter == null) {
-                    Text(
-                        text = fallbackText,
-                        fontWeight = FontWeight.Bold,
-                        color = baseColor
-                    )
-                } else {
-                    Image(
-                        painter = painter,
-                        contentDescription = entry.name,
-                        modifier = Modifier.size(36.dp)
-                    )
-                }
+        Box(
+            modifier = Modifier
+                .size(56.dp)
+                .border(2.dp, borderColor, RoundedCornerShape(14.dp))
+                .background(backgroundColor, RoundedCornerShape(14.dp))
+                .pointerMoveFilter(
+                    onEnter = {
+                        onHoverChange(true)
+                        false
+                    },
+                    onExit = {
+                        onHoverChange(false)
+                        false
+                    }
+                )
+                .clickable { onClick() },
+            contentAlignment = Alignment.Center
+        ) {
+            if (painter == null) {
+                Text(
+                    text = fallbackText,
+                    fontWeight = FontWeight.Bold,
+                    color = baseColor
+                )
+            } else {
+                Image(
+                    painter = painter,
+                    contentDescription = entry.name,
+                    modifier = Modifier.size(36.dp)
+                )
             }
         }
         Text(
@@ -2356,61 +2379,6 @@ private fun rememberSkillIconPainter(path: String, logTag: String): Painter? {
     }
     val image = remember(path, bytes) { bytes?.let { decodeImageBitmap(it) } }
     return image?.let { remember(path) { BitmapPainter(it) } }
-}
-
-@OptIn(ExperimentalComposeUiApi::class)
-@Composable
-private fun HoverTooltipBox(
-    logTag: String,
-    logName: String,
-    tooltip: @Composable () -> Unit,
-    content: @Composable (Modifier) -> Unit
-) {
-    var hovered by remember { mutableStateOf(false) }
-    var anchor by remember { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
-    val density = LocalDensity.current
-    Box(
-        modifier = Modifier
-            .onGloballyPositioned { coordinates -> anchor = coordinates }
-            .pointerMoveFilter(
-                onEnter = {
-                    if (!hovered) {
-                        GameLogger.info(logTag, "鼠标进入：$logName")
-                    }
-                    hovered = true
-                    false
-                },
-                onExit = {
-                    if (hovered) {
-                        GameLogger.info(logTag, "鼠标离开：$logName")
-                    }
-                    hovered = false
-                    false
-                }
-            )
-    ) {
-        content(Modifier)
-    }
-    val target = anchor
-    if (hovered && target != null) {
-        val position = target.localToWindow(Offset.Zero)
-        val offsetY = position.y + target.size.height + with(density) { 6.dp.toPx() }
-        val offsetX = position.x
-        val offset = IntOffset(offsetX.toInt(), offsetY.toInt())
-        GameLogger.info(
-            logTag,
-            "悬浮提示定位：$logName x=${offsetX.toInt()} y=${offsetY.toInt()} 宽=${target.size.width} 高=${target.size.height}"
-        )
-        Popup(
-            alignment = Alignment.TopStart,
-            offset = offset,
-            properties = PopupProperties(focusable = false)
-        ) {
-            Box(modifier = Modifier.widthIn(max = 320.dp)) {
-                tooltip()
-            }
-        }
-    }
 }
 
 private fun nodeTypeLabel(raw: String): String {
