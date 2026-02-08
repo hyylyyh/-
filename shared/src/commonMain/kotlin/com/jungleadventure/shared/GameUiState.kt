@@ -1,4 +1,4 @@
-﻿package com.jungleadventure.shared
+package com.jungleadventure.shared
 
 import kotlinx.serialization.Serializable
 
@@ -48,7 +48,9 @@ data class BattleUiState(
     val enemyMp: Int,
     val enemyName: String,
     val equipmentMode: String,
-    val skillCooldown: Int
+    val skillCooldownSummary: String,
+    val playerStatuses: List<StatusInstance> = emptyList(),
+    val enemyStatuses: List<StatusInstance> = emptyList()
 )
 
 data class StageUiState(
@@ -106,7 +108,8 @@ data class PlayerStats(
 
 data class GameChoice(
     val id: String,
-    val label: String
+    val label: String,
+    val enabled: Boolean = true
 )
 
 data class EnemyPreviewUiState(

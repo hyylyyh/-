@@ -1,4 +1,4 @@
-﻿package com.jungleadventure.shared
+package com.jungleadventure.shared
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -268,7 +269,7 @@ private fun MainPanel(
                             state.battle?.let { battle ->
                                 Text("战斗回合 ${battle.round} | ${battle.enemyName}")
                                 Text("敌方生命 ${battle.enemyHp}  能量 ${battle.enemyMp}  |  装备 ${battle.equipmentMode}")
-                                Text("我方生命 ${battle.playerHp}  能量 ${battle.playerMp}  技能冷却 ${battle.skillCooldown}")
+                                Text("我方生命 ${battle.playerHp}  能量 ${battle.playerMp}  技能冷却 ${battle.skillCooldownSummary}")
                                 Spacer(modifier = Modifier.height(6.dp))
                             }
                             Text(state.currentEvent.introText)
@@ -844,7 +845,7 @@ private fun SidePanel(
                 }, fontWeight = FontWeight.Bold)
                 Divider(modifier = Modifier.padding(vertical = 8.dp))
                 when (state.activePanel) {
-                    GamePanel.STATUS -> StatusPanel(state.player)
+                    GamePanel.STATUS -> StatusPanel(state.player, state.battle)
                     GamePanel.EQUIPMENT -> EquipmentPanel(
                         player = state.player,
                         onUnequip = onUnequipSlot
@@ -897,7 +898,7 @@ private fun SidePanel(
 }
 
 @Composable
-private fun StatusPanel(player: PlayerStats) {
+private fun StatusPanel(player: PlayerStats, battle: BattleUiState?) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text("${player.name}  等级 ${player.level}")
         Text("经验 ${player.exp}/${player.expToNext}")
@@ -917,6 +918,26 @@ private fun StatusPanel(player: PlayerStats) {
             Text("金币 ${player.gold}")
             Spacer(modifier = Modifier.width(12.dp))
             Text("材料 ${player.materials}")
+        }
+        if (battle != null) {
+            Divider(modifier = Modifier.padding(vertical = 6.dp))
+            Text(text = "战斗状态", fontWeight = FontWeight.SemiBold)
+            StatusList(title = "我方状态", statuses = battle.playerStatuses)
+            StatusList(title = "敌方状态", statuses = battle.enemyStatuses)
+        }
+    }
+}
+
+@Composable
+private fun StatusList(title: String, statuses: List<StatusInstance>) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(text = title, fontWeight = FontWeight.SemiBold, color = Color(0xFF8DB38B))
+        if (statuses.isEmpty()) {
+            Text(text = "暂无状态", color = Color(0xFF7B756B))
+        } else {
+            statuses.forEach { status ->
+                Text(text = "- ${formatStatusLine(status)}", color = Color(0xFFB8B2A6))
+            }
         }
     }
 }
@@ -1389,7 +1410,11 @@ private fun EventActionPanel(
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     choices.forEach { choice ->
-                        Button(onClick = { onChoice(choice.id) }, modifier = Modifier.fillMaxWidth()) {
+                        Button(
+                            onClick = { onChoice(choice.id) },
+                            enabled = choice.enabled,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
                             Text(choice.label)
                         }
                     }
@@ -1446,6 +1471,7 @@ private fun BattleOperationPanel(
     onOpenSkills: () -> Unit
 ) {
     val choiceMap = choices.associateBy { it.id }
+    val skillChoices = choices.filter { it.id.startsWith("battle_skill_") }
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(12.dp)) {
             Text(text = "战斗操作", fontWeight = FontWeight.Bold)
@@ -1453,32 +1479,50 @@ private fun BattleOperationPanel(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ActionIconButton(
                     label = "攻击",
-                    enabled = choiceMap.containsKey("battle_attack"),
+                    enabled = choiceMap["battle_attack"]?.enabled == true,
                     onClick = { onChoice("battle_attack") }
                 )
                 ActionIconButton(
-                    label = "技能",
-                    enabled = choiceMap.containsKey("battle_skill"),
-                    onClick = { onChoice("battle_skill") }
+                    label = "药丸",
+                    enabled = choiceMap["battle_item"]?.enabled == true,
+                    onClick = { onChoice("battle_item") }
                 )
                 ActionIconButton(
-                    label = "药丸",
-                    enabled = choiceMap.containsKey("battle_item"),
-                    onClick = { onChoice("battle_item") }
+                    label = "换装",
+                    enabled = choiceMap["battle_equip"]?.enabled == true,
+                    onClick = { onChoice("battle_equip") }
                 )
             }
             Spacer(modifier = Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ActionIconButton(
-                    label = "换装",
-                    enabled = choiceMap.containsKey("battle_equip"),
-                    onClick = { onChoice("battle_equip") }
-                )
-                ActionIconButton(
                     label = "撤离",
-                    enabled = choiceMap.containsKey("battle_flee"),
+                    enabled = choiceMap["battle_flee"]?.enabled == true,
                     onClick = { onChoice("battle_flee") }
                 )
+            }
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            Text(text = "技能列表", fontWeight = FontWeight.SemiBold)
+            Spacer(modifier = Modifier.height(4.dp))
+            if (skillChoices.isEmpty()) {
+                PlaceholderPanel("暂无可用技能")
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 220.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    items(skillChoices, key = { it.id }) { choice ->
+                        Button(
+                            onClick = { onChoice(choice.id) },
+                            enabled = choice.enabled,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(choice.label)
+                        }
+                    }
+                }
             }
             Divider(modifier = Modifier.padding(vertical = 8.dp))
             Text(text = "快捷面板", fontWeight = FontWeight.SemiBold)
@@ -1576,6 +1620,31 @@ private fun SkillDetailCard(title: String, skill: RoleSkill, showFormula: Boolea
                 }
             }
         }
+    }
+}
+
+private fun formatStatusLine(status: StatusInstance): String {
+    val stackLabel = if (status.stacks > 1) "x${status.stacks}" else ""
+    val turnsLabel = "剩余${status.remainingTurns}回合"
+    val potencyLabel = if (status.potency > 0.0) {
+        val percent = (status.potency * 100).toInt()
+        "强度${percent}%"
+    } else {
+        ""
+    }
+    return listOf("${statusTypeLabel(status.type)}$stackLabel", turnsLabel, potencyLabel)
+        .filter { it.isNotBlank() }
+        .joinToString(" ")
+}
+
+private fun statusTypeLabel(type: StatusType): String {
+    return when (type) {
+        StatusType.POISON -> "中毒"
+        StatusType.BLEED -> "流血"
+        StatusType.STUN -> "眩晕"
+        StatusType.SHIELD -> "护盾"
+        StatusType.HASTE -> "加速"
+        StatusType.SLOW -> "减速"
     }
 }
 

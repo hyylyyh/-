@@ -9,12 +9,17 @@ class TurnBasedCombatEngine(private val rng: Random) {
         enemy: CombatActor,
         config: CombatConfig,
         enemyDamageMultiplier: Double,
-        initialCooldown: Int
+        playerSkillCooldowns: Map<String, Int>
     ): BattleSession {
         val logs = mutableListOf<String>()
         logs += "战斗开始：${player.name} 对 ${enemy.name}"
         GameLogger.info("战斗", "初始化战斗会话：玩家生命=${player.hp}/${player.stats.hpMax} 敌人生命=${enemy.hp}/${enemy.stats.hpMax}")
         val enemyCooldowns = buildEnemySkillCooldowns(enemy)
+        if (playerSkillCooldowns.isNotEmpty()) {
+            GameLogger.info("战斗", "初始化玩家技能冷却：数量=${playerSkillCooldowns.size}")
+        } else {
+            GameLogger.warn("战斗", "玩家技能冷却为空，可能没有可用技能")
+        }
         return BattleSession(
             player = player,
             enemy = enemy,
@@ -22,7 +27,7 @@ class TurnBasedCombatEngine(private val rng: Random) {
             config = config,
             enemyDamageMultiplier = enemyDamageMultiplier,
             logLines = logs,
-            skillCooldown = initialCooldown,
+            playerSkillCooldowns = playerSkillCooldowns,
             enemySkillCooldowns = enemyCooldowns,
             equipmentMode = EquipmentMode.NORMAL,
             basePlayerStats = player.stats
@@ -57,7 +62,7 @@ class TurnBasedCombatEngine(private val rng: Random) {
                 actor = player,
                 target = current.enemy,
                 skill = action.skill,
-                cooldownRemaining = current.skillCooldown
+                cooldowns = current.playerSkillCooldowns
             )
             PlayerBattleActionType.ITEM -> resolveItemAction(player, current.enemy)
             PlayerBattleActionType.EQUIP -> resolveEquipAction(
@@ -72,12 +77,15 @@ class TurnBasedCombatEngine(private val rng: Random) {
         logs += actionResult.logs
         player = actionResult.player
         var enemy = actionResult.enemy
-        val previousCooldown = current.skillCooldown
-        var cooldown = actionResult.cooldown ?: previousCooldown
-        if (cooldown != previousCooldown) {
-            GameLogger.info("战斗", "技能冷却变更：$previousCooldown -> $cooldown（玩家行动=${action.type}）")
+        val previousCooldowns = current.playerSkillCooldowns
+        val nextCooldowns = actionResult.playerCooldowns ?: previousCooldowns
+        if (nextCooldowns != previousCooldowns) {
+            GameLogger.info(
+                "战斗",
+                "玩家技能冷却更新：$previousCooldowns -> $nextCooldowns（玩家行动=${action.type}）"
+            )
         } else {
-            GameLogger.info("战斗", "技能冷却保持：$cooldown（玩家行动=${action.type}）")
+            GameLogger.info("战斗", "玩家技能冷却保持：$nextCooldowns（玩家行动=${action.type}）")
         }
         val mode = actionResult.mode ?: current.equipmentMode
         val escaped = actionResult.escaped
@@ -87,7 +95,7 @@ class TurnBasedCombatEngine(private val rng: Random) {
                 session = current.copy(
                     player = player,
                     enemy = enemy,
-                    skillCooldown = cooldown,
+                    playerSkillCooldowns = nextCooldowns,
                     enemySkillCooldowns = current.enemySkillCooldowns,
                     equipmentMode = mode,
                     basePlayerStats = current.basePlayerStats,
@@ -102,7 +110,7 @@ class TurnBasedCombatEngine(private val rng: Random) {
             current = current.copy(
                 player = player,
                 enemy = enemy,
-                skillCooldown = cooldown,
+                playerSkillCooldowns = nextCooldowns,
                 enemySkillCooldowns = current.enemySkillCooldowns,
                 equipmentMode = mode,
                 basePlayerStats = current.basePlayerStats,
@@ -156,25 +164,25 @@ class TurnBasedCombatEngine(private val rng: Random) {
 
         val nextRound = if (advanceRound) session.round + 1 else session.round
         val nextEnemyCooldowns = if (advanceRound) {
-            cooldowns.mapValues { (_, value) -> (value - 1).coerceAtLeast(0) }
+            decreaseCooldowns(cooldowns)
         } else {
             cooldowns
         }
-        val nextCooldown = if (advanceRound) {
-            (session.skillCooldown - 1).coerceAtLeast(0)
+        val nextPlayerCooldowns = if (advanceRound) {
+            decreaseCooldowns(session.playerSkillCooldowns)
         } else {
-            session.skillCooldown
+            session.playerSkillCooldowns
         }
         if (advanceRound) {
-            GameLogger.info("战斗", "回合推进，技能冷却减少：${session.skillCooldown} -> $nextCooldown")
+            GameLogger.info("战斗", "回合推进，玩家技能冷却变化：${session.playerSkillCooldowns} -> $nextPlayerCooldowns")
         } else {
-            GameLogger.info("战斗", "不推进回合，技能冷却保持：${session.skillCooldown}")
+            GameLogger.info("战斗", "不推进回合，玩家技能冷却保持：${session.playerSkillCooldowns}")
         }
         val updatedSession = session.copy(
             player = player,
             enemy = enemy,
             round = nextRound,
-            skillCooldown = nextCooldown,
+            playerSkillCooldowns = nextPlayerCooldowns,
             enemySkillCooldowns = nextEnemyCooldowns,
             basePlayerStats = session.basePlayerStats,
             logLines = session.logLines + logs
@@ -311,6 +319,11 @@ class TurnBasedCombatEngine(private val rng: Random) {
         return enemy.skills.associate { it.id to 0 }
     }
 
+    private fun decreaseCooldowns(cooldowns: Map<String, Int>): Map<String, Int> {
+        if (cooldowns.isEmpty()) return cooldowns
+        return cooldowns.mapValues { (_, value) -> (value - 1).coerceAtLeast(0) }
+    }
+
     private fun pickEnemySkill(
         enemy: CombatActor,
         cooldowns: Map<String, Int>
@@ -420,7 +433,7 @@ class TurnBasedCombatEngine(private val rng: Random) {
         actor: CombatActor,
         target: CombatActor,
         skill: SkillDefinition?,
-        cooldownRemaining: Int
+        cooldowns: Map<String, Int>
     ): ActionResult {
         if (skill == null) {
             val log = "未装备可用技能，行动无效。"
@@ -429,9 +442,10 @@ class TurnBasedCombatEngine(private val rng: Random) {
                 player = actor,
                 enemy = target,
                 logs = listOf(log),
-                cooldown = cooldownRemaining
+                playerCooldowns = cooldowns
             )
         }
+        val cooldownRemaining = cooldowns[skill.id] ?: 0
         if (cooldownRemaining > 0) {
             val log = "技能 ${skill.name} 冷却中（剩余 $cooldownRemaining 回合）。"
             GameLogger.info("战斗", log)
@@ -439,7 +453,7 @@ class TurnBasedCombatEngine(private val rng: Random) {
                 player = actor,
                 enemy = target,
                 logs = listOf(log),
-                cooldown = cooldownRemaining
+                playerCooldowns = cooldowns
             )
         }
         if (actor.mp < skill.cost) {
@@ -449,7 +463,7 @@ class TurnBasedCombatEngine(private val rng: Random) {
                 player = actor,
                 enemy = target,
                 logs = listOf(log),
-                cooldown = cooldownRemaining
+                playerCooldowns = cooldowns
             )
         }
 
@@ -497,11 +511,13 @@ class TurnBasedCombatEngine(private val rng: Random) {
             GameLogger.info("战斗", log)
         }
 
+        val nextCooldowns = cooldowns.toMutableMap()
+        nextCooldowns[skill.id] = skill.cooldown.coerceAtLeast(0)
         return ActionResult(
             player = nextPlayer,
             enemy = nextEnemy,
             logs = logs,
-            cooldown = skill.cooldown.coerceAtLeast(0)
+            playerCooldowns = nextCooldowns
         )
     }
 
@@ -654,7 +670,7 @@ class TurnBasedCombatEngine(private val rng: Random) {
         val player: CombatActor,
         val enemy: CombatActor,
         val logs: List<String>,
-        val cooldown: Int? = null,
+        val playerCooldowns: Map<String, Int>? = null,
         val mode: EquipmentMode? = null,
         val escaped: Boolean = false
     )

@@ -1,4 +1,4 @@
-﻿package com.jungleadventure.shared
+package com.jungleadventure.shared
 
 import com.jungleadventure.shared.loot.EquipmentInstance
 import com.jungleadventure.shared.loot.EquipmentSlot
@@ -35,7 +35,7 @@ class GameViewModel(
     private val rng = Random.Default
     private val characterDefinitions = runCatching { repository.loadCharacters().characters }.getOrElse { emptyList() }
     private val skillDefinitions = runCatching { repository.loadSkills().skills }.getOrElse { emptyList() }
-    private val roleActiveSkillMap = characterDefinitions.associate { it.id to it.activeSkillIds.firstOrNull() }
+    private val skillDefinitionMap = skillDefinitions.associateBy { it.id }
     private val events = runCatching { repository.loadEvents() }.getOrElse { emptyList() }
     private val engine = EventEngine(events)
     private val stageBundle = loadStageBundle()
@@ -43,6 +43,7 @@ class GameViewModel(
     private var stageRuntime: StageRuntime? = null
     private var rngSeed: Long = Random.Default.nextLong()
     private val totalChapters = 10
+    private val battleSkillChoicePrefix = "battle_skill_"
     private val maxChapter = max(totalChapters, events.maxOfOrNull { it.chapter } ?: 1)
     private val shopOfferCount = 6
     private val monsterOnlyMode = true
@@ -1929,12 +1930,36 @@ class GameViewModel(
             return
         }
 
-        val action = when (choiceId) {
-            "battle_attack" -> PlayerBattleAction(PlayerBattleActionType.BASIC_ATTACK)
-            "battle_skill" -> PlayerBattleAction(PlayerBattleActionType.SKILL, activeSkillDefinition())
-            "battle_item" -> PlayerBattleAction(PlayerBattleActionType.ITEM)
-            "battle_equip" -> PlayerBattleAction(PlayerBattleActionType.EQUIP)
-            "battle_flee" -> PlayerBattleAction(PlayerBattleActionType.FLEE)
+        val skillId = parseBattleSkillChoiceId(choiceId)
+        if (skillId != null) {
+            val skill = skillDefinitionMap[skillId]
+            if (skill == null) {
+                val message = "技能未找到，无法使用：$skillId"
+                GameLogger.warn(logTag, message)
+                _state.update { it.copy(lastAction = message, log = it.log + message) }
+                return
+            }
+            val cooldownRemaining = currentSession.playerSkillCooldowns[skill.id] ?: 0
+            if (cooldownRemaining > 0) {
+                val message = "技能 ${skill.name} 冷却中（剩余 $cooldownRemaining 回合）"
+                GameLogger.warn(logTag, message)
+                _state.update { it.copy(lastAction = message, log = it.log + message) }
+                return
+            }
+            if (currentSession.player.mp < skill.cost) {
+                val message = "技能 ${skill.name} 能量不足（需要 ${skill.cost}）"
+                GameLogger.warn(logTag, message)
+                _state.update { it.copy(lastAction = message, log = it.log + message) }
+                return
+            }
+        }
+
+        val action = when {
+            choiceId == "battle_attack" -> PlayerBattleAction(PlayerBattleActionType.BASIC_ATTACK)
+            skillId != null -> PlayerBattleAction(PlayerBattleActionType.SKILL, skillDefinitionMap[skillId])
+            choiceId == "battle_item" -> PlayerBattleAction(PlayerBattleActionType.ITEM)
+            choiceId == "battle_equip" -> PlayerBattleAction(PlayerBattleActionType.EQUIP)
+            choiceId == "battle_flee" -> PlayerBattleAction(PlayerBattleActionType.FLEE)
             else -> PlayerBattleAction(PlayerBattleActionType.BASIC_ATTACK)
         }
 
@@ -1990,12 +2015,18 @@ class GameViewModel(
             finishBattle(event, outcome)
             return
         }
+        val playerSkills = currentRoleSkillDefinitions()
+        val playerCooldowns = buildPlayerSkillCooldowns(playerSkills)
+        GameLogger.info(
+            logTag,
+            "进入战斗技能准备：角色=${_state.value.selectedRoleId} 技能数量=${playerSkills.size}"
+        )
         val session = turnEngine.startSession(
             player = context.player,
             enemy = context.enemy,
             config = context.config,
             enemyDamageMultiplier = context.enemyDamageMultiplier,
-            initialCooldown = 0
+            playerSkillCooldowns = playerCooldowns
         )
         battleEventId = event.eventId
 
@@ -2027,6 +2058,7 @@ class GameViewModel(
 
     private fun updateBattleState(session: BattleSession, newLogs: List<String>) {
         battleSession = session
+        val skillSummary = buildSkillCooldownSummary(session)
         val battleState = BattleUiState(
             round = session.round,
             playerHp = session.player.hp,
@@ -2035,7 +2067,9 @@ class GameViewModel(
             enemyMp = session.enemy.mp,
             enemyName = session.enemy.name,
             equipmentMode = equipmentModeLabel(session.equipmentMode),
-            skillCooldown = session.skillCooldown
+            skillCooldownSummary = skillSummary,
+            playerStatuses = session.player.statuses,
+            enemyStatuses = session.enemy.statuses
         )
         val choices = buildBattleChoices(session)
         _state.update { current ->
@@ -2056,6 +2090,7 @@ class GameViewModel(
         logLine: String,
         lastAction: String
     ) {
+        val skillSummary = buildSkillCooldownSummary(session)
         val battleState = BattleUiState(
             round = session.round,
             playerHp = session.player.hp,
@@ -2064,7 +2099,9 @@ class GameViewModel(
             enemyMp = session.enemy.mp,
             enemyName = session.enemy.name,
             equipmentMode = equipmentModeLabel(session.equipmentMode),
-            skillCooldown = session.skillCooldown
+            skillCooldownSummary = skillSummary,
+            playerStatuses = session.player.statuses,
+            enemyStatuses = session.enemy.statuses
         )
         val choices = buildBattleChoices(session)
         _state.update { current ->
@@ -2248,31 +2285,90 @@ class GameViewModel(
     }
 
     private fun buildBattleChoices(session: BattleSession): List<GameChoice> {
-        val skill = activeSkillDefinition()
-        val skillLabel = if (skill == null) {
-            "技能（未配置）"
-        } else {
-            val tip = when {
-                session.skillCooldown > 0 -> "冷却${session.skillCooldown}"
-                session.player.mp < skill.cost -> "能量不足"
-                else -> "可用"
-            }
-            "技能：${skill.name}（$tip）"
+        val skills = currentRoleSkillDefinitions()
+        if (skills.isNotEmpty() && session.playerSkillCooldowns.isEmpty()) {
+            GameLogger.warn(logTag, "战斗技能冷却为空，技能数量=${skills.size}")
+        }
+        val skillChoices = skills.map { skill ->
+            val cooldownRemaining = session.playerSkillCooldowns[skill.id] ?: 0
+            val mpEnough = session.player.mp >= skill.cost
+            val cooldownLabel = if (cooldownRemaining > 0) "冷却$cooldownRemaining" else "就绪"
+            val costLabel = if (skill.cost > 0) "能量${skill.cost}" else "无消耗"
+            val label = "技能：${skill.name}（$costLabel / $cooldownLabel）"
+            val enabled = cooldownRemaining <= 0 && mpEnough
+            GameChoice(buildBattleSkillChoiceId(skill.id), label, enabled = enabled)
+        }
+        if (skillChoices.isNotEmpty()) {
+            val enabledCount = skillChoices.count { it.enabled }
+            GameLogger.info(logTag, "战斗技能选项生成：总数=${skillChoices.size} 可用=$enabledCount")
         }
         val equipLabel = "换装备（${equipmentModeLabel(session.equipmentMode)}）"
-        return listOf(
+        val baseChoices = listOf(
             GameChoice("battle_attack", "普通攻击"),
-            GameChoice("battle_skill", skillLabel),
             GameChoice("battle_item", "使用药丸"),
             GameChoice("battle_equip", equipLabel),
             GameChoice("battle_flee", "撤离战斗")
         )
+        return baseChoices + skillChoices
     }
 
-    private fun activeSkillDefinition(): SkillDefinition? {
+    private fun buildSkillCooldownSummary(session: BattleSession): String {
+        val skills = currentRoleSkillDefinitions()
+        if (skills.isEmpty()) return "无技能"
+        val cooldowns = session.playerSkillCooldowns
+        return skills.joinToString(" / ") { skill ->
+            val remaining = cooldowns[skill.id] ?: 0
+            if (remaining > 0) "${skill.name}冷却$remaining" else "${skill.name}就绪"
+        }
+    }
+
+    private fun currentRoleSkillDefinitions(): List<SkillDefinition> {
         val roleId = _state.value.selectedRoleId
-        val skillId = roleActiveSkillMap[roleId]
-        return skillDefinitions.firstOrNull { it.id == skillId }
+        val character = characterDefinitions.firstOrNull { it.id == roleId }
+        if (character == null) {
+            GameLogger.warn(logTag, "未找到角色技能配置：角色编号=$roleId")
+            return emptyList()
+        }
+        val skillList = mutableListOf<SkillDefinition>()
+        character.activeSkillIds.forEach { skillId ->
+            val definition = skillDefinitionMap[skillId]
+            if (definition == null) {
+                GameLogger.warn(logTag, "主动技能缺失：角色=$roleId 技能编号=$skillId")
+            } else {
+                skillList += definition
+            }
+        }
+        if (character.ultimateSkillId.isNotBlank()) {
+            val ultimate = skillDefinitionMap[character.ultimateSkillId]
+            if (ultimate == null) {
+                GameLogger.warn(logTag, "终极技能缺失：角色=$roleId 技能编号=${character.ultimateSkillId}")
+            } else {
+                skillList += ultimate
+            }
+        }
+        if (skillList.isEmpty()) {
+            GameLogger.warn(logTag, "角色无可用技能：角色编号=$roleId")
+        }
+        return skillList.distinctBy { it.id }
+    }
+
+    private fun buildPlayerSkillCooldowns(skills: List<SkillDefinition>): Map<String, Int> {
+        if (skills.isEmpty()) return emptyMap()
+        val cooldowns = skills.associate { it.id to 0 }
+        GameLogger.info(logTag, "初始化玩家技能冷却映射：${cooldowns.keys.joinToString(",")}")
+        return cooldowns
+    }
+
+    private fun buildBattleSkillChoiceId(skillId: String): String {
+        return "$battleSkillChoicePrefix$skillId"
+    }
+
+    private fun parseBattleSkillChoiceId(choiceId: String): String? {
+        return if (choiceId.startsWith(battleSkillChoicePrefix)) {
+            choiceId.removePrefix(battleSkillChoicePrefix)
+        } else {
+            null
+        }
     }
 
     private fun equipmentModeLabel(mode: EquipmentMode): String {
