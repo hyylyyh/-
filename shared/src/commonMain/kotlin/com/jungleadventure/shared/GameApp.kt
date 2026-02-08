@@ -232,12 +232,8 @@ private fun HeaderBar(
     onToggleSettings: () -> Unit
 ) {
     val selectedRole = state.roles.firstOrNull { it.id == state.selectedRoleId && it.unlocked }
-    val canOpenRoleDetail = selectedRole != null &&
-        state.screen != GameScreen.SAVE_SELECT &&
-        state.screen != GameScreen.SETTINGS
-    val canOpenSettings = state.screen == GameScreen.ADVENTURE ||
-        state.screen == GameScreen.ROLE_DETAIL ||
-        state.screen == GameScreen.SETTINGS
+    val canOpenRoleDetail = selectedRole != null && state.screen != GameScreen.SAVE_SELECT
+    val canOpenSettings = state.screen != GameScreen.SAVE_SELECT
     val roleIconLabel = if (state.screen == GameScreen.ROLE_DETAIL) "返" else "角"
     val settingsSelected = state.screen == GameScreen.SETTINGS
     Row(
@@ -245,43 +241,8 @@ private fun HeaderBar(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column {
-            val titleStageProgress = if (state.stage.total > 0) {
-                "${state.stage.visited}/${state.stage.total}"
-            } else {
-                "--"
-            }
-            val titleChapterLabel = "第 ${state.chapter} 章"
-            val titleProgressLabel = "关卡进度 $titleStageProgress"
-            val titleText = "${state.title} · $titleChapterLabel · $titleProgressLabel"
-            Text(
-                text = titleText,
-                style = MaterialTheme.typography.titleMedium,
-                color = Color(0xFFECE8D9),
-                fontWeight = FontWeight.Bold
-            )
-            val stageLabel = if (state.stage.id.isNotBlank()) {
-                " | 关卡 ${state.stage.name} ${state.stage.visited}/${state.stage.total}"
-            } else {
-                ""
-            }
-            Text(
-                text = "回合 ${state.turn}  |  章节 ${state.chapter}$stageLabel",
-                color = Color(0xFFB8B2A6),
-                style = MaterialTheme.typography.bodySmall
-            )
-            if (state.stage.command.isNotBlank()) {
-                Text(
-                    text = "关卡口令：${state.stage.command}",
-                    color = Color(0xFF8DB38B)
-                )
-            }
-        }
+        Spacer(modifier = Modifier.weight(1f))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = state.lastAction.ifBlank { "准备行动" },
-                color = Color(0xFF8DB38B)
-            )
             HeaderIconButton(
                 label = roleIconLabel,
                 enabled = canOpenRoleDetail,
