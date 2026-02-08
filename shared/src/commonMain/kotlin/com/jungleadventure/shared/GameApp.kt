@@ -2788,14 +2788,10 @@ private fun BattleFullScreenPanel(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             BattleInfoPanel(
-                modifier = Modifier.weight(1.15f),
+                modifier = Modifier.fillMaxWidth(),
                 player = state.player,
                 battle = battle,
                 enemyPreview = state.enemyPreview
-            )
-            BattleStagePanel(
-                modifier = Modifier.weight(0.85f),
-                state = state
             )
         }
         BattleOperationPanel(
@@ -2849,82 +2845,6 @@ private fun BattleInfoPanel(
                 )
                 val enemyLines = buildEnemyInfoLines(battle, enemyPreview)
                 InfoBlock(title = "敌人情报", lines = enemyLines)
-            }
-        }
-    }
-}
-
-@Composable
-private fun BattleStagePanel(
-    state: GameUiState,
-    modifier: Modifier = Modifier
-) {
-    val battle = state.battle ?: return
-    val stage = state.stage
-    val logTag = "BattleStagePanel"
-    val logPreview = state.log.takeLast(4).map { trimStageLog(it, 30) }
-    LaunchedEffect(
-        battle.round,
-        battle.enemyName,
-        stage.id,
-        stage.nodeId,
-        stage.visited,
-        stage.total,
-        state.log.size
-    ) {
-        GameLogger.info(
-            logTag,
-            "刷新战斗侧栏：回合=${battle.round} 敌人=${battle.enemyName} " +
-                "关卡=${stage.id} 节点=${stage.nodeId} 进度=${stage.visited}/${stage.total} " +
-                "日志条数=${state.log.size}"
-        )
-    }
-    Card(modifier = modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Text(text = "战斗进度", fontWeight = FontWeight.Bold)
-            Divider(modifier = Modifier.padding(vertical = 6.dp))
-            val stageName = if (stage.name.isNotBlank()) stage.name else "未知关卡"
-            Text(
-                text = "回合 ${battle.round}  装备模式 ${battle.equipmentMode.ifBlank { "默认" }}",
-                color = Color(0xFFB8B2A6)
-            )
-            if (battle.skillCooldownSummary.isNotBlank()) {
-                Text(
-                    text = "技能冷却 ${battle.skillCooldownSummary}",
-                    color = Color(0xFF7B756B)
-                )
-            }
-            Divider(modifier = Modifier.padding(vertical = 4.dp))
-            Text(
-                text = "章节 ${state.chapter}/${state.totalChapters}  关卡 $stageName  进度 ${stage.visited}/${stage.total}",
-                color = Color(0xFFB8B2A6)
-            )
-            if (stage.id.isNotBlank()) {
-                Text(text = "关卡编号 ${stage.id}", color = Color(0xFF7B756B))
-            }
-            if (stage.nodeId.isNotBlank()) {
-                Text(
-                    text = "节点 ${stage.nodeId}  类型 ${nodeTypeLabel(stage.nodeType)}",
-                    color = Color(0xFF7B756B)
-                )
-            }
-            if (stage.command.isNotBlank()) {
-                Text(text = "口令 ${stage.command}", color = Color(0xFF8DB38B))
-            }
-            if (stage.guardian.isNotBlank()) {
-                Text(text = "守卫 ${stage.guardian}", color = Color(0xFFE8C07D))
-            }
-            Divider(modifier = Modifier.padding(vertical = 4.dp))
-            Text(text = "战斗日志", fontWeight = FontWeight.SemiBold)
-            if (logPreview.isEmpty()) {
-                Text(text = "暂无日志", color = Color(0xFF7B756B))
-            } else {
-                logPreview.forEach { line ->
-                    Text(text = "• $line", color = Color(0xFFB8B2A6))
-                }
             }
         }
     }
