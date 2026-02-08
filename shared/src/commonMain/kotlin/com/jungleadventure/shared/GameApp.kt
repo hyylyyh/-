@@ -94,6 +94,7 @@ fun GameApp(
                     onOpenStatus = viewModel::onOpenStatus,
                     onOpenEquipment = viewModel::onOpenEquipment,
                     onOpenEquipmentCatalog = viewModel::onOpenEquipmentCatalog,
+                    onSelectCodexTab = viewModel::onSelectCodexTab,
                     onOpenInventory = viewModel::onOpenInventory,
                     onOpenCards = viewModel::onOpenCards,
                     onOpenSkills = viewModel::onOpenSkills,
@@ -770,6 +771,7 @@ private fun SidePanel(
     onOpenStatus: () -> Unit,
     onOpenEquipment: () -> Unit,
     onOpenEquipmentCatalog: () -> Unit,
+    onSelectCodexTab: (CodexTab) -> Unit,
     onOpenInventory: () -> Unit,
     onOpenCards: () -> Unit,
     onOpenSkills: () -> Unit,
@@ -835,7 +837,7 @@ private fun SidePanel(
                 Text(text = when (state.activePanel) {
                     GamePanel.STATUS -> "角色状态"
                     GamePanel.EQUIPMENT -> "当前装备"
-                    GamePanel.EQUIPMENT_CATALOG -> "装备图鉴"
+                    GamePanel.EQUIPMENT_CATALOG -> "游戏图鉴"
                     GamePanel.INVENTORY -> "背包物品"
                     GamePanel.CARDS -> "卡牌收藏"
                     GamePanel.SKILLS -> "角色技能"
@@ -847,7 +849,10 @@ private fun SidePanel(
                         player = state.player,
                         onUnequip = onUnequipSlot
                     )
-                    GamePanel.EQUIPMENT_CATALOG -> EquipmentCatalogPanel(entries = state.equipmentCatalog)
+                    GamePanel.EQUIPMENT_CATALOG -> CodexPanel(
+                        state = state,
+                        onSelectCodexTab = onSelectCodexTab
+                    )
                     GamePanel.INVENTORY -> InventoryPanel(
                         player = state.player,
                         onEquipItem = onEquipItem
@@ -993,7 +998,80 @@ private fun EquipmentPanel(
 }
 
 @Composable
-private fun EquipmentCatalogPanel(entries: List<EquipmentCatalogEntry>) {
+private fun CodexPanel(
+    state: GameUiState,
+    onSelectCodexTab: (CodexTab) -> Unit
+) {
+    val equipmentIds = state.equipmentCatalog.map { it.id }.toSet()
+    val monsterIds = state.monsterCatalog.map { it.id }.toSet()
+    val unlockedEquipment = state.player.discoveredEquipmentIds.filter { equipmentIds.contains(it) }.toSet()
+    val unlockedMonsters = state.player.discoveredEnemyIds.filter { monsterIds.contains(it) }.toSet()
+    val unlockedRoles = state.roles.filter { it.unlocked }.map { it.id }.toSet()
+    val unlockedSkills = state.skillCatalog.filter { entry ->
+        entry.sourceRoleIds.isEmpty() || entry.sourceRoleIds.any { unlockedRoles.contains(it) }
+    }.map { it.id }.toSet()
+
+    val equipmentLabel = "装备 ${unlockedEquipment.size}/${equipmentIds.size}"
+    val skillLabel = "技能 ${unlockedSkills.size}/${state.skillCatalog.size}"
+    val monsterLabel = "怪物 ${unlockedMonsters.size}/${monsterIds.size}"
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            CodexTabButton(
+                label = skillLabel,
+                selected = state.codexTab == CodexTab.SKILL,
+                onClick = { onSelectCodexTab(CodexTab.SKILL) }
+            )
+            CodexTabButton(
+                label = equipmentLabel,
+                selected = state.codexTab == CodexTab.EQUIPMENT,
+                onClick = { onSelectCodexTab(CodexTab.EQUIPMENT) }
+            )
+            CodexTabButton(
+                label = monsterLabel,
+                selected = state.codexTab == CodexTab.MONSTER,
+                onClick = { onSelectCodexTab(CodexTab.MONSTER) }
+            )
+        }
+        Text(
+            text = "图鉴会随着探索逐步解锁，未解锁条目会隐藏细节。",
+            color = Color(0xFF7B756B)
+        )
+        when (state.codexTab) {
+            CodexTab.SKILL -> SkillCatalogPanel(
+                entries = state.skillCatalog,
+                unlockedRoleIds = unlockedRoles
+            )
+            CodexTab.EQUIPMENT -> EquipmentCatalogPanel(
+                entries = state.equipmentCatalog,
+                unlockedIds = unlockedEquipment
+            )
+            CodexTab.MONSTER -> MonsterCatalogPanel(
+                entries = state.monsterCatalog,
+                unlockedIds = unlockedMonsters
+            )
+        }
+    }
+}
+
+@Composable
+private fun CodexTabButton(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    if (selected) {
+        Button(onClick = onClick) { Text(label) }
+    } else {
+        OutlinedButton(onClick = onClick) { Text(label) }
+    }
+}
+
+@Composable
+private fun EquipmentCatalogPanel(
+    entries: List<EquipmentCatalogEntry>,
+    unlockedIds: Set<String>
+) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("已收录 ${entries.size} 件装备", color = Color(0xFFB8B2A6))
         if (entries.isEmpty()) {
@@ -1008,25 +1086,153 @@ private fun EquipmentCatalogPanel(entries: List<EquipmentCatalogEntry>) {
         ) {
             items(entries, key = { it.id }) { entry ->
                 val rarityColor = equipmentRarityColor(entry.rarityTier, entry.rarityId)
+                val unlocked = unlockedIds.contains(entry.id)
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
-                            text = "${entry.name}（${entry.rarityName}）",
+                            text = if (unlocked) "${entry.name}（${entry.rarityName}）" else "未解锁装备",
                             fontWeight = FontWeight.SemiBold,
-                            color = rarityColor
+                            color = if (unlocked) rarityColor else Color(0xFF8F8F8F)
                         )
+                        if (unlocked) {
+                            Text(
+                                text = "部位 ${slotLabel(entry.slot)} | 等级需求 ${entry.levelReq} | 强化上限 ${entry.enhanceMax}",
+                                color = Color(0xFFB8B2A6)
+                            )
+                            Text(
+                                text = "基础属性 ${formatStats(entry.baseStats)}",
+                                color = Color(0xFFB8B2A6)
+                            )
+                            Text(
+                                text = "词条数量 ${entry.affixMin}-${entry.affixMax} | 卖价 ${entry.sellValue} | 分解产出 ${entry.salvageYield}",
+                                color = Color(0xFF7B756B)
+                            )
+                        } else {
+                            Text(text = "解锁条件：获得该装备", color = Color(0xFF7B756B))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SkillCatalogPanel(
+    entries: List<SkillCatalogEntry>,
+    unlockedRoleIds: Set<String>
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("已收录 ${entries.size} 个技能", color = Color(0xFFB8B2A6))
+        if (entries.isEmpty()) {
+            PlaceholderPanel("暂无技能图鉴数据")
+            return
+        }
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(240.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(entries, key = { it.id }) { entry ->
+                val unlocked = entry.sourceRoleIds.isEmpty() || entry.sourceRoleIds.any { unlockedRoleIds.contains(it) }
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
-                            text = "部位 ${slotLabel(entry.slot)} | 等级需求 ${entry.levelReq} | 强化上限 ${entry.enhanceMax}",
-                            color = Color(0xFFB8B2A6)
+                            text = if (unlocked) "${entry.name}（${entry.type}）" else "未解锁技能",
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (unlocked) Color(0xFF8DB38B) else Color(0xFF8F8F8F)
                         )
+                        if (unlocked) {
+                            Text(
+                                text = "目标 ${entry.target} | 消耗 ${entry.cost} | 冷却 ${entry.cooldown}",
+                                color = Color(0xFFB8B2A6)
+                            )
+                            if (entry.description.isNotBlank()) {
+                                Text(text = entry.description, color = Color(0xFFB8B2A6))
+                            }
+                            if (entry.effects.isNotEmpty()) {
+                                Text(
+                                    text = "效果 ${formatSkillEffects(entry.effects)}",
+                                    color = Color(0xFF7B756B)
+                                )
+                            }
+                            if (entry.sourceRoleNames.isNotEmpty()) {
+                                Text(
+                                    text = "所属角色 ${entry.sourceRoleNames.joinToString("、")}",
+                                    color = Color(0xFF7B756B)
+                                )
+                            }
+                        } else {
+                            val roleHint = if (entry.sourceRoleNames.isEmpty()) {
+                                "解锁条件：解锁对应角色"
+                            } else {
+                                "解锁条件：解锁 ${entry.sourceRoleNames.joinToString("、")}"
+                            }
+                            Text(text = roleHint, color = Color(0xFF7B756B))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MonsterCatalogPanel(
+    entries: List<MonsterCatalogEntry>,
+    unlockedIds: Set<String>
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("已收录 ${entries.size} 个怪物", color = Color(0xFFB8B2A6))
+        if (entries.isEmpty()) {
+            PlaceholderPanel("暂无怪物图鉴数据")
+            return
+        }
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(240.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(entries, key = { it.id }) { entry ->
+                val unlocked = unlockedIds.contains(entry.id)
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
-                            text = "基础属性 ${formatStats(entry.baseStats)}",
-                            color = Color(0xFFB8B2A6)
+                            text = if (unlocked) "${entry.name}（${entry.type}）" else "未解锁怪物",
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (unlocked) Color(0xFFE8C07D) else Color(0xFF8F8F8F)
                         )
-                        Text(
-                            text = "词条数量 ${entry.affixMin}-${entry.affixMax} | 卖价 ${entry.sellValue} | 分解产出 ${entry.salvageYield}",
-                            color = Color(0xFF7B756B)
-                        )
+                        if (unlocked) {
+                            Text(
+                                text = "等级 ${entry.level} | 属性 ${formatEnemyStats(entry.stats)}",
+                                color = Color(0xFFB8B2A6)
+                            )
+                            if (entry.skills.isNotEmpty()) {
+                                Text(text = "技能", fontWeight = FontWeight.SemiBold)
+                                entry.skills.forEach { skill ->
+                                    Text(
+                                        text = formatEnemySkill(skill),
+                                        color = Color(0xFF7B756B)
+                                    )
+                                }
+                            }
+                            if (entry.appearances.isNotEmpty()) {
+                                Text(
+                                    text = "出没记录 ${entry.appearances.joinToString("、")}",
+                                    color = Color(0xFF7B756B)
+                                )
+                            }
+                            if (entry.notes.isNotBlank()) {
+                                Text(text = "备注 ${entry.notes}", color = Color(0xFF7B756B))
+                            }
+                            if (entry.dropHint.isNotBlank()) {
+                                Text(text = "掉落 ${entry.dropHint}", color = Color(0xFF7B756B))
+                            }
+                        } else {
+                            Text(text = "解锁条件：击败该怪物 1 次", color = Color(0xFF7B756B))
+                        }
                     }
                 }
             }
@@ -1489,6 +1695,39 @@ private fun formatCardEffects(effects: List<CardEffect>): String {
         val value = if (effect.value >= 0) "+${effect.value}" else effect.value.toString()
         "${statLabel(effect.stat)}$value"
     }
+}
+
+private fun formatSkillEffects(effects: List<SkillEffect>): String {
+    if (effects.isEmpty()) return "无"
+    return effects.joinToString("，") { effect ->
+        val value = effect.value?.let { num -> if (num >= 0) "+$num" else num.toString() } ?: ""
+        val scaling = effect.scaling?.let { "(${it})" } ?: ""
+        val note = effect.note?.let { "[$it]" } ?: ""
+        "${effect.type}$value$scaling$note"
+    }
+}
+
+private fun formatEnemyStats(stats: EnemyStats): String {
+    return "生命${stats.hp} 攻击${stats.atk} 防御${stats.def} 速度${stats.spd} 命中${stats.hit} 闪避${stats.eva} 暴击${stats.crit} 抗暴${stats.resist}"
+}
+
+private fun formatEnemySkill(skill: EnemySkillDefinition): String {
+    val chancePercent = (skill.chance * 100).toInt()
+    val parts = mutableListOf<String>()
+    parts += "${skill.name} 冷却${skill.cooldown} 触发${chancePercent}%"
+    skill.damageMultiplier?.let { parts += "伤害倍率 ${"%.2f".format(it)}" }
+    if (skill.healRate > 0.0) {
+        parts += "治疗 ${(skill.healRate * 100).toInt()}%"
+    }
+    if (!skill.statusType.isNullOrBlank()) {
+        val statusLabel = skill.statusType
+        val statusLine = "附带${statusLabel} ${skill.statusTurns}回合"
+        parts += statusLine
+    }
+    if (skill.note.isNotBlank()) {
+        parts += skill.note
+    }
+    return parts.joinToString(" | ")
 }
 
 private fun equipmentRarityColor(rarityTier: Int, rarityId: String): Color {

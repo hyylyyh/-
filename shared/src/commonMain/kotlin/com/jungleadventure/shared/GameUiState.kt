@@ -23,6 +23,9 @@ data class GameUiState(
     val choices: List<GameChoice> = listOf(),
     val activePanel: GamePanel = GamePanel.STATUS,
     val equipmentCatalog: List<EquipmentCatalogEntry> = emptyList(),
+    val skillCatalog: List<SkillCatalogEntry> = emptyList(),
+    val monsterCatalog: List<MonsterCatalogEntry> = emptyList(),
+    val codexTab: CodexTab = CodexTab.EQUIPMENT,
     val lastAction: String = "",
     val saveSlots: List<SaveSlotSummary> = emptyList(),
     val showSkillFormula: Boolean = false,
@@ -96,7 +99,9 @@ data class PlayerStats(
     val equipment: EquipmentLoadout = EquipmentLoadout(),
     val inventory: InventoryState = InventoryState(),
     val cards: List<CardInstance> = emptyList(),
-    val pityCounters: Map<String, Int> = emptyMap()
+    val pityCounters: Map<String, Int> = emptyMap(),
+    val discoveredEquipmentIds: List<String> = emptyList(),
+    val discoveredEnemyIds: List<String> = emptyList()
 )
 
 data class GameChoice(

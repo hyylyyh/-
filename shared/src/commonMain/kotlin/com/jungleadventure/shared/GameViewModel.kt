@@ -53,6 +53,8 @@ class GameViewModel(
     private val lootRepository = LootRepository()
     private val cardRepository = CardRepository()
     private val equipmentCatalog = buildEquipmentCatalog()
+    private val skillCatalog = buildSkillCatalog()
+    private val monsterCatalog = buildMonsterCatalog()
     private var battleSession: BattleSession? = null
     private var battleEventId: String? = null
     private var shopEventId: String? = null
@@ -86,6 +88,9 @@ class GameViewModel(
                 completedChapters = emptyList(),
                 screen = GameScreen.SAVE_SELECT,
                 equipmentCatalog = equipmentCatalog,
+                skillCatalog = skillCatalog,
+                monsterCatalog = monsterCatalog,
+                codexTab = CodexTab.EQUIPMENT,
                 lastAction = "请选择存档",
                 log = listOf("请选择存档：读取已有存档或创建新存档")
             )
@@ -297,8 +302,19 @@ class GameViewModel(
     }
 
     fun onOpenEquipmentCatalog() {
-        GameLogger.info(logTag, "切换面板：装备图鉴")
-        _state.update { it.copy(activePanel = GamePanel.EQUIPMENT_CATALOG, lastAction = "查看装备图鉴") }
+        GameLogger.info(logTag, "切换面板：游戏图鉴")
+        _state.update {
+            it.copy(
+                activePanel = GamePanel.EQUIPMENT_CATALOG,
+                codexTab = CodexTab.EQUIPMENT,
+                lastAction = "查看游戏图鉴"
+            )
+        }
+    }
+
+    fun onSelectCodexTab(tab: CodexTab) {
+        GameLogger.info(logTag, "切换图鉴标签：${tab.name}")
+        _state.update { it.copy(codexTab = tab, lastAction = "切换图鉴：${codexTabLabel(tab)}") }
     }
 
     fun onOpenInventory() {
@@ -1259,9 +1275,10 @@ class GameViewModel(
                 "掉落系统",
                 "已拥有同类装备，自动折算：${item.name} 模板=${item.templateId} -> 金币+$gold"
             )
+            val discovery = recordEquipmentDiscovery(player, item, "掉落重复装备折算")
             return LootApplication(
-                player = player.copy(gold = player.gold + gold),
-                logs = listOf("已有同类装备，${item.name} 已折算金币 +$gold")
+                player = discovery.player.copy(gold = discovery.player.gold + gold),
+                logs = discovery.logs + "已有同类装备，${item.name} 已折算金币 +$gold"
             )
         }
         return if (inventory.items.size >= inventory.capacity) {
@@ -1270,17 +1287,19 @@ class GameViewModel(
                 "掉落系统",
                 "背包已满，装备自动折算：${item.name} -> 金币+$gold"
             )
+            val discovery = recordEquipmentDiscovery(player, item, "掉落背包满折算")
             LootApplication(
-                player = player.copy(gold = player.gold + gold),
-                logs = listOf("背包已满，${item.name} 已折算金币 +$gold")
+                player = discovery.player.copy(gold = discovery.player.gold + gold),
+                logs = discovery.logs + "背包已满，${item.name} 已折算金币 +$gold"
             )
         } else {
             GameLogger.info("掉落系统", "新增装备到背包：${item.name}（${item.rarityName}）")
+            val discovery = recordEquipmentDiscovery(player, item, "掉落获得装备")
             LootApplication(
-                player = player.copy(
+                player = discovery.player.copy(
                     inventory = inventory.copy(items = inventory.items + item)
                 ),
-                logs = listOf("获得装备：${item.name}（${item.rarityName}）")
+                logs = discovery.logs + "获得装备：${item.name}（${item.rarityName}）"
             )
         }
     }
@@ -1293,6 +1312,48 @@ class GameViewModel(
 
     private fun isDuplicateEquipment(player: PlayerStats, item: EquipmentItem): Boolean {
         return ownedEquipmentTemplateIds(player).contains(item.templateId)
+    }
+
+    private data class DiscoveryUpdate(
+        val player: PlayerStats,
+        val logs: List<String> = emptyList()
+    )
+
+    private fun recordEquipmentDiscovery(
+        player: PlayerStats,
+        item: EquipmentItem,
+        reason: String
+    ): DiscoveryUpdate {
+        if (player.discoveredEquipmentIds.contains(item.templateId)) {
+            return DiscoveryUpdate(player)
+        }
+        val updated = player.copy(
+            discoveredEquipmentIds = (player.discoveredEquipmentIds + item.templateId).distinct()
+        )
+        GameLogger.info("装备图鉴", "图鉴解锁：装备=${item.name} 模板=${item.templateId} 原因=$reason")
+        return DiscoveryUpdate(
+            player = updated,
+            logs = listOf("装备图鉴解锁：${item.name}")
+        )
+    }
+
+    private fun recordEnemyDiscovery(
+        player: PlayerStats,
+        enemyId: String,
+        enemyName: String,
+        reason: String
+    ): DiscoveryUpdate {
+        if (player.discoveredEnemyIds.contains(enemyId)) {
+            return DiscoveryUpdate(player)
+        }
+        val updated = player.copy(
+            discoveredEnemyIds = (player.discoveredEnemyIds + enemyId).distinct()
+        )
+        GameLogger.info("怪物图鉴", "图鉴解锁：怪物=$enemyName 编号=$enemyId 原因=$reason")
+        return DiscoveryUpdate(
+            player = updated,
+            logs = listOf("怪物图鉴解锁：$enemyName")
+        )
     }
 
     private fun estimateSellValue(item: EquipmentItem): Int {
@@ -1412,8 +1473,25 @@ class GameViewModel(
             exp = player.exp.coerceAtLeast(0),
             expToNext = expToNext
         )
-        val sanitized = sanitizeDuplicateEquipments(normalized, reason)
+        val synced = syncDiscoveredEquipment(normalized, reason)
+        val sanitized = sanitizeDuplicateEquipments(synced, reason)
         return recalculatePlayerStats(sanitized, reason)
+    }
+
+    private fun syncDiscoveredEquipment(player: PlayerStats, reason: String): PlayerStats {
+        val current = player.discoveredEquipmentIds.toMutableSet()
+        val fromEquipped = player.equipment.slots.values.map { it.templateId }
+        val fromInventory = player.inventory.items.map { it.templateId }
+        val before = current.size
+        current += fromEquipped
+        current += fromInventory
+        if (current.size != before) {
+            GameLogger.info(
+                "装备图鉴",
+                "同步已发现装备：新增=${current.size - before} 原因=$reason"
+            )
+        }
+        return player.copy(discoveredEquipmentIds = current.toList().distinct())
     }
 
     private fun sanitizeDuplicateEquipments(player: PlayerStats, reason: String): PlayerStats {
@@ -1882,7 +1960,23 @@ class GameViewModel(
     }
 
     private fun startBattleSession(event: EventDefinition) {
-        val context = battleSystem.buildBattleContext(_state.value.player, event)
+        val current = _state.value
+        val group = enemyRepository.findGroup(event.enemyGroupId)
+        val enemyDef = enemyRepository.findEnemy(group?.enemyId)
+        val discovery = if (enemyDef != null) {
+            recordEnemyDiscovery(current.player, enemyDef.id, enemyDef.name, "进入战斗")
+        } else {
+            DiscoveryUpdate(current.player)
+        }
+        if (discovery.logs.isNotEmpty()) {
+            _state.update { state ->
+                state.copy(
+                    player = discovery.player,
+                    log = state.log + discovery.logs
+                )
+            }
+        }
+        val context = battleSystem.buildBattleContext(discovery.player, event)
         if (context.player.hp <= 0) {
             GameLogger.warn(logTag, "战斗前生命为0，直接判定失败并进行结算：事件编号=${event.eventId}")
             val outcome = BattleOutcome(
@@ -2186,6 +2280,14 @@ class GameViewModel(
             EquipmentMode.NORMAL -> "默认"
             EquipmentMode.OFFENSE -> "进攻"
             EquipmentMode.DEFENSE -> "防御"
+        }
+    }
+
+    private fun codexTabLabel(tab: CodexTab): String {
+        return when (tab) {
+            CodexTab.SKILL -> "技能"
+            CodexTab.EQUIPMENT -> "装备"
+            CodexTab.MONSTER -> "怪物"
         }
     }
 
@@ -2958,6 +3060,71 @@ class GameViewModel(
                 .thenBy { it.name }
         )
         GameLogger.info("装备图鉴", "装备图鉴加载完成：数量=${entries.size}")
+        return entries
+    }
+
+    private fun buildSkillCatalog(): List<SkillCatalogEntry> {
+        if (skillDefinitions.isEmpty()) {
+            GameLogger.warn("技能图鉴", "技能配置为空，图鉴列表为空")
+            return emptyList()
+        }
+        val roleMap = characterDefinitions.associateBy { it.id }
+        val skillToRoleIds = mutableMapOf<String, MutableList<String>>()
+        characterDefinitions.forEach { role ->
+            val allSkillIds = buildList {
+                if (role.passiveSkillId.isNotBlank()) add(role.passiveSkillId)
+                addAll(role.activeSkillIds)
+                if (role.ultimateSkillId.isNotBlank()) add(role.ultimateSkillId)
+            }
+            allSkillIds.forEach { skillId ->
+                val list = skillToRoleIds.getOrPut(skillId) { mutableListOf() }
+                list += role.id
+            }
+        }
+        val entries = skillDefinitions.map { skill ->
+            val roleIds = skillToRoleIds[skill.id].orEmpty()
+            val roleNames = roleIds.mapNotNull { roleMap[it]?.name }
+            SkillCatalogEntry(
+                id = skill.id,
+                name = skill.name,
+                type = skill.type,
+                target = skill.target,
+                cost = skill.cost,
+                cooldown = skill.cooldown,
+                description = skill.desc,
+                effects = skill.effects,
+                sourceRoleIds = roleIds,
+                sourceRoleNames = roleNames
+            )
+        }.sortedWith(compareBy<SkillCatalogEntry> { it.type }.thenBy { it.name })
+        GameLogger.info("技能图鉴", "技能图鉴加载完成：数量=${entries.size}")
+        return entries
+    }
+
+    private fun buildMonsterCatalog(): List<MonsterCatalogEntry> {
+        val enemyFile = runCatching { repository.loadEnemies() }.getOrElse { defaultEnemyFile() }
+        val groupFile = runCatching { repository.loadEnemyGroups() }.getOrElse { defaultEnemyGroupFile() }
+        if (enemyFile.enemies.isEmpty()) {
+            GameLogger.warn("怪物图鉴", "怪物配置为空，图鉴列表为空")
+            return emptyList()
+        }
+        val entries = enemyFile.enemies.map { enemy ->
+            val appearances = groupFile.groups
+                .filter { it.enemyId == enemy.id }
+                .mapNotNull { it.note.ifBlank { null } }
+            MonsterCatalogEntry(
+                id = enemy.id,
+                name = enemy.name,
+                type = enemy.type,
+                level = enemy.level,
+                stats = enemy.stats,
+                skills = enemy.skills,
+                notes = enemy.notes,
+                appearances = appearances,
+                dropHint = "掉落随章节与难度浮动"
+            )
+        }.sortedWith(compareBy<MonsterCatalogEntry> { it.type }.thenBy { it.level }.thenBy { it.name })
+        GameLogger.info("怪物图鉴", "怪物图鉴加载完成：数量=${entries.size}")
         return entries
     }
 
