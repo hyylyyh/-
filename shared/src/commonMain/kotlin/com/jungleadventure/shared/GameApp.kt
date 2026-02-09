@@ -933,8 +933,19 @@ private fun RoleDetailPanel(
     val eva = (8 + player.agility / 2 + player.evaBonus).coerceIn(5, 45)
     val crit = (6 + player.agility / 3 + player.critBonus).coerceIn(5, 40)
     val critDmg = 1.5
+    val stage = state.stage
+    val chapterTitle = when {
+        stage.name.isNotBlank() -> stage.name
+        stage.chapter > 0 -> "第${stage.chapter}章"
+        else -> "未知章节"
+    }
+    val chapterProgress = if (stage.total > 0) "${stage.visited}/${stage.total}" else "--/--"
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(text = "关卡进度", fontWeight = FontWeight.SemiBold)
+        Text(text = "章节：$chapterTitle", color = Color(0xFFB8B2A6))
+        Text(text = "节点进度：$chapterProgress", color = Color(0xFF7B756B))
+        Divider(modifier = Modifier.padding(vertical = 4.dp))
         Text(text = "基础属性", fontWeight = FontWeight.SemiBold)
         InfoGrid(
             items = listOf(
