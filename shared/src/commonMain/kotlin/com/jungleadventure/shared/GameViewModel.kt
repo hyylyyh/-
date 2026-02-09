@@ -854,7 +854,7 @@ class GameViewModel(
         _state.update { current ->
             current.copy(
                 useDarkTheme = useDark,
-                lastAction = "切换$label模式",
+                lastAction = "切换${label}模式",
                 log = current.log + "设置：主题模式切换为$label"
             )
         }
