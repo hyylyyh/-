@@ -430,11 +430,18 @@ private fun SaveSelectPanel(
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(text = slot.title, fontWeight = FontWeight.SemiBold)
                         Text(text = slot.detail, color = Color(0xFF7B756B))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = { onCreateNewSave(slot.slot) }) {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Button(
+                                onClick = { onCreateNewSave(slot.slot) },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
                                 Text("新建此槽位")
                             }
-                            Button(onClick = { onLoadSave(slot.slot) }, enabled = slot.hasData) {
+                            Button(
+                                onClick = { onLoadSave(slot.slot) },
+                                enabled = slot.hasData,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
                                 Text("读取此存档")
                             }
                         }
@@ -462,6 +469,7 @@ private fun RoleSelectionPanel(
         ?: state.roles.firstOrNull { it.unlocked }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(text = "提示：角色列表可滚动查看更多", color = Color(0xFF7B756B))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -476,41 +484,26 @@ private fun RoleSelectionPanel(
         state.selectedSaveSlot?.let { slot ->
             Text(text = "新存档槽位：$slot", color = Color(0xFFB8B2A6))
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Column(
-                modifier = Modifier.weight(0.48f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(420.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(state.roles, key = { it.id }) { role ->
-                        val isSelected = role.id == selectedRole?.id
-                        RoleCard(role = role, isSelected = isSelected, onSelectRole = onSelectRole)
-                    }
-                }
-                if (state.roles.size > 4) {
-                    Text(text = "角色列表可滚动查看更多", color = Color(0xFF7B756B))
-                }
-            }
-            Column(
-                modifier = Modifier.weight(0.52f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                RoleDetailPanel(
-                    selectedRole = selectedRole,
-                    onSelectRole = onSelectRole,
-                    showSkillFormula = showSkillFormula
-                )
-                SettingsPanelCard(
-                    showSkillFormula = showSkillFormula,
-                    onToggleShowSkillFormula = onToggleShowSkillFormula
-                )
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(420.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(state.roles, key = { it.id }) { role ->
+                val isSelected = role.id == selectedRole?.id
+                RoleCard(role = role, isSelected = isSelected, onSelectRole = onSelectRole)
             }
         }
+        RoleDetailPanel(
+            selectedRole = selectedRole,
+            onSelectRole = onSelectRole,
+            showSkillFormula = showSkillFormula
+        )
+        SettingsPanelCard(
+            showSkillFormula = showSkillFormula,
+            onToggleShowSkillFormula = onToggleShowSkillFormula
+        )
     }
 }
 
