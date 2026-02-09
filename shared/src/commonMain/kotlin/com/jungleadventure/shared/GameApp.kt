@@ -232,9 +232,10 @@ private fun HeaderBar(
     onToggleSettings: () -> Unit
 ) {
     val selectedRole = state.roles.firstOrNull { it.id == state.selectedRoleId && it.unlocked }
-    val canOpenRoleDetail = selectedRole != null && state.screen != GameScreen.SAVE_SELECT
+    val canOpenRoleDetail = selectedRole != null &&
+        (state.screen == GameScreen.ADVENTURE || state.screen == GameScreen.ROLE_DETAIL)
     val canOpenSettings = state.screen != GameScreen.SAVE_SELECT
-    val roleIconLabel = if (state.screen == GameScreen.ROLE_DETAIL) "返" else "角"
+    val roleIconLabel = "角"
     val settingsSelected = state.screen == GameScreen.SETTINGS
     val stage = state.stage
     val showChapterInfo = state.screen == GameScreen.ADVENTURE

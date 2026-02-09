@@ -340,6 +340,10 @@ class GameViewModel(
             }
             return
         }
+        if (current.screen != GameScreen.ADVENTURE) {
+            GameLogger.warn(logTag, "角色详情入口不可用：当前界面=${current.screen}")
+            return
+        }
         roleDetailReturnScreen = current.screen
         GameLogger.info(logTag, "进入角色详情界面")
         _state.update { state ->
