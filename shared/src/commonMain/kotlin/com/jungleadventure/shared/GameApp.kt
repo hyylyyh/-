@@ -470,7 +470,6 @@ private fun RoleSelectionPanel(
         ?: state.roles.firstOrNull { it.unlocked }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(text = "提示：角色列表可滚动查看更多", color = Color(0xFF7B756B))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
