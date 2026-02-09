@@ -2280,7 +2280,7 @@ private fun InventoryPanel(
     val rows = slots.chunked(InventoryGridColumns)
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
-            "容量 ${inventory.items.size}/${inventory.capacity} | 网格 ${InventoryGridColumns}x${InventoryGridRows}",
+            "容量 ${inventory.items.size}/${inventory.capacity}",
             color = Color(0xFFB8B2A6)
         )
         Text(text = "消耗品：红药水 x$redPotion | 蓝药水 x$bluePotion", color = Color(0xFF7B756B))
@@ -2387,10 +2387,6 @@ private fun InventoryGridCell(
 private fun CardGridPanel(cards: List<CardInstance>) {
     val slots = buildCardGridSlots(cards)
     val rows = slots.chunked(InventoryGridColumns)
-    Text(
-        text = "网格 ${InventoryGridColumns}x${InventoryGridRows}，悬浮或长按查看卡牌详情",
-        color = Color(0xFF7B756B)
-    )
     if (cards.isEmpty()) {
         Text(text = "暂无卡牌", color = Color(0xFF7B756B))
     }
