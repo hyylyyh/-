@@ -43,6 +43,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -105,6 +106,18 @@ private val BattleSkillTileWidth = 124.dp
 private val BattleSkillTileHeight = 64.dp
 private val BattleUtilityTileWidth = 120.dp
 private val BattleUtilityTileHeight = 44.dp
+private val AppColorScheme = darkColorScheme(
+    background = Color(0xFF0E1A14),
+    surface = Color(0xFF182720),
+    surfaceVariant = Color(0xFF1D2D26),
+    primary = Color(0xFF3A7A5F),
+    secondary = Color(0xFF8DB38B),
+    onBackground = Color(0xFFECE8D9),
+    onSurface = Color(0xFFECE8D9),
+    onSurfaceVariant = Color(0xFFD1C7B2),
+    onPrimary = Color(0xFFF7F3E8),
+    onSecondary = Color(0xFF0E1A14)
+)
 
 @Composable
 fun GameApp(
@@ -116,7 +129,7 @@ fun GameApp(
 ) {
     val state by viewModel.state.collectAsState()
     CompositionLocalProvider(LocalResourceReader provides resourceReader) {
-        MaterialTheme {
+        MaterialTheme(colorScheme = AppColorScheme) {
             val isBattleFullScreen = state.screen == GameScreen.ADVENTURE && state.battle != null
             val isShopFullScreen = state.screen == GameScreen.ADVENTURE && isShopEventUi(state.currentEvent)
             LaunchedEffect(isBattleFullScreen, isShopFullScreen) {
