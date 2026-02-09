@@ -44,6 +44,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -106,7 +107,7 @@ private val BattleSkillTileWidth = 124.dp
 private val BattleSkillTileHeight = 64.dp
 private val BattleUtilityTileWidth = 120.dp
 private val BattleUtilityTileHeight = 44.dp
-private val AppColorScheme = darkColorScheme(
+private val AppDarkColorScheme = darkColorScheme(
     background = Color(0xFF0E1A14),
     surface = Color(0xFF182720),
     surfaceVariant = Color(0xFF1D2D26),
@@ -117,6 +118,18 @@ private val AppColorScheme = darkColorScheme(
     onSurfaceVariant = Color(0xFFD1C7B2),
     onPrimary = Color(0xFFF7F3E8),
     onSecondary = Color(0xFF0E1A14)
+)
+private val AppLightColorScheme = lightColorScheme(
+    background = Color(0xFFF5F3EE),
+    surface = Color(0xFFFFFFFF),
+    surfaceVariant = Color(0xFFEDE8DE),
+    primary = Color(0xFF2B6B52),
+    secondary = Color(0xFF4E7A5F),
+    onBackground = Color(0xFF1F1F1F),
+    onSurface = Color(0xFF1F1F1F),
+    onSurfaceVariant = Color(0xFF3F3A33),
+    onPrimary = Color(0xFFFFFFFF),
+    onSecondary = Color(0xFFFFFFFF)
 )
 
 @Composable
@@ -129,7 +142,11 @@ fun GameApp(
 ) {
     val state by viewModel.state.collectAsState()
     CompositionLocalProvider(LocalResourceReader provides resourceReader) {
-        MaterialTheme(colorScheme = AppColorScheme) {
+        val colorScheme = if (state.useDarkTheme) AppDarkColorScheme else AppLightColorScheme
+        LaunchedEffect(state.useDarkTheme) {
+            GameLogger.info("GameApp", "主题模式切换：${if (state.useDarkTheme) "夜间" else "白天"}")
+        }
+        MaterialTheme(colorScheme = colorScheme) {
             val isBattleFullScreen = state.screen == GameScreen.ADVENTURE && state.battle != null
             val isShopFullScreen = state.screen == GameScreen.ADVENTURE && isShopEventUi(state.currentEvent)
             LaunchedEffect(isBattleFullScreen, isShopFullScreen) {
@@ -141,7 +158,7 @@ fun GameApp(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color(0xFF0E1A14))
+                    .background(MaterialTheme.colorScheme.background)
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -175,7 +192,9 @@ fun GameApp(
                         onAssignBattleSkill = viewModel::onAssignBattleSkill,
                         onClearBattleSkill = viewModel::onClearBattleSkill,
                         showSkillFormula = state.showSkillFormula,
-                        onToggleShowSkillFormula = viewModel::onToggleShowSkillFormula
+                        onToggleShowSkillFormula = viewModel::onToggleShowSkillFormula,
+                        useDarkTheme = state.useDarkTheme,
+                        onToggleTheme = viewModel::onToggleTheme
                     )
                 } else {
                     Row(
@@ -206,7 +225,9 @@ fun GameApp(
                             onAssignBattleSkill = viewModel::onAssignBattleSkill,
                             onClearBattleSkill = viewModel::onClearBattleSkill,
                             showSkillFormula = state.showSkillFormula,
-                            onToggleShowSkillFormula = viewModel::onToggleShowSkillFormula
+                            onToggleShowSkillFormula = viewModel::onToggleShowSkillFormula,
+                            useDarkTheme = state.useDarkTheme,
+                            onToggleTheme = viewModel::onToggleTheme
                         )
                         SidePanel(
                             modifier = Modifier.weight(0.8f),
@@ -273,8 +294,8 @@ private fun HeaderBar(
     ) {
         if (showChapterInfo) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(text = chapterTitle, color = Color(0xFFE6DBC4), fontWeight = FontWeight.SemiBold)
-                Text(text = "关卡 $chapterProgress", color = Color(0xFF9A9487))
+                Text(text = chapterTitle, color = primaryTextColor(), fontWeight = FontWeight.SemiBold)
+                Text(text = "关卡 $chapterProgress", color = mutedTextColor())
             }
         }
         Spacer(modifier = Modifier.weight(1f))
@@ -326,7 +347,9 @@ private fun MainPanel(
     onAssignBattleSkill: (Int, String) -> Unit,
     onClearBattleSkill: (Int) -> Unit,
     showSkillFormula: Boolean,
-    onToggleShowSkillFormula: (Boolean) -> Unit
+    onToggleShowSkillFormula: (Boolean) -> Unit,
+    useDarkTheme: Boolean,
+    onToggleTheme: (Boolean) -> Unit
 ) {
     val scrollState = rememberScrollState()
     LaunchedEffect(state.activePanel) {
@@ -352,8 +375,7 @@ private fun MainPanel(
                         RoleSelectionPanel(
                             state = state,
                             onSelectRole = onSelectRole,
-                            showSkillFormula = showSkillFormula,
-                            onToggleShowSkillFormula = onToggleShowSkillFormula
+                            showSkillFormula = showSkillFormula
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Button(
@@ -390,6 +412,8 @@ private fun MainPanel(
             }
             GameScreen.SETTINGS -> {
                 SettingsPanelCard(
+                    useDarkTheme = useDarkTheme,
+                    onToggleTheme = onToggleTheme,
                     showSkillFormula = showSkillFormula,
                     onToggleShowSkillFormula = onToggleShowSkillFormula,
                     codexState = state,
@@ -436,14 +460,14 @@ private fun SaveSelectPanel(
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(text = "存档选择", fontWeight = FontWeight.Bold)
             Divider(modifier = Modifier.padding(vertical = 6.dp))
-            Text(text = "开始游戏前必须选择读取存档或创建新存档。", color = Color(0xFFB8B2A6))
+            Text(text = "开始游戏前必须选择读取存档或创建新存档。", color = secondaryTextColor())
             if (state.saveSlots.isEmpty()) {
                 Text("存档信息加载中...")
             } else {
                 state.saveSlots.forEach { slot ->
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(text = slot.title, fontWeight = FontWeight.SemiBold)
-                        Text(text = slot.detail, color = Color(0xFF7B756B))
+                        Text(text = slot.detail, color = mutedTextColor())
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Button(
                                 onClick = { onCreateNewSave(slot.slot) },
@@ -471,8 +495,7 @@ private fun SaveSelectPanel(
 private fun RoleSelectionPanel(
     state: GameUiState,
     onSelectRole: (String) -> Unit,
-    showSkillFormula: Boolean,
-    onToggleShowSkillFormula: (Boolean) -> Unit
+    showSkillFormula: Boolean
 ) {
     if (state.roles.isEmpty()) {
         Text("角色数据加载中...")
@@ -495,7 +518,7 @@ private fun RoleSelectionPanel(
             )
         }
         state.selectedSaveSlot?.let { slot ->
-            Text(text = "新存档槽位：$slot", color = Color(0xFFB8B2A6))
+            Text(text = "新存档槽位：$slot", color = secondaryTextColor())
         }
         LazyColumn(
             modifier = Modifier
@@ -513,10 +536,6 @@ private fun RoleSelectionPanel(
             onSelectRole = onSelectRole,
             showSkillFormula = showSkillFormula
         )
-        SettingsPanelCard(
-            showSkillFormula = showSkillFormula,
-            onToggleShowSkillFormula = onToggleShowSkillFormula
-        )
     }
 }
 
@@ -531,7 +550,7 @@ private fun ChapterSelectPanel(
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(text = "关卡选择", fontWeight = FontWeight.Bold)
             Divider(modifier = Modifier.padding(vertical = 6.dp))
-            Text(text = "选择章节与难度后进入冒险。未通关章节不可选择。", color = Color(0xFFB8B2A6))
+            Text(text = "选择章节与难度后进入冒险。未通关章节不可选择。", color = secondaryTextColor())
             val completedLabel = if (state.completedChapters.isEmpty()) {
                 "暂无通关记录"
             } else {
@@ -558,7 +577,7 @@ private fun ChapterSelectPanel(
                     ) {
                         Column {
                             Text(text = "第 $chapter 章", fontWeight = FontWeight.SemiBold)
-                            Text(text = label, color = Color(0xFF7B756B))
+                            Text(text = label, color = mutedTextColor())
                         }
                         if (isSelected) {
                             Button(
@@ -612,11 +631,11 @@ private fun RoleCard(
     onSelectRole: (String) -> Unit
 ) {
     val containerColor = when {
-        isSelected -> Color(0xFF1C3B30)
-        role.unlocked -> Color(0xFF182720)
-        else -> Color(0xFF29231D)
+        isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+        role.unlocked -> MaterialTheme.colorScheme.surface
+        else -> MaterialTheme.colorScheme.surfaceVariant
     }
-    val contentColor = if (role.unlocked) Color(0xFFECE8D9) else Color(0xFF9B9587)
+    val contentColor = if (role.unlocked) primaryTextColor() else mutedTextColor()
     Card(
         onClick = { onSelectRole(role.id) },
         enabled = role.unlocked,
@@ -645,7 +664,7 @@ private fun RoleCard(
                     Spacer(modifier = Modifier.width(10.dp))
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(text = role.name, fontWeight = FontWeight.Bold)
-                        Text(text = role.role, color = Color(0xFFB8B2A6))
+                        Text(text = role.role, color = secondaryTextColor())
                     }
                 }
                 RoleTag(
@@ -702,7 +721,7 @@ private fun RoleDetailPanel(
                     Text(text = "角色详情", fontWeight = FontWeight.SemiBold)
                     Text(
                         text = "${selectedRole.name} · ${selectedRole.role}",
-                        color = Color(0xFFB8B2A6)
+                        color = secondaryTextColor()
                     )
                 }
             }
@@ -710,7 +729,7 @@ private fun RoleDetailPanel(
                 onClick = { onSelectRole(selectedRole.id) },
                 enabled = selectedRole.unlocked,
                 colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = Color(0xFFECE8D9)
+                    contentColor = primaryTextColor()
                 )
             ) {
                 Text("使用角色")
@@ -763,8 +782,8 @@ private fun RoleDetailPanel(
 @Composable
 private fun RoleStat(label: String, value: Int) {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(text = label, color = Color(0xFF7B756B))
-        Text(text = value.toString(), fontWeight = FontWeight.SemiBold)
+        Text(text = label, color = mutedTextColor())
+        Text(text = value.toString(), fontWeight = FontWeight.SemiBold, color = primaryTextColor())
     }
 }
 
@@ -789,7 +808,7 @@ private fun EnemyPreviewPanel(preview: EnemyPreviewUiState) {
         ) {
             Column {
                 Text(text = preview.name, fontWeight = FontWeight.SemiBold)
-                Text(text = "${preview.type}  等级 ${preview.level}  数量 ${preview.count}", color = Color(0xFFB8B2A6))
+                Text(text = "${preview.type}  等级 ${preview.level}  数量 ${preview.count}", color = secondaryTextColor())
             }
             RoleTag(
                 text = preview.threat,
@@ -818,17 +837,17 @@ private fun EnemyPreviewPanel(preview: EnemyPreviewUiState) {
             RoleStat(label = "暴击", value = preview.crit)
         }
 
-        Text(text = "先手规则：${preview.firstStrike}", color = Color(0xFFB8B2A6))
+        Text(text = "先手规则：${preview.firstStrike}", color = secondaryTextColor())
         if (preview.roundLimit != null) {
-            Text(text = "回合上限：${preview.roundLimit}", color = Color(0xFFB8B2A6))
+            Text(text = "回合上限：${preview.roundLimit}", color = secondaryTextColor())
         }
         if (preview.note.isNotBlank()) {
-            Text(text = "备注：${preview.note}", color = Color(0xFFB8B2A6))
+            Text(text = "备注：${preview.note}", color = secondaryTextColor())
         }
         if (preview.dropTableId.isNotBlank()) {
             Text(text = "掉落预览（${preview.dropTableId}）", color = Color(0xFFE8C07D))
             preview.dropPreview.forEach { line ->
-                Text(text = "- $line", color = Color(0xFFB8B2A6))
+                Text(text = "- $line", color = secondaryTextColor())
             }
         }
         Text(text = "战斗评估：${preview.tip}", color = Color(0xFF8DB38B))
@@ -892,8 +911,8 @@ private fun SidePanel(
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(text = "设置提示", fontWeight = FontWeight.Bold)
                     Divider(modifier = Modifier.padding(vertical = 6.dp))
-                    Text(text = "已进入设置界面，可在左侧调整游戏设置。", color = Color(0xFFB8B2A6))
-                    Text(text = "点击顶部“设”返回上一个界面。", color = Color(0xFF7B756B))
+                    Text(text = "已进入设置界面，可在左侧调整游戏设置。", color = secondaryTextColor())
+                    Text(text = "点击顶部“设”返回上一个界面。", color = mutedTextColor())
                 }
             }
             return
@@ -903,7 +922,7 @@ private fun SidePanel(
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(text = "提示", fontWeight = FontWeight.Bold)
                     Divider(modifier = Modifier.padding(vertical = 6.dp))
-                    Text("请先在左侧完成存档选择与角色确认。", color = Color(0xFFB8B2A6))
+                    Text("请先在左侧完成存档选择与角色确认。", color = secondaryTextColor())
                 }
             }
             return
@@ -943,8 +962,8 @@ private fun RoleDetailPanel(
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(text = "关卡进度", fontWeight = FontWeight.SemiBold)
-        Text(text = "章节：$chapterTitle", color = Color(0xFFB8B2A6))
-        Text(text = "节点进度：$chapterProgress", color = Color(0xFF7B756B))
+        Text(text = "章节：$chapterTitle", color = secondaryTextColor())
+        Text(text = "节点进度：$chapterProgress", color = mutedTextColor())
         Divider(modifier = Modifier.padding(vertical = 4.dp))
         Text(text = "基础属性", fontWeight = FontWeight.SemiBold)
         InfoGrid(
@@ -981,7 +1000,7 @@ private fun RoleDetailPanel(
         Divider(modifier = Modifier.padding(vertical = 4.dp))
         Text(text = "状态与效果", fontWeight = FontWeight.SemiBold)
         if (state.playerStatuses.isEmpty()) {
-            Text(text = "暂无状态", color = Color(0xFF7B756B))
+            Text(text = "暂无状态", color = mutedTextColor())
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 state.playerStatuses.forEach { status ->
@@ -1041,12 +1060,12 @@ private fun BattleOptionConfigPanel(
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
                 text = "拖动技能到槽位（${BattleSkillSlotCount} 个）",
-                color = Color(0xFF7B756B)
+                color = mutedTextColor()
             )
             val topSlotSize = 96.dp
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF182720)),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     modifier = Modifier.size(topSlotSize, 48.dp)
                 ) {
                     Column(
@@ -1061,7 +1080,11 @@ private fun BattleOptionConfigPanel(
                     val enabled = potionCount >= index + 1
                     Card(
                         colors = CardDefaults.cardColors(
-                            containerColor = if (enabled) Color(0xFF182720) else Color(0xFF222B26)
+                            containerColor = if (enabled) {
+                                MaterialTheme.colorScheme.surface
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant
+                            }
                         ),
                         border = BorderStroke(1.dp, if (enabled) Color(0xFF3A5C4C) else Color(0xFF2C3B33)),
                         modifier = Modifier.size(topSlotSize, 48.dp)
@@ -1074,7 +1097,7 @@ private fun BattleOptionConfigPanel(
                             Text(text = "药水${index + 1}", fontWeight = FontWeight.SemiBold)
                             Text(
                                 text = "剩余 $potionCount",
-                                color = if (enabled) Color(0xFF8DB38B) else Color(0xFF7B756B)
+                                color = if (enabled) Color(0xFF8DB38B) else mutedTextColor()
                             )
                         }
                     }
@@ -1099,7 +1122,11 @@ private fun BattleOptionConfigPanel(
                     ) {
                         Card(
                             colors = CardDefaults.cardColors(
-                                containerColor = if (highlight) Color(0xFF1D2D26) else Color(0xFF182720)
+                                containerColor = if (highlight) {
+                                    MaterialTheme.colorScheme.surfaceVariant
+                                } else {
+                                    MaterialTheme.colorScheme.surface
+                                }
                             ),
                             border = BorderStroke(1.dp, borderColor),
                             modifier = Modifier.fillMaxSize()
@@ -1113,7 +1140,7 @@ private fun BattleOptionConfigPanel(
                                 Text(
                                     text = label,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = if (isEmpty) Color(0xFF7B756B) else Color(0xFFECE8D9),
+                                    color = if (isEmpty) mutedTextColor() else primaryTextColor(),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -1145,7 +1172,7 @@ private fun BattleOptionConfigPanel(
                         rowSkills.forEach { skill ->
                             var coordinates by remember(skill.id) { mutableStateOf<LayoutCoordinates?>(null) }
                             Card(
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF182720)),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                                 border = BorderStroke(1.dp, Color(0xFF2C3B33)),
                                 modifier = Modifier
                                     .size(112.dp, 52.dp)
@@ -1184,7 +1211,7 @@ private fun BattleOptionConfigPanel(
                                     )
                                     Text(
                                         text = "消耗${skill.cost} 冷却${skill.cooldown}",
-                                        color = Color(0xFF7B756B),
+                                        color = mutedTextColor(),
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -1238,7 +1265,7 @@ private fun EquipmentInfoRow(
             Text(
                 text = "${slotLabel(slot)}：${item?.name ?: "空"}",
                 fontWeight = FontWeight.SemiBold,
-                color = if (item == null) Color(0xFFB8B2A6) else rarityColor
+                color = if (item == null) secondaryTextColor() else rarityColor
             )
             if (item != null) {
                 Text(
@@ -1259,7 +1286,7 @@ private fun EquipmentOverviewPanel(
 ) {
     val entries = buildEquipmentIconEntries(player)
     if (entries.isEmpty()) {
-        Text(text = "暂无装备槽位", color = Color(0xFF7B756B))
+        Text(text = "暂无装备槽位", color = mutedTextColor())
         return
     }
     EquipmentIconGrid(entries = entries)
@@ -1273,13 +1300,13 @@ private fun InventoryOverviewPanel(
     val inventory = player.inventory
     val redPotion = player.potionCount.coerceAtLeast(0)
     val bluePotion = player.bluePotionCount.coerceAtLeast(0)
-    Text("容量 ${inventory.items.size}/${inventory.capacity}", color = Color(0xFFB8B2A6))
-    Text(text = "消耗品：红药水 x$redPotion | 蓝药水 x$bluePotion", color = Color(0xFF7B756B))
+    Text("容量 ${inventory.items.size}/${inventory.capacity}", color = secondaryTextColor())
+    Text(text = "消耗品：红药水 x$redPotion | 蓝药水 x$bluePotion", color = mutedTextColor())
     if (inventory.items.isEmpty()) {
         PlaceholderPanel("背包空空如也")
         return
     }
-    Text(text = "悬浮或长按查看详情，点击图标查看装备详情", color = Color(0xFF7B756B))
+    Text(text = "悬浮或长按查看详情，点击图标查看装备详情", color = mutedTextColor())
     InventoryIconGrid(
         items = inventory.items,
         columns = 4,
@@ -1311,7 +1338,7 @@ private fun EquipmentIconGrid(
     entries: List<EquipmentIconEntry>
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(text = "悬浮查看详情", color = Color(0xFF7B756B))
+        Text(text = "悬浮查看详情", color = mutedTextColor())
         entries.chunked(4).forEach { rowEntries ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1368,7 +1395,7 @@ private fun EquipmentIconCard(
         }
         Text(
             text = label,
-            color = if (item == null) Color(0xFF7B756B) else Color(0xFFB8B2A6),
+            color = if (item == null) mutedTextColor() else secondaryTextColor(),
             textAlign = TextAlign.Center
         )
     }
@@ -1548,12 +1575,12 @@ private fun EquipmentTooltipCard(
 ) {
     val slotName = slotLabel(slot)
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF182720))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(text = "$slotName 装备详情", fontWeight = FontWeight.SemiBold)
             if (item == null) {
-                Text(text = "该槽位暂无装备", color = Color(0xFF7B756B))
+                Text(text = "该槽位暂无装备", color = mutedTextColor())
                 return@Column
             }
             val rarityColor = equipmentRarityColor(item.rarityTier, item.rarityId)
@@ -1562,16 +1589,16 @@ private fun EquipmentTooltipCard(
                 fontWeight = FontWeight.SemiBold,
                 color = rarityColor
             )
-            Text(text = "等级 ${item.level} | 评分 ${item.score}", color = Color(0xFFB8B2A6))
-            Text(text = "基础属性 ${formatStats(item.stats)}", color = Color(0xFFB8B2A6))
+            Text(text = "等级 ${item.level} | 评分 ${item.score}", color = secondaryTextColor())
+            Text(text = "基础属性 ${formatStats(item.stats)}", color = secondaryTextColor())
             val totalStats = formatStats(item.totalStats())
-            Text(text = "总属性 $totalStats", color = Color(0xFF7B756B))
+            Text(text = "总属性 $totalStats", color = mutedTextColor())
             if (item.affixes.isNotEmpty()) {
                 Text(text = "词条 ${formatAffixes(item.affixes)}", color = Color(0xFF8DB38B))
             }
             val sourceLabel = formatEquipmentSourceLabel(item.source)
             if (sourceLabel.isNotBlank()) {
-                Text(text = "来源 $sourceLabel", color = Color(0xFF7B756B))
+                Text(text = "来源 $sourceLabel", color = mutedTextColor())
             }
         }
     }
@@ -1584,13 +1611,13 @@ private fun EquipmentCatalogTooltipCard(
 ) {
     val rarityColor = equipmentRarityColor(entry.rarityTier, entry.rarityId)
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF182720))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(text = "装备图鉴详情", fontWeight = FontWeight.SemiBold)
             if (!unlocked) {
-                Text(text = "该装备尚未解锁", color = Color(0xFF7B756B))
-                Text(text = "解锁条件：获得该装备", color = Color(0xFF7B756B))
+                Text(text = "该装备尚未解锁", color = mutedTextColor())
+                Text(text = "解锁条件：获得该装备", color = mutedTextColor())
                 return@Column
             }
             Text(
@@ -1600,12 +1627,12 @@ private fun EquipmentCatalogTooltipCard(
             )
             Text(
                 text = "部位 ${slotLabel(entry.slot)} | 等级需求 ${entry.levelReq} | 强化上限 ${entry.enhanceMax}",
-                color = Color(0xFFB8B2A6)
+                color = secondaryTextColor()
             )
-            Text(text = "基础属性 ${formatStats(entry.baseStats)}", color = Color(0xFFB8B2A6))
+            Text(text = "基础属性 ${formatStats(entry.baseStats)}", color = secondaryTextColor())
             Text(
                 text = "词条数量 ${entry.affixMin}-${entry.affixMax} | 卖价 ${entry.sellValue} | 分解产出 ${entry.salvageYield}",
-                color = Color(0xFF7B756B)
+                color = mutedTextColor()
             )
         }
     }
@@ -1642,7 +1669,7 @@ private fun RoleSkillIconSection(
 ) {
     val entries = buildSkillIconEntries(role)
     if (entries.isEmpty()) {
-        Text(text = "暂无技能信息", color = Color(0xFF7B756B))
+        Text(text = "暂无技能信息", color = mutedTextColor())
         return
     }
     SkillIconGrid(
@@ -1685,7 +1712,7 @@ private fun SkillIconGrid(
     showSkillFormula: Boolean
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(text = "悬浮查看详情", color = Color(0xFF7B756B))
+        Text(text = "悬浮查看详情", color = mutedTextColor())
         entries.chunked(4).forEach { rowEntries ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1770,7 +1797,7 @@ private fun SkillIconCard(
         }
         Text(
             text = entry.skill.name,
-            color = Color(0xFFB8B2A6),
+            color = secondaryTextColor(),
             textAlign = TextAlign.Center
         )
     }
@@ -1779,7 +1806,7 @@ private fun SkillIconCard(
 @Composable
 private fun SkillCatalogSummary(role: RoleProfile?, showSkillFormula: Boolean) {
     if (role == null) {
-        Text(text = "暂无技能信息", color = Color(0xFF7B756B))
+        Text(text = "暂无技能信息", color = mutedTextColor())
         return
     }
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1800,7 +1827,7 @@ private fun StatusLine(status: StatusInstance) {
                 .size(10.dp)
                 .background(color, CircleShape)
         )
-        Text(text = formatStatusLine(status), color = Color(0xFFB8B2A6))
+        Text(text = formatStatusLine(status), color = secondaryTextColor())
     }
 }
 
@@ -1816,7 +1843,7 @@ private fun StatusPanel(player: PlayerStats, battle: BattleUiState?) {
         if (player.hitBonus != 0 || player.evaBonus != 0 || player.critBonus != 0) {
             Text(
                 text = "命中+${player.hitBonus} 闪避+${player.evaBonus} 暴击+${player.critBonus}",
-                color = Color(0xFFB8B2A6)
+                color = secondaryTextColor()
             )
         }
         Spacer(modifier = Modifier.height(4.dp))
@@ -1839,10 +1866,10 @@ private fun StatusList(title: String, statuses: List<StatusInstance>) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(text = title, fontWeight = FontWeight.SemiBold, color = Color(0xFF8DB38B))
         if (statuses.isEmpty()) {
-            Text(text = "暂无状态", color = Color(0xFF7B756B))
+            Text(text = "暂无状态", color = mutedTextColor())
         } else {
             statuses.forEach { status ->
-                Text(text = "- ${formatStatusLine(status)}", color = Color(0xFFB8B2A6))
+                Text(text = "- ${formatStatusLine(status)}", color = secondaryTextColor())
             }
         }
     }
@@ -1855,14 +1882,14 @@ private fun SkillPanel(role: RoleProfile?, showSkillFormula: Boolean) {
         return
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(text = "${role.name} / ${role.role}", color = Color(0xFFB8B2A6))
+        Text(text = "${role.name} / ${role.role}", color = secondaryTextColor())
         SkillDetailCard(
             title = "被动技能",
             skill = role.passiveSkill,
             showFormula = showSkillFormula
         )
         if (role.activeSkills.isEmpty()) {
-            Text(text = "主动技能：暂无", color = Color(0xFFB8B2A6))
+            Text(text = "主动技能：暂无", color = secondaryTextColor())
         } else {
             role.activeSkills.forEachIndexed { index, skill ->
                 SkillDetailCard(
@@ -1892,11 +1919,11 @@ private fun EquipmentPanel(
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 val rarityColor = item?.let { equipmentRarityColor(it.rarityTier, it.rarityId) }
                     ?: Color(0xFF8F8F8F)
-                val levelColor = item?.let { equipmentLevelColor(it.level) } ?: Color(0xFFB8B2A6)
+                val levelColor = item?.let { equipmentLevelColor(it.level) } ?: secondaryTextColor()
                 Text(
                     text = "${slotLabel(slot)}：${item?.name ?: "空"}",
                     fontWeight = FontWeight.SemiBold,
-                    color = if (item == null) Color(0xFFB8B2A6) else rarityColor
+                    color = if (item == null) secondaryTextColor() else rarityColor
                 )
                 if (item != null) {
                     Text(
@@ -1904,7 +1931,7 @@ private fun EquipmentPanel(
                         color = rarityColor
                     )
                     Text(text = "等级 ${item.level}", color = levelColor)
-                    Text(text = "属性 ${formatStats(item.totalStats())}", color = Color(0xFFB8B2A6))
+                    Text(text = "属性 ${formatStats(item.totalStats())}", color = secondaryTextColor())
                     val visibleAffixes = item.affixes.filterNot { isHiddenStat(it.type) }
                     if (visibleAffixes.isNotEmpty()) {
                         Text(text = "词条", fontWeight = FontWeight.SemiBold)
@@ -1963,7 +1990,7 @@ private fun CodexPanel(
         }
         Text(
             text = "图鉴会随着探索逐步解锁，未解锁条目会隐藏细节。",
-            color = Color(0xFF7B756B)
+            color = mutedTextColor()
         )
         when (state.codexTab) {
             CodexTab.SKILL -> SkillCatalogPanel(
@@ -2001,7 +2028,7 @@ private fun EquipmentCatalogPanel(
     unlockedIds: Set<String>
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("已收录 ${entries.size} 件装备", color = Color(0xFFB8B2A6))
+        Text("已收录 ${entries.size} 件装备", color = secondaryTextColor())
         if (entries.isEmpty()) {
             PlaceholderPanel("暂无装备图鉴数据")
             return
@@ -2047,18 +2074,18 @@ private fun EquipmentCatalogPanel(
                             if (unlocked) {
                                 Text(
                                     text = "部位 ${slotLabel(entry.slot)} | 等级需求 ${entry.levelReq} | 强化上限 ${entry.enhanceMax}",
-                                    color = Color(0xFFB8B2A6)
+                                    color = secondaryTextColor()
                                 )
                                 Text(
                                     text = "基础属性 ${formatStats(entry.baseStats)}",
-                                    color = Color(0xFFB8B2A6)
+                                    color = secondaryTextColor()
                                 )
                                 Text(
                                     text = "词条数量 ${entry.affixMin}-${entry.affixMax} | 卖价 ${entry.sellValue} | 分解产出 ${entry.salvageYield}",
-                                    color = Color(0xFF7B756B)
+                                    color = mutedTextColor()
                                 )
                             } else {
-                                Text(text = "解锁条件：获得该装备", color = Color(0xFF7B756B))
+                                Text(text = "解锁条件：获得该装备", color = mutedTextColor())
                             }
                         }
                     }
@@ -2077,12 +2104,12 @@ private fun SkillCatalogPanel(
         entry.sourceRoleIds.isEmpty() || entry.sourceRoleIds.any { unlockedRoleIds.contains(it) }
     }.map { it.id }.toSet()
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("已收录 ${entries.size} 个技能", color = Color(0xFFB8B2A6))
+        Text("已收录 ${entries.size} 个技能", color = secondaryTextColor())
         if (entries.isEmpty()) {
             PlaceholderPanel("暂无技能图鉴数据")
             return
         }
-        Text(text = "悬浮查看详情", color = Color(0xFF7B756B))
+        Text(text = "悬浮查看详情", color = mutedTextColor())
         val rows = entries.chunked(4)
         LazyColumn(
             modifier = Modifier
@@ -2168,7 +2195,7 @@ private fun SkillCatalogIconCard(
         }
         Text(
             text = if (unlocked) entry.name else "未解锁",
-            color = Color(0xFFB8B2A6),
+            color = secondaryTextColor(),
             textAlign = TextAlign.Center
         )
     }
@@ -2188,21 +2215,21 @@ private fun SkillCatalogDetailCard(entry: SkillCatalogEntry, unlocked: Boolean) 
                 val cooldownText = if (entry.cooldown <= 0) "无" else "${entry.cooldown} 回合"
                 Text(
                     text = "目标 ${entry.target} | 消耗 $costText | 冷却 $cooldownText",
-                    color = Color(0xFFB8B2A6)
+                    color = secondaryTextColor()
                 )
                 if (entry.description.isNotBlank()) {
-                    Text(text = entry.description, color = Color(0xFFB8B2A6))
+                    Text(text = entry.description, color = secondaryTextColor())
                 }
                 if (entry.effects.isNotEmpty()) {
                     Text(
                         text = "效果 ${formatSkillEffects(entry.effects)}",
-                        color = Color(0xFF7B756B)
+                        color = mutedTextColor()
                     )
                 }
                 if (entry.sourceRoleNames.isNotEmpty()) {
                     Text(
                         text = "所属角色 ${entry.sourceRoleNames.joinToString("、")}",
-                        color = Color(0xFF7B756B)
+                        color = mutedTextColor()
                     )
                 }
             } else {
@@ -2211,7 +2238,7 @@ private fun SkillCatalogDetailCard(entry: SkillCatalogEntry, unlocked: Boolean) 
                 } else {
                     "解锁条件：解锁 ${entry.sourceRoleNames.joinToString("、")}"
                 }
-                Text(text = roleHint, color = Color(0xFF7B756B))
+                Text(text = roleHint, color = mutedTextColor())
             }
         }
     }
@@ -2223,7 +2250,7 @@ private fun MonsterCatalogPanel(
     unlockedIds: Set<String>
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("已收录 ${entries.size} 个怪物", color = Color(0xFFB8B2A6))
+        Text("已收录 ${entries.size} 个怪物", color = secondaryTextColor())
         if (entries.isEmpty()) {
             PlaceholderPanel("暂无怪物图鉴数据")
             return
@@ -2246,31 +2273,31 @@ private fun MonsterCatalogPanel(
                         if (unlocked) {
                             Text(
                                 text = "等级 ${entry.level} | 属性 ${formatEnemyStats(entry.stats)}",
-                                color = Color(0xFFB8B2A6)
+                                color = secondaryTextColor()
                             )
                             if (entry.skills.isNotEmpty()) {
                                 Text(text = "技能", fontWeight = FontWeight.SemiBold)
                                 entry.skills.forEach { skill ->
                                     Text(
                                         text = formatEnemySkill(skill),
-                                        color = Color(0xFF7B756B)
+                                        color = mutedTextColor()
                                     )
                                 }
                             }
                             if (entry.appearances.isNotEmpty()) {
                                 Text(
                                     text = "出没记录 ${entry.appearances.joinToString("、")}",
-                                    color = Color(0xFF7B756B)
+                                    color = mutedTextColor()
                                 )
                             }
                             if (entry.notes.isNotBlank()) {
-                                Text(text = "备注 ${entry.notes}", color = Color(0xFF7B756B))
+                                Text(text = "备注 ${entry.notes}", color = mutedTextColor())
                             }
                             if (entry.dropHint.isNotBlank()) {
-                                Text(text = "掉落 ${entry.dropHint}", color = Color(0xFF7B756B))
+                                Text(text = "掉落 ${entry.dropHint}", color = mutedTextColor())
                             }
                         } else {
-                            Text(text = "解锁条件：击败该怪物 1 次", color = Color(0xFF7B756B))
+                            Text(text = "解锁条件：击败该怪物 1 次", color = mutedTextColor())
                         }
                     }
                 }
@@ -2292,10 +2319,10 @@ private fun InventoryPanel(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             "容量 ${inventory.items.size}/${inventory.capacity}",
-            color = Color(0xFFB8B2A6)
+            color = secondaryTextColor()
         )
-        Text(text = "消耗品：红药水 x$redPotion | 蓝药水 x$bluePotion", color = Color(0xFF7B756B))
-        Text(text = "悬浮或长按查看详情，点击图标即可装备", color = Color(0xFF7B756B))
+        Text(text = "消耗品：红药水 x$redPotion | 蓝药水 x$bluePotion", color = mutedTextColor())
+        Text(text = "悬浮或长按查看详情，点击图标即可装备", color = mutedTextColor())
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
@@ -2325,7 +2352,7 @@ private fun InventoryPanel(
 private fun CardPanel(player: PlayerStats) {
     val cards = player.cards
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("已获得卡牌 ${cards.size}", color = Color(0xFFB8B2A6))
+        Text("已获得卡牌 ${cards.size}", color = secondaryTextColor())
         CardGridPanel(cards = cards)
     }
 }
@@ -2399,7 +2426,7 @@ private fun CardGridPanel(cards: List<CardInstance>) {
     val slots = buildCardGridSlots(cards)
     val rows = slots.chunked(InventoryGridColumns)
     if (cards.isEmpty()) {
-        Text(text = "暂无卡牌", color = Color(0xFF7B756B))
+        Text(text = "暂无卡牌", color = mutedTextColor())
     }
     LazyColumn(
         modifier = Modifier
@@ -2472,10 +2499,10 @@ private fun CardTooltipCard(card: CardInstance) {
             )
             Text(
                 text = "类型 ${if (card.isGood) "厉害" else "垃圾"}",
-                color = Color(0xFFB8B2A6)
+                color = secondaryTextColor()
             )
             if (card.description.isNotBlank()) {
-                Text(text = card.description, color = Color(0xFFB8B2A6))
+                Text(text = card.description, color = secondaryTextColor())
             }
             val effectText = formatCardEffects(card.effects)
             if (effectText.isNotBlank()) {
@@ -2498,13 +2525,13 @@ private fun CardSelectDialog(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = "请选择 1 张卡牌，选择后立即生效。",
-                    color = Color(0xFFB8B2A6)
+                    color = secondaryTextColor()
                 )
                 options.forEach { card ->
                     val qualityColor = cardQualityColor(card.quality)
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF182720)),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         border = BorderStroke(1.dp, qualityColor)
                     ) {
                         Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -2515,9 +2542,9 @@ private fun CardSelectDialog(
                             )
                             Text(
                                 text = "类型 ${if (card.isGood) "厉害" else "垃圾"}",
-                                color = Color(0xFFB8B2A6)
+                                color = secondaryTextColor()
                             )
-                            Text(text = card.description, color = Color(0xFFB8B2A6))
+                            Text(text = card.description, color = secondaryTextColor())
                             Text(
                                 text = "效果 ${formatCardEffects(card.effects)}",
                                 color = Color(0xFF8DB38B)
@@ -2659,7 +2686,7 @@ private fun ShopPanel(
             Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(text = "交易操作区", fontWeight = FontWeight.Bold)
                 Divider(modifier = Modifier.padding(vertical = 4.dp))
-                Text(text = "买入合计：${state.shopBuyTotal} 金币", color = Color(0xFFB8B2A6))
+                Text(text = "买入合计：${state.shopBuyTotal} 金币", color = secondaryTextColor())
                 Button(onClick = onShopBuySelected, modifier = Modifier.fillMaxWidth()) {
                     Text("买入")
                 }
@@ -2679,16 +2706,16 @@ private fun ShopPanel(
                 Divider(modifier = Modifier.padding(vertical = 4.dp))
                 Text(
                     text = "容量 ${inventory.items.size}/${inventory.capacity}",
-                    color = Color(0xFFB8B2A6)
+                    color = secondaryTextColor()
                 )
                 Text(
                     text = "卖出合计：${state.shopSellTotal} 金币",
-                    color = Color(0xFFB8B2A6)
+                    color = secondaryTextColor()
                 )
                 if (inventory.items.isEmpty()) {
                     PlaceholderPanel("背包空空如也")
                 } else {
-                    Text(text = "点击图标选择要出售的装备", color = Color(0xFF7B756B))
+                    Text(text = "点击图标选择要出售的装备", color = mutedTextColor())
                     ShopInventoryIconGrid(
                         items = inventory.items,
                         selectedIds = selectedSellIds,
@@ -2757,7 +2784,11 @@ private fun ShopPotionCard(
     modifier: Modifier = Modifier
 ) {
     val borderColor = if (enabled) Color(0xFF6FBF73) else Color(0xFF2C3B33)
-    val background = if (enabled) Color(0xFF182720) else Color(0xFF171E1B)
+    val background = if (enabled) {
+        MaterialTheme.colorScheme.surface
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
     Card(
         colors = CardDefaults.cardColors(containerColor = background),
         border = BorderStroke(1.dp, borderColor),
@@ -2771,8 +2802,8 @@ private fun ShopPotionCard(
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(text = title, fontWeight = FontWeight.SemiBold, color = Color(0xFF8DB38B))
-            Text(text = "价格 $price 金币", color = Color(0xFFB8B2A6))
-            Text(text = "点击购买", color = Color(0xFF7B756B))
+            Text(text = "价格 $price 金币", color = secondaryTextColor())
+            Text(text = "点击购买", color = mutedTextColor())
         }
     }
 }
@@ -2782,7 +2813,7 @@ private fun ShopEmptySlot(
     modifier: Modifier = Modifier
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF151C18)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         border = BorderStroke(1.dp, Color(0xFF2C3B33)),
         modifier = modifier
     ) {
@@ -2829,7 +2860,7 @@ private fun ShopOfferCard(
             modifier = Modifier
                 .fillMaxSize()
                 .alpha(cardAlpha),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF182720)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             border = BorderStroke(1.dp, borderColor)
         ) {
             Row(
@@ -2868,12 +2899,12 @@ private fun ShopOfferCard(
                     )
                     Text(
                         text = "价格 ${offer.price} 金币",
-                        color = Color(0xFFB8B2A6).copy(alpha = cardAlpha)
+                        color = secondaryTextColor().copy(alpha = cardAlpha)
                     )
                     val stockLabel = if (offer.stock > 0) "库存 ${offer.stock}" else "已售罄"
                     Text(
                         text = stockLabel,
-                        color = Color(0xFF7B756B).copy(alpha = cardAlpha)
+                        color = mutedTextColor().copy(alpha = cardAlpha)
                     )
                     if (offer.lockedReason.isNotBlank()) {
                         Text(
@@ -3011,15 +3042,15 @@ private fun StageInfoPanel(
             val stageName = if (stage.name.isNotBlank()) stage.name else "未知关卡"
             Text(
                 text = "章节 ${state.chapter}/${state.totalChapters}  关卡 $stageName  进度 ${stage.visited}/${stage.total}",
-                color = Color(0xFFB8B2A6)
+                color = secondaryTextColor()
             )
             if (stage.id.isNotBlank()) {
-                Text(text = "关卡编号 ${stage.id}", color = Color(0xFF7B756B))
+                Text(text = "关卡编号 ${stage.id}", color = mutedTextColor())
             }
             if (stage.nodeId.isNotBlank()) {
                 Text(
                     text = "节点 ${stage.nodeId}  类型 ${nodeTypeLabel(stage.nodeType)}",
-                    color = Color(0xFF7B756B)
+                    color = mutedTextColor()
                 )
             }
             if (stage.command.isNotBlank()) {
@@ -3031,10 +3062,10 @@ private fun StageInfoPanel(
             Divider(modifier = Modifier.padding(vertical = 4.dp))
             Text(text = "日志摘要", fontWeight = FontWeight.SemiBold)
             if (logPreview.isEmpty()) {
-                Text(text = "暂无日志", color = Color(0xFF7B756B))
+                Text(text = "暂无日志", color = mutedTextColor())
             } else {
                 logPreview.forEach { line ->
-                    Text(text = "• $line", color = Color(0xFFB8B2A6))
+                    Text(text = "• $line", color = secondaryTextColor())
                 }
             }
         }
@@ -3159,8 +3190,8 @@ private fun BattleOptionTile(
 ) {
     val background = if (enabled) Color(0xFF1A2A22) else Color(0xFF151C18)
     val borderColor = if (enabled) accent else Color(0xFF3A3A3A)
-    val titleColor = if (enabled) Color(0xFFECE8D9) else Color(0xFF7B756B)
-    val subtitleColor = if (enabled) Color(0xFFB8B2A6) else Color(0xFF5D5D5D)
+    val titleColor = if (enabled) primaryTextColor() else mutedTextColor()
+    val subtitleColor = if (enabled) secondaryTextColor() else Color(0xFF5D5D5D)
     Card(
         colors = CardDefaults.cardColors(containerColor = background),
         border = BorderStroke(1.dp, borderColor),
@@ -3202,8 +3233,8 @@ private fun BattleSkillTile(
 ) {
     val background = if (enabled) Color(0xFF192B30) else Color(0xFF151C18)
     val borderColor = if (enabled) Color(0xFF5DADE2) else Color(0xFF3A3A3A)
-    val titleColor = if (enabled) Color(0xFFE6EFF7) else Color(0xFF7B756B)
-    val detailColor = if (enabled) Color(0xFFB8B2A6) else Color(0xFF5D5D5D)
+    val titleColor = if (enabled) Color(0xFFE6EFF7) else mutedTextColor()
+    val detailColor = if (enabled) secondaryTextColor() else Color(0xFF5D5D5D)
     Card(
         colors = CardDefaults.cardColors(containerColor = background),
         border = BorderStroke(1.dp, borderColor),
@@ -3246,7 +3277,7 @@ private fun HeaderIconButton(
         else -> Color(0xFF2C3B33)
     }
     val backgroundColor = if (enabled) Color(0xFF1A2520) else Color(0xFF1A2520).copy(alpha = 0.5f)
-    val labelColor = if (enabled) Color(0xFFECE8D9) else Color(0xFF7B756B)
+    val labelColor = if (enabled) primaryTextColor() else mutedTextColor()
     Box(
         modifier = Modifier
             .size(36.dp)
@@ -3262,7 +3293,7 @@ private fun HeaderIconButton(
 @Composable
 private fun RowScope.InfoBlock(title: String, lines: List<Pair<String, String>>) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF182720)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = Modifier.weight(1f)
     ) {
         Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -3275,10 +3306,10 @@ private fun RowScope.InfoBlock(title: String, lines: List<Pair<String, String>>)
                 ) {
                     Text(
                         text = label,
-                        color = Color(0xFF7B756B),
+                        color = mutedTextColor(),
                         modifier = Modifier.width(52.dp)
                     )
-                    Text(text = value, color = Color(0xFFB8B2A6))
+                    Text(text = value, color = secondaryTextColor())
                 }
             }
         }
@@ -3310,21 +3341,21 @@ private fun buildEnemyInfoLines(
 @Composable
 private fun SkillDetailCard(title: String, skill: RoleSkill, showFormula: Boolean) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF182720)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(text = "$title：${skill.name}", fontWeight = FontWeight.SemiBold)
             Text(
                 text = "类型 ${skillTypeLabel(skill.type)}  目标 ${skill.target}",
-                color = Color(0xFFB8B2A6)
+                color = secondaryTextColor()
             )
             if (skill.cost != "-" || skill.cooldown != "-") {
                 val costText = if (skill.cost == "-") "无" else skill.cost
                 val cooldownText = if (skill.cooldown == "-") "无" else skill.cooldown
-                Text(text = "消耗 $costText  冷却 $cooldownText", color = Color(0xFFB8B2A6))
+                Text(text = "消耗 $costText  冷却 $cooldownText", color = secondaryTextColor())
             }
-            Text(text = skill.description, color = Color(0xFFB8B2A6))
+            Text(text = skill.description, color = secondaryTextColor())
             Divider(modifier = Modifier.padding(vertical = 4.dp))
             Text(text = "效果", fontWeight = FontWeight.SemiBold)
             skill.effectLines.forEach { line ->
@@ -3379,6 +3410,8 @@ private fun statusColor(type: StatusType): Color {
 
 @Composable
 private fun SettingsPanelCard(
+    useDarkTheme: Boolean,
+    onToggleTheme: (Boolean) -> Unit,
     showSkillFormula: Boolean,
     onToggleShowSkillFormula: (Boolean) -> Unit,
     codexState: GameUiState? = null,
@@ -3392,11 +3425,11 @@ private fun SettingsPanelCard(
             Divider(modifier = Modifier.padding(vertical = 6.dp))
             if (onReturnToMain != null && onOpenChapterSelect != null) {
                 Text(text = "主界面操作", fontWeight = FontWeight.SemiBold)
-                Text("返回主界面可重新选择存档与角色。", color = Color(0xFFB8B2A6))
+                Text("返回主界面可重新选择存档与角色。", color = secondaryTextColor())
                 Button(onClick = onReturnToMain, modifier = Modifier.fillMaxWidth()) {
                     Text("返回主界面")
                 }
-                Text("切换章节时可进入关卡选择。", color = Color(0xFFB8B2A6))
+                Text("切换章节时可进入关卡选择。", color = secondaryTextColor())
                 Button(onClick = onOpenChapterSelect, modifier = Modifier.fillMaxWidth()) {
                     Text("关卡选择")
                 }
@@ -3408,10 +3441,27 @@ private fun SettingsPanelCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
+                    Text(text = "主题模式", fontWeight = FontWeight.SemiBold)
+                    Text(
+                        text = if (useDarkTheme) "夜间模式：深色背景" else "白天模式：浅色背景",
+                        color = secondaryTextColor()
+                    )
+                }
+                Switch(
+                    checked = useDarkTheme,
+                    onCheckedChange = onToggleTheme
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
                     Text(text = "技能描述显示伤害公式", fontWeight = FontWeight.SemiBold)
                     Text(
                         text = if (showSkillFormula) "已开启，显示伤害计算提示" else "已关闭，仅显示效果描述",
-                        color = Color(0xFFB8B2A6)
+                        color = secondaryTextColor()
                     )
                 }
                 Switch(
@@ -3423,7 +3473,7 @@ private fun SettingsPanelCard(
                 var showCodex by remember { mutableStateOf(false) }
                 Divider(modifier = Modifier.padding(vertical = 4.dp))
                 Text(text = "图鉴面板", fontWeight = FontWeight.SemiBold)
-                Text(text = "图鉴已移入设置面板，可在此展开查看。", color = Color(0xFFB8B2A6))
+                Text(text = "图鉴已移入设置面板，可在此展开查看。", color = secondaryTextColor())
                 Button(onClick = { showCodex = !showCodex }, modifier = Modifier.fillMaxWidth()) {
                     Text(text = if (showCodex) "收起图鉴" else "展开图鉴")
                 }
@@ -3838,8 +3888,23 @@ private fun equipmentLevelColor(level: Int): Color {
         level >= 12 -> Color(0xFFB9770E)
         level >= 8 -> Color(0xFF2E86C1)
         level >= 4 -> Color(0xFF27AE60)
-        else -> Color(0xFFB8B2A6)
+        else -> Color(0xFF8F8F8F)
     }
+}
+
+@Composable
+private fun primaryTextColor(): Color {
+    return MaterialTheme.colorScheme.onSurface
+}
+
+@Composable
+private fun secondaryTextColor(): Color {
+    return MaterialTheme.colorScheme.onSurfaceVariant
+}
+
+@Composable
+private fun mutedTextColor(): Color {
+    return MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
 }
 
 @Composable
@@ -3850,7 +3915,7 @@ private fun PlaceholderPanel(text: String) {
             .height(120.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(text, color = Color(0xFF7B756B))
+        Text(text, color = mutedTextColor())
     }
 }
 
@@ -3891,8 +3956,8 @@ private fun InfoCell(
         Text(
             text = label,
             modifier = Modifier.width(76.dp),
-            color = Color(0xFF7B756B)
+            color = mutedTextColor()
         )
-        Text(text = value, color = Color(0xFFB8B2A6))
+        Text(text = value, color = secondaryTextColor())
     }
 }

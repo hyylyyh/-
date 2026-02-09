@@ -848,6 +848,18 @@ class GameViewModel(
         }
     }
 
+    fun onToggleTheme(useDark: Boolean) {
+        val label = if (useDark) "夜间" else "白天"
+        GameLogger.info(logTag, "设置变更：主题模式=$label")
+        _state.update { current ->
+            current.copy(
+                useDarkTheme = useDark,
+                lastAction = "切换$label模式",
+                log = current.log + "设置：主题模式切换为$label"
+            )
+        }
+    }
+
     fun onEquipItem(itemId: String) {
         val current = _state.value
         if (current.screen != GameScreen.ADVENTURE && current.screen != GameScreen.ROLE_DETAIL) {
@@ -1365,6 +1377,7 @@ class GameViewModel(
                 choices = choices,
                 activePanel = saveGame.activePanel,
                 showSkillFormula = saveGame.showSkillFormula,
+                useDarkTheme = saveGame.useDarkTheme,
                 showCardDialog = saveGame.showCardDialog,
                 cardOptions = saveGame.cardOptions,
                 cardDialogLevel = saveGame.cardDialogLevel,
@@ -3957,6 +3970,7 @@ class GameViewModel(
             lastAction = snapshot.lastAction,
             activePanel = snapshot.activePanel,
             showSkillFormula = snapshot.showSkillFormula,
+            useDarkTheme = snapshot.useDarkTheme,
             selectedDifficulty = snapshot.selectedDifficulty,
             completedChapters = snapshot.completedChapters,
             currentEventId = snapshot.currentEvent?.eventId,

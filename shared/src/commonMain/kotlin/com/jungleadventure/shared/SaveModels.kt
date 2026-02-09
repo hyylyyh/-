@@ -14,6 +14,7 @@ data class SaveGame(
     val lastAction: String,
     val activePanel: GamePanel,
     val showSkillFormula: Boolean = false,
+    val useDarkTheme: Boolean = true,
     val selectedDifficulty: Int = 1,
     val completedChapters: List<Int> = emptyList(),
     val currentEventId: String? = null,

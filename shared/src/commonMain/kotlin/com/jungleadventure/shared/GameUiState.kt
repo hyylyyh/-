@@ -35,6 +35,7 @@ data class GameUiState(
     val lastAction: String = "",
     val saveSlots: List<SaveSlotSummary> = emptyList(),
     val showSkillFormula: Boolean = false,
+    val useDarkTheme: Boolean = true,
     val showDialog: Boolean = false,
     val dialogTitle: String = "",
     val dialogMessage: String = "",
