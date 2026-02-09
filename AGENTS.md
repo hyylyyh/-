@@ -16,3 +16,5 @@
 所有文件/字符串编码统一使用 UTF-8。禁止UTF-8-BOM 和任何其他编码。
 所有文件/字符串编码统一使用 UTF-8。禁止UTF-8-BOM 和任何其他编码。
 
+
+安卓安装方式：将 APK 复制到 /sdcard/Download/，再执行 termux-open /sdcard/Download/<apk> 触发系统安装。
